@@ -1,6 +1,7 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Shield, Radio, LogOut, User, ChevronDown } from 'lucide-react';
+import { Shield, Radio, LogOut, User, ChevronDown, Globe } from 'lucide-react';
 
 export default function Topbar({ onOpenAuth, onSelectRoleDemo }) {
   const { user, activeEvent, logout } = useAuth();
@@ -23,7 +24,7 @@ export default function Topbar({ onOpenAuth, onSelectRoleDemo }) {
     >
       {/* Brand & Event Scope */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, letterSpacing: '0.05em' }}>
+        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, letterSpacing: '0.05em', textDecoration: 'none' }}>
           <div
             style={{
               backgroundColor: 'var(--crimson)',
@@ -39,7 +40,27 @@ export default function Topbar({ onOpenAuth, onSelectRoleDemo }) {
             <Shield size={18} />
           </div>
           <span style={{ fontSize: '1.1rem', color: '#FFFFFF' }}>KOMPAS</span>
-        </div>
+        </Link>
+
+        {/* Back to Public Web Link */}
+        <Link
+          to="/"
+          style={{
+            fontSize: '0.75rem',
+            color: '#CBD5E1',
+            textDecoration: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+            backgroundColor: 'rgba(255, 255, 255, 0.08)',
+            padding: '0.25rem 0.65rem',
+            borderRadius: '4px',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+          }}
+        >
+          <Globe size={13} color="#94A3B8" />
+          <span>Web Publik</span>
+        </Link>
 
         <div style={{ height: '20px', width: '1px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
 

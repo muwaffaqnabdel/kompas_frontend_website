@@ -9,7 +9,7 @@ export default function Topbar({ onOpenAuth, onSelectRoleDemo }) {
   return (
     <header
       style={{
-        backgroundColor: 'var(--deep-slate)',
+        backgroundColor: 'var(--pub-navy-dark)',
         color: '#FFFFFF',
         height: '60px',
         display: 'flex',
@@ -20,26 +20,28 @@ export default function Topbar({ onOpenAuth, onSelectRoleDemo }) {
         position: 'sticky',
         top: 0,
         zIndex: 50,
+        fontFamily: 'var(--font-sans)',
       }}
     >
       {/* Brand & Event Scope */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, letterSpacing: '0.05em', textDecoration: 'none' }}>
+        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontFamily: 'var(--font-heading)', letterSpacing: '-0.02em', textDecoration: 'none' }}>
           <div
             style={{
-              backgroundColor: 'var(--crimson)',
-              width: '28px',
-              height: '28px',
-              borderRadius: '4px',
+              backgroundColor: 'var(--pub-coral)',
+              width: '30px',
+              height: '30px',
+              borderRadius: '8px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: '#FFFFFF',
+              boxShadow: '0 2px 8px rgba(201, 75, 60, 0.4)',
             }}
           >
-            <Shield size={18} />
+            <Shield size={18} strokeWidth={2.4} />
           </div>
-          <span style={{ fontSize: '1.1rem', color: '#FFFFFF' }}>KOMPAS</span>
+          <span style={{ fontSize: '1.15rem', color: '#FFFFFF', fontWeight: 800 }}>KOMPAS<span style={{ color: 'var(--pub-coral)' }}>.</span></span>
         </Link>
 
         {/* Back to Public Web Link */}

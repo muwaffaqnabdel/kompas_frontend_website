@@ -40,7 +40,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--canvas)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--pub-canvas)', fontFamily: 'var(--font-sans)' }}>
       {/* Topbar Navigation */}
       <Topbar onOpenAuth={() => setAuthModalOpen(true)} onSelectRoleDemo={handleSwitchRoleDemo} />
 

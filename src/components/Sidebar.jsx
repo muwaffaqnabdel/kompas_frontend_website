@@ -65,7 +65,7 @@ export default function Sidebar({ currentRole, activeTab, onSelectTab, onSwitchR
     <aside
       style={{
         width: '240px',
-        backgroundColor: 'var(--midnight-navy)',
+        backgroundColor: 'var(--pub-navy)',
         color: '#F8FAFC',
         display: 'flex',
         flexDirection: 'column',
@@ -73,21 +73,22 @@ export default function Sidebar({ currentRole, activeTab, onSelectTab, onSwitchR
         borderRight: '1px solid rgba(255, 255, 255, 0.08)',
         minHeight: 'calc(100vh - 60px)',
         padding: '1.25rem 0.75rem',
+        fontFamily: 'var(--font-sans)',
       }}
     >
       <div>
         {/* Role Badge */}
         <div style={{ padding: '0 0.5rem 1rem 0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', marginBottom: '1rem' }}>
-          <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted-slate)' }}>
+          <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--pub-sand)' }}>
             Peran Aktif
           </div>
-          <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#FFFFFF', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#FFFFFF', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontFamily: 'var(--font-heading)' }}>
             <span
               style={{
                 width: '8px',
                 height: '8px',
                 borderRadius: '50%',
-                backgroundColor: currentRole === 'SUPER_ADMIN' ? '#EF4444' : '#10B981',
+                backgroundColor: currentRole === 'SUPER_ADMIN' ? 'var(--pub-coral)' : 'var(--pub-teal)',
               }}
             />
             {currentRole.replace('_', ' ')}
@@ -109,7 +110,7 @@ export default function Sidebar({ currentRole, activeTab, onSelectTab, onSwitchR
                   gap: '0.75rem',
                   padding: '0.625rem 0.75rem',
                   borderRadius: 'var(--radius-md)',
-                  backgroundColor: isActive ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+                  backgroundColor: isActive ? 'rgba(201, 75, 60, 0.16)' : 'transparent',
                   color: isActive ? '#FFFFFF' : '#94A3B8',
                   border: 'none',
                   fontSize: '0.85rem',
@@ -118,10 +119,10 @@ export default function Sidebar({ currentRole, activeTab, onSelectTab, onSwitchR
                   textAlign: 'left',
                   width: '100%',
                   transition: 'all 0.15s ease',
-                  borderLeft: isActive ? '3px solid var(--crimson)' : '3px solid transparent',
+                  borderLeft: isActive ? '3px solid var(--pub-coral)' : '3px solid transparent',
                 }}
               >
-                <Icon size={16} color={isActive ? '#FFFFFF' : '#94A3B8'} />
+                <Icon size={16} color={isActive ? 'var(--pub-coral)' : '#94A3B8'} />
                 <span>{item.label}</span>
               </button>
             );

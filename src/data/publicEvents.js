@@ -1,4 +1,4 @@
-export const PUBLIC_EVENTS = [
+export const DEFAULT_PUBLIC_EVENTS = [
   {
     id: 'lkbb-nasional-2026',
     slug: 'lkbb-nasional-2026',
@@ -9,12 +9,36 @@ export const PUBLIC_EVENTS = [
     registrationDeadline: '01 November 2026',
     location: 'GOR Remaja Jakarta Timur',
     address: 'Jl. Otista Raya No. 121, Jatinegara, Jakarta Timur',
+    bannerUrl: 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1000&q=80',
     status: 'OPEN', // OPEN, SOON, CLOSED
     quota: '32 Tim',
     registeredCount: 28,
     fee: 'Rp 650.000 / Tim',
     shortDesc: 'Kompetisi baris berbaris tingkat nasional bergengsi memperebutkan Piala Bergilir Kemenpora dengan alur 4 Pos DP dan penjurian digital real-time.',
     fullDesc: 'LKBB Nasional Paskibra 2026 merupakan ajang kompetisi baris berbaris tingkat nasional yang mempertemukan peleton terbaik dari seluruh penjuru Indonesia. Tahun ini, seluruh alur pelaksanaan didukung oleh sistem operasional KOMPAS: mulai dari registrasi dokumen digital, photoshoot tim di DP 2, penguncian flow 4 Pos DP dengan sistem Atomic Lock, hingga transparansi nilai dan catatan evaluasi suara AI Dewan Juri.',
+    judges: [
+      {
+        id: 'juri-1',
+        name: 'Kolonel (Purn) Bambang S., M.Pd',
+        role: 'Ketua Dewan Juri / PBB Murni',
+        institution: 'Purna Paskibra Indonesia (PPI Pusat)',
+        verified: true,
+      },
+      {
+        id: 'juri-2',
+        name: 'Mayor Aris Setiawan',
+        role: 'Anggota Juri / Formasi & Variasi',
+        institution: 'Dispora & Kodam Jaya',
+        verified: true,
+      },
+      {
+        id: 'juri-3',
+        name: 'Dra. Endang Lestari',
+        role: 'Anggota Juri / Danton & Artikulasi',
+        institution: 'Instruktur Protokoler & Kepemudaan Nasional',
+        verified: true,
+      },
+    ],
     requirements: [
       'Setiap tim terdiri dari 1 Komandan Peleton (Danton) dan 15 Pasukan (Total 16 anggota inti).',
       'Maksimal mendaftarkan 2 anggota cadangan resmi.',
@@ -52,12 +76,29 @@ export const PUBLIC_EVENTS = [
     registrationDeadline: '10 Desember 2026',
     location: 'Stadion Patriot Candrabhaga, Bekasi',
     address: 'Jl. Ahmad Yani No. 1, Marga Jaya, Bekasi Selatan',
+    bannerUrl: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=1000&q=80',
     status: 'SOON',
     quota: '40 Tim',
     registeredCount: 0,
     fee: 'Rp 500.000 / Tim',
     shortDesc: 'Ajang unjuk formasi variasi dan kekompakan baris berbaris tingkat regional Jawa Barat & DKI Jakarta.',
     fullDesc: 'Piala Walikota Paskibra 2026 membuka kesempatan bagi pangkalan SMP dan SMA untuk menguji ketangguhan fisik, kekompakan baris, dan kepemimpinan danton dalam atmosfer kompetisi yang sehat dan profesional.',
+    judges: [
+      {
+        id: 'juri-bks-1',
+        name: 'Kapten Arh. Suryono',
+        role: 'Ketua Dewan Juri / PBB Murni',
+        institution: 'Kodim 0507/Bekasi',
+        verified: true,
+      },
+      {
+        id: 'juri-bks-2',
+        name: 'Siti Nurhaliza, S.Pd',
+        role: 'Anggota Juri / Formasi & Variasi',
+        institution: 'PPI Kota Bekasi',
+        verified: true,
+      },
+    ],
     requirements: [
       'Terbuka untuk kontingen sekolah SMP/MTs dan SMA/SMK/MA se-Jawa Barat & DKI.',
       'Satu pangkalan sekolah dapat mengirimkan maksimal 2 peleton (Tim A dan Tim B).',
@@ -85,12 +126,22 @@ export const PUBLIC_EVENTS = [
     registrationDeadline: '01 Desember 2025',
     location: 'Bandung Sport Center, Jawa Barat',
     address: 'Jl. Jakarta No. 45, Bandung',
+    bannerUrl: 'https://images.unsplash.com/photo-1579208575657-c595a05383b7?auto=format&fit=crop&w=1000&q=80',
     status: 'CLOSED',
     quota: '24 Tim',
     registeredCount: 24,
     fee: 'Selesai',
     shortDesc: 'Arsip resmi rekapitulasi nilai dan dokumentasi pemenang Festival Baris Berbaris Nusantara periode 2025.',
     fullDesc: 'Kompetisi tahunan baris berbaris dan variasi formasi Nusantara 2025 telah sukses digelar dengan juara umum diraih oleh Kontingen Jawa Barat.',
+    judges: [
+      {
+        id: 'juri-bdg-1',
+        name: 'Mayor Inf. Dani Ramdani',
+        role: 'Ketua Dewan Juri',
+        institution: 'Pussenif Bandung',
+        verified: true,
+      },
+    ],
     requirements: [
       'Event telah selesai dilaksanakan.',
     ],
@@ -104,3 +155,39 @@ export const PUBLIC_EVENTS = [
     faqs: []
   }
 ];
+
+// Helper to get persistent public events with LocalStorage synchronization
+const STORAGE_KEY = 'kompas_public_events_data';
+
+export function getStoredPublicEvents() {
+  if (typeof window === 'undefined') return DEFAULT_PUBLIC_EVENTS;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_PUBLIC_EVENTS));
+      return DEFAULT_PUBLIC_EVENTS;
+    }
+    return JSON.parse(raw);
+  } catch {
+    return DEFAULT_PUBLIC_EVENTS;
+  }
+}
+
+export function saveStoredPublicEvent(slugOrId, updatedData) {
+  if (typeof window === 'undefined') return;
+  try {
+    const events = getStoredPublicEvents();
+    const index = events.findIndex((e) => e.slug === slugOrId || e.id === slugOrId);
+    if (index !== -1) {
+      events[index] = { ...events[index], ...updatedData };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+      window.dispatchEvent(new CustomEvent('kompas_event_updated', { detail: events[index] }));
+      return events[index];
+    }
+  } catch (err) {
+    console.error('Failed to save public event:', err);
+  }
+}
+
+export const PUBLIC_EVENTS = getStoredPublicEvents();
+

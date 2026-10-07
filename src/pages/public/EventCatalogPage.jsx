@@ -1,34 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Search,
-  Filter,
-  Calendar,
-  MapPin,
-  Users,
-  ArrowRight,
-  Shield,
-  Clock,
-  Sparkles,
+  ArrowUpRight,
 } from 'lucide-react';
-import { PUBLIC_EVENTS } from '../../data/publicEvents';
+import { getStoredPublicEvents } from '../../data/publicEvents';
 
 export default function EventCatalogPage() {
+  const [events, setEvents] = useState(getStoredPublicEvents());
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('ALL');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
 
-  const filteredEvents = PUBLIC_EVENTS.filter((evt) => {
+  useEffect(() => {
+    const handleUpdate = () => {
+      setEvents(getStoredPublicEvents());
+    };
+    window.addEventListener('kompas_event_updated', handleUpdate);
+    return () => window.removeEventListener('kompas_event_updated', handleUpdate);
+  }, []);
+
+  const filteredEvents = events.filter((evt) => {
     const matchesSearch =
       evt.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       evt.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
       evt.organizer.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesStatus = selectedStatus === 'ALL' || evt.status === selectedStatus;
     const matchesCategory =
-      selectedCategory === 'ALL' || evt.category.toLowerCase().includes(selectedCategory.toLowerCase());
+      selectedCategory === 'ALL' ||
+      evt.category.toLowerCase().includes(selectedCategory.toLowerCase());
 
-    return matchesSearch && matchesStatus && matchesCategory;
+    return matchesSearch && matchesCategory;
   });
 
   return (
@@ -112,31 +113,31 @@ export default function EventCatalogPage() {
                 />
               </div>
 
-              {/* Status Tabs */}
+              {/* Category Filter Tabs */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
                 {[
-                  { id: 'ALL', label: 'Semua Status' },
-                  { id: 'OPEN', label: '🟢 Buka' },
-                  { id: 'SOON', label: '🟡 Segera' },
-                  { id: 'CLOSED', label: '⚪ Selesai' },
-                ].map((st) => (
+                  { id: 'ALL', label: 'Semua Kategori' },
+                  { id: 'SMA', label: 'SMA/SMK Sederajat' },
+                  { id: 'SMP', label: 'SMP/MTs Sederajat' },
+                  { id: 'Purna', label: 'Purna / Umum' },
+                ].map((cat) => (
                   <button
-                    key={st.id}
-                    onClick={() => setSelectedStatus(st.id)}
+                    key={cat.id}
+                    onClick={() => setSelectedCategory(cat.id)}
                     style={{
                       fontFamily: 'var(--font-heading)',
                       fontSize: '0.8125rem',
                       fontWeight: 600,
                       padding: '0.45rem 0.9rem',
                       borderRadius: 'var(--pub-radius-pill)',
-                      border: selectedStatus === st.id ? '1px solid var(--pub-coral)' : '1px solid var(--pub-line)',
-                      backgroundColor: selectedStatus === st.id ? 'var(--pub-coral)' : 'transparent',
-                      color: selectedStatus === st.id ? '#FFFFFF' : 'var(--pub-ink)',
+                      border: selectedCategory === cat.id ? '1px solid var(--pub-coral)' : '1px solid var(--pub-line)',
+                      backgroundColor: selectedCategory === cat.id ? 'var(--pub-coral)' : 'transparent',
+                      color: selectedCategory === cat.id ? '#FFFFFF' : 'var(--pub-ink)',
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    {st.label}
+                    {cat.label}
                   </button>
                 ))}
               </div>
@@ -152,102 +153,234 @@ export default function EventCatalogPage() {
                 gap: '2rem',
               }}
             >
-              {filteredEvents.map((evt) => (
-                <div
-                  key={evt.id}
-                  className="pub-card pub-card-hover"
-                  style={{
-                    backgroundColor: 'var(--pub-surface)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <div>
-                    {/* Status & Category */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                      <span
-                        className={
-                          evt.status === 'OPEN'
-                            ? 'pub-badge-open'
-                            : evt.status === 'SOON'
-                            ? 'pub-badge-soon'
-                            : 'pub-badge-closed'
-                        }
-                      >
-                        {evt.status === 'OPEN'
-                          ? '● PENDAFTARAN DIBUKA'
-                          : evt.status === 'SOON'
-                          ? '● SEGERA DIBUKA'
-                          : '● ARSIP / SELESAI'}
-                      </span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--pub-muted)', fontFamily: 'var(--font-mono)' }}>
-                        {evt.category}
-                      </span>
-                    </div>
-
-                    <h2 className="pub-heading" style={{ fontSize: '1.35rem', color: 'var(--pub-ink)', marginBottom: '0.4rem' }}>
-                      {evt.title}
-                    </h2>
-
-                    <div style={{ fontSize: '0.8125rem', color: 'var(--pub-coral)', fontWeight: 600, marginBottom: '0.85rem' }}>
-                      Oleh: {evt.organizer}
-                    </div>
-
-                    <p style={{ fontSize: '0.875rem', color: 'var(--pub-ink-soft)', lineHeight: 1.6, marginBottom: '1.5rem' }}>
-                      {evt.shortDesc}
-                    </p>
-
-                    {/* Metadata details */}
+              {filteredEvents.map((evt, index) => {
+                const boardNumber = String(index + 1).padStart(2, '0');
+                return (
+                  <Link
+                    key={evt.id}
+                    to={`/event/${evt.slug}`}
+                    style={{
+                      textDecoration: 'none',
+                      color: 'inherit',
+                      display: 'block',
+                    }}
+                  >
                     <div
+                      className="pub-card pub-card-hover"
                       style={{
-                        backgroundColor: 'var(--pub-canvas)',
-                        padding: '0.85rem 1rem',
-                        borderRadius: '8px',
+                        backgroundColor: '#FFFFFF',
+                        borderRadius: '24px',
+                        border: '1px solid var(--pub-line)',
+                        padding: '1.5rem',
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: '0.45rem',
-                        fontSize: '0.8125rem',
-                        color: 'var(--pub-ink)',
-                        marginBottom: '1.5rem',
-                        border: '1px solid var(--pub-line)',
+                        gap: '1.25rem',
+                        boxShadow: '0 4px 20px -2px rgba(23, 32, 51, 0.06)',
+                        transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+                        cursor: 'pointer',
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <Calendar size={15} color="var(--pub-coral)" />
-                        <span>Pelaksanaan: <strong>{evt.date}</strong></span>
+                      {/* 1. Header Board Tag */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span
+                          className="pub-mono"
+                          style={{
+                            fontSize: '0.8125rem',
+                            fontWeight: 800,
+                            color: 'var(--pub-coral)',
+                            letterSpacing: '0.12em',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          EVENT BOARD / {boardNumber}
+                        </span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <Clock size={15} color="var(--pub-coral)" />
-                        <span>Batas Pendaftaran: <strong>{evt.registrationDeadline}</strong></span>
+
+                      {/* 2. Banner Inner Container with Title & Category */}
+                      <div
+                        style={{
+                          borderRadius: '16px',
+                          height: '175px',
+                          position: 'relative',
+                          overflow: 'hidden',
+                          backgroundColor: 'var(--pub-navy)',
+                          padding: '1.35rem 1.5rem',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        {evt.bannerUrl && (
+                          <img
+                            src={evt.bannerUrl}
+                            alt={evt.title}
+                            style={{
+                              position: 'absolute',
+                              inset: 0,
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                              display: 'block',
+                            }}
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        )}
+
+                        {/* Warm cinematic gradient overlay matching Image 2 */}
+                        <div
+                          style={{
+                            position: 'absolute',
+                            inset: 0,
+                            background: 'linear-gradient(135deg, rgba(201, 75, 60, 0.82) 0%, rgba(23, 32, 51, 0.88) 100%)',
+                            pointerEvents: 'none',
+                          }}
+                        />
+
+                        {/* Category Top Label inside Banner */}
+                        <div style={{ position: 'relative', zIndex: 1 }}>
+                          <span
+                            className="pub-mono"
+                            style={{
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              color: 'rgba(255, 255, 255, 0.92)',
+                              letterSpacing: '0.1em',
+                              textTransform: 'uppercase',
+                              textShadow: '0 1px 3px rgba(0, 0, 0, 0.4)',
+                            }}
+                          >
+                            {evt.category ? evt.category.toUpperCase() : 'KOMPETISI PASKIBRA'}
+                          </span>
+                        </div>
+
+                        {/* Large Bold Event Title inside Banner */}
+                        <div style={{ position: 'relative', zIndex: 1 }}>
+                          <h2
+                            className="pub-heading"
+                            style={{
+                              fontSize: '1.45rem',
+                              fontWeight: 800,
+                              color: '#FFFFFF',
+                              lineHeight: 1.25,
+                              margin: 0,
+                              textShadow: '0 2px 8px rgba(0, 0, 0, 0.5)',
+                            }}
+                          >
+                            {evt.title}
+                          </h2>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <MapPin size={15} color="var(--pub-coral)" />
-                        <span>{evt.location}</span>
+
+                      {/* 3. Information Section (Hanya Nama Event [di banner], Oleh, dan Tanggal) */}
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr',
+                          gap: '1rem',
+                          padding: '0.25rem 0.25rem',
+                        }}
+                      >
+                        {/* Tanggal Event */}
+                        <div>
+                          <div
+                            className="pub-mono"
+                            style={{
+                              fontSize: '0.6875rem',
+                              fontWeight: 700,
+                              color: 'var(--pub-muted)',
+                              letterSpacing: '0.1em',
+                              textTransform: 'uppercase',
+                              marginBottom: '0.3rem',
+                            }}
+                          >
+                            TANGGAL
+                          </div>
+                          <div
+                            style={{
+                              fontFamily: 'var(--font-heading)',
+                              fontSize: '1.05rem',
+                              fontWeight: 800,
+                              color: 'var(--pub-ink)',
+                              lineHeight: 1.3,
+                            }}
+                          >
+                            {evt.date}
+                          </div>
+                        </div>
+
+                        {/* Oleh / Penyelenggara */}
+                        <div>
+                          <div
+                            className="pub-mono"
+                            style={{
+                              fontSize: '0.6875rem',
+                              fontWeight: 700,
+                              color: 'var(--pub-muted)',
+                              letterSpacing: '0.1em',
+                              textTransform: 'uppercase',
+                              marginBottom: '0.3rem',
+                            }}
+                          >
+                            PENYELENGGARA
+                          </div>
+                          <div
+                            style={{
+                              fontFamily: 'var(--font-heading)',
+                              fontSize: '0.95rem',
+                              fontWeight: 700,
+                              color: 'var(--pub-ink)',
+                              lineHeight: 1.3,
+                            }}
+                          >
+                            {evt.organizer}
+                          </div>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <Users size={15} color="var(--pub-coral)" />
-                        <span>Kuota: <strong>{evt.quota}</strong></span>
+
+                      {/* 4. Bottom Divider + Link Info + Circular Arrow Button */}
+                      <div
+                        style={{
+                          borderTop: '1px solid var(--pub-line-subtle)',
+                          paddingTop: '1rem',
+                          marginTop: '0.25rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: '0.85rem',
+                            fontWeight: 500,
+                            color: 'var(--pub-muted)',
+                          }}
+                        >
+                          {evt.registeredCount ? `${evt.registeredCount} tim terdaftar` : 'Lihat Detail & Juknis'}
+                        </div>
+
+                        <div
+                          style={{
+                            width: '42px',
+                            height: '42px',
+                            borderRadius: '50%',
+                            backgroundColor: 'var(--pub-navy)',
+                            color: '#FFFFFF',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            boxShadow: '0 2px 8px rgba(15, 23, 42, 0.18)',
+                            transition: 'all 0.2s ease',
+                          }}
+                        >
+                          <ArrowUpRight size={20} />
+                        </div>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Card Bottom CTA */}
-                  <div style={{ paddingTop: '1.25rem', borderTop: '1px solid var(--pub-line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--pub-muted)' }}>Biaya Kontingen</div>
-                      <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', fontWeight: 800, color: 'var(--pub-ink)' }}>
-                        {evt.fee}
-                      </div>
-                    </div>
-
-                    <Link to={`/event/${evt.slug}`} className="pub-btn-coral" style={{ fontSize: '0.875rem', padding: '0.55rem 1.15rem' }}>
-                      <span>Lihat Detail & Daftar</span>
-                      <ArrowRight size={15} />
-                    </Link>
-                  </div>
-                </div>
-              ))}
+                  </Link>
+                );
+              })}
             </div>
           ) : (
             <div
@@ -262,12 +395,11 @@ export default function EventCatalogPage() {
                 Tidak ada event yang sesuai pencarian
               </h3>
               <p style={{ fontSize: '0.875rem', color: 'var(--pub-muted)', marginBottom: '1.5rem' }}>
-                Coba sesuaikan kata kunci pencarian atau ubah filter status di atas.
+                Coba sesuaikan kata kunci pencarian atau ubah filter kategori di atas.
               </p>
               <button
                 onClick={() => {
                   setSearchQuery('');
-                  setSelectedStatus('ALL');
                   setSelectedCategory('ALL');
                 }}
                 className="pub-btn-outline"

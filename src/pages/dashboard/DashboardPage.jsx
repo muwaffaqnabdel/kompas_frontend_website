@@ -26,26 +26,26 @@ export default function DashboardPage() {
   const renderActiveView = () => {
     switch (currentRole) {
       case 'SUPER_ADMIN':
-        return <SuperAdminView />;
+        return <SuperAdminView activeTab={activeTab} />;
       case 'PANITIA_DP':
-        return <PanitiaDPView />;
+        return <PanitiaDPView activeTab={activeTab} />;
       case 'JURI':
-        return <JuriView />;
+        return <JuriView activeTab={activeTab} />;
       case 'PESERTA':
-        return <PesertaView />;
+        return <PesertaView activeTab={activeTab} />;
       case 'ADMIN_PANITIA':
       default:
-        return <AdminPanitiaView />;
+        return <AdminPanitiaView activeTab={activeTab} />;
     }
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--pub-canvas)', fontFamily: 'var(--font-sans)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', backgroundColor: 'var(--pub-canvas)', fontFamily: 'var(--font-sans)' }}>
       {/* Topbar Navigation */}
       <Topbar onOpenAuth={() => setAuthModalOpen(true)} onSelectRoleDemo={handleSwitchRoleDemo} />
 
-      {/* Main Container: Sidebar + Workspace */}
-      <div style={{ display: 'flex', flex: 1 }}>
+      {/* Main Container: Fixed Sidebar + Scrollable Workspace */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <Sidebar
           currentRole={currentRole}
           activeTab={activeTab}
@@ -53,8 +53,10 @@ export default function DashboardPage() {
           onSwitchRoleDemo={handleSwitchRoleDemo}
         />
 
-        <main style={{ flex: 1, padding: '1.75rem 2rem', maxWidth: '1440px', overflowY: 'auto' }}>
-          {renderActiveView()}
+        <main style={{ flex: 1, padding: '1.75rem 2rem', overflowY: 'auto', height: '100%', minWidth: 0 }}>
+          <div style={{ maxWidth: '1440px', margin: '0 auto' }}>
+            {renderActiveView()}
+          </div>
         </main>
       </div>
 

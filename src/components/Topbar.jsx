@@ -129,35 +129,37 @@ export default function Topbar({ onOpenAuth, onSelectRoleDemo }) {
           <span style={{ fontWeight: 600 }}>LIVE SYNC</span>
         </div>
 
-        {/* User Account / Role Switcher Demo */}
+        {/* User Account Profile */}
         {user ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#FFFFFF' }}>{user.fullName}</div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--muted-slate)' }}>{user.email}</div>
-            </div>
-            <button
-              onClick={logout}
-              className="btn btn-secondary"
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            <div
               style={{
-                padding: '0.35rem 0.6rem',
-                fontSize: '0.75rem',
-                backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                color: '#F8FAFC',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(201, 75, 60, 0.25)',
+                color: 'var(--pub-coral)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 700,
+                fontSize: '0.85rem',
+                border: '1px solid rgba(201, 75, 60, 0.4)',
               }}
-              title="Keluar dari akun"
             >
-              <LogOut size={14} />
-              <span>Keluar</span>
-            </button>
+              {user.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
+            </div>
+            <div style={{ textAlign: 'left', lineHeight: 1.25 }}>
+              <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#FFFFFF' }}>{user.fullName}</div>
+              <div style={{ fontSize: '0.6875rem', color: '#94A3B8' }}>{user.email}</div>
+            </div>
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <button
               onClick={onOpenAuth}
               className="btn btn-primary"
-              style={{ fontSize: '0.8125rem', padding: '0.4rem 0.9rem' }}
+              style={{ fontSize: '0.8125rem', padding: '0.4rem 0.9rem', backgroundColor: 'var(--pub-coral)' }}
             >
               <User size={14} />
               <span>Login / Masuk</span>

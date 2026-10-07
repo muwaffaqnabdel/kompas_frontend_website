@@ -1,4 +1,5 @@
 import React from 'react';
+import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard,
   Calendar,
@@ -11,9 +12,12 @@ import {
   Activity,
   UserCheck,
   CheckCircle,
+  LogOut,
 } from 'lucide-react';
 
 export default function Sidebar({ currentRole, activeTab, onSelectTab, onSwitchRoleDemo }) {
+  const { logout } = useAuth();
+
   // Menu item berdasarkan Role per PRD UI/UX
   const getNavItems = () => {
     switch (currentRole) {
@@ -64,21 +68,24 @@ export default function Sidebar({ currentRole, activeTab, onSelectTab, onSwitchR
   return (
     <aside
       style={{
-        width: '240px',
+        width: '245px',
         backgroundColor: 'var(--pub-navy)',
         color: '#F8FAFC',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
         borderRight: '1px solid rgba(255, 255, 255, 0.08)',
-        minHeight: 'calc(100vh - 60px)',
-        padding: '1.25rem 0.75rem',
+        height: '100%',
+        flexShrink: 0,
+        padding: '1.25rem 0.85rem',
         fontFamily: 'var(--font-sans)',
+        boxSizing: 'border-box',
       }}
     >
-      <div>
+      {/* Top and Nav Items Section (Scrollable if navigation gets long) */}
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1, overflowY: 'auto', paddingRight: '0.2rem' }}>
         {/* Role Badge */}
-        <div style={{ padding: '0 0.5rem 1rem 0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', marginBottom: '1rem' }}>
+        <div style={{ padding: '0 0.25rem 0.85rem 0.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', marginBottom: '0.85rem' }}>
           <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--pub-sand)' }}>
             Peran Aktif
           </div>
@@ -130,44 +137,94 @@ export default function Sidebar({ currentRole, activeTab, onSelectTab, onSwitchR
         </nav>
       </div>
 
-      {/* Role Quick-Switch Demo Toolbar */}
+      {/* Bottom Locked Section (Pinned at Bottom-Left, Never scrolls away) */}
       <div
         style={{
-          backgroundColor: 'rgba(255, 255, 255, 0.04)',
-          borderRadius: 'var(--radius-md)',
-          padding: '0.75rem',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
+          flexShrink: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.65rem',
+          paddingTop: '0.85rem',
+          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+          marginTop: '0.5rem',
         }}
       >
-        <div style={{ fontSize: '0.6875rem', color: 'var(--muted-slate)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem', fontWeight: 600 }}>
-          Simulasi Peran (Demo)
+        {/* Role Quick-Switch Demo Toolbar */}
+        <div
+          style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.04)',
+            borderRadius: 'var(--radius-md)',
+            padding: '0.6rem 0.65rem',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+          }}
+        >
+          <div style={{ fontSize: '0.65rem', color: 'var(--pub-sand)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.4rem', fontWeight: 700 }}>
+            Simulasi Peran (Demo)
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem' }}>
+            {[
+              { role: 'SUPER_ADMIN', label: '👑 Admin' },
+              { role: 'ADMIN_PANITIA', label: '📋 Panitia' },
+              { role: 'PANITIA_DP', label: '🚩 Pos DP' },
+              { role: 'JURI', label: '⚖️ Juri' },
+              { role: 'PESERTA', label: '🎖️ Peserta' },
+            ].map((r) => (
+              <button
+                key={r.role}
+                onClick={() => onSwitchRoleDemo(r.role)}
+                style={{
+                  fontSize: '0.72rem',
+                  padding: '0.25rem 0.35rem',
+                  borderRadius: '4px',
+                  border: currentRole === r.role ? '1px solid var(--pub-coral)' : '1px solid rgba(255, 255, 255, 0.1)',
+                  backgroundColor: currentRole === r.role ? 'rgba(201, 75, 60, 0.25)' : 'rgba(255, 255, 255, 0.02)',
+                  color: currentRole === r.role ? '#FECACA' : '#CBD5E1',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                  fontWeight: currentRole === r.role ? 700 : 500,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-          {[
-            { role: 'SUPER_ADMIN', label: '👑 Super Admin' },
-            { role: 'ADMIN_PANITIA', label: '📋 Admin Panitia' },
-            { role: 'PANITIA_DP', label: '🚩 Panitia DP' },
-            { role: 'JURI', label: '⚖️ Juri Penilai' },
-            { role: 'PESERTA', label: '🎖️ Peserta Tim' },
-          ].map((r) => (
-            <button
-              key={r.role}
-              onClick={() => onSwitchRoleDemo(r.role)}
-              style={{
-                fontSize: '0.75rem',
-                padding: '0.35rem 0.5rem',
-                borderRadius: '4px',
-                border: currentRole === r.role ? '1px solid var(--crimson)' : '1px solid rgba(255, 255, 255, 0.1)',
-                backgroundColor: currentRole === r.role ? 'rgba(153, 27, 27, 0.25)' : 'rgba(255, 255, 255, 0.02)',
-                color: currentRole === r.role ? '#FECACA' : '#CBD5E1',
-                cursor: 'pointer',
-                textAlign: 'left',
-              }}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
+
+        {/* Tombol Logout Pinned di Bawah Kiri (No Scroll Needed!) */}
+        <button
+          onClick={logout}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.6rem',
+            width: '100%',
+            padding: '0.65rem 0.85rem',
+            borderRadius: 'var(--radius-md)',
+            backgroundColor: 'rgba(239, 68, 68, 0.12)',
+            color: '#FCA5A5',
+            border: '1px solid rgba(239, 68, 68, 0.25)',
+            fontSize: '0.8125rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.25)';
+            e.currentTarget.style.color = '#FFFFFF';
+            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.12)';
+            e.currentTarget.style.color = '#FCA5A5';
+            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.25)';
+          }}
+          title="Keluar dari akun Anda"
+        >
+          <LogOut size={15} />
+          <span>Keluar dari Akun</span>
+        </button>
       </div>
     </aside>
   );

@@ -34,7 +34,7 @@ export default function AdminPanitiaHeader({
               padding: '0.2rem 0.65rem',
               borderRadius: 'var(--pub-radius-pill)',
               fontSize: '0.72rem',
-              fontWeight: 700,
+              fontWeight: 600,
               fontFamily: 'var(--font-mono)',
             }}
           >
@@ -47,8 +47,9 @@ export default function AdminPanitiaHeader({
         <h1
           style={{
             fontFamily: 'var(--font-heading)',
-            fontSize: '1.65rem',
-            fontWeight: 800,
+            fontSize: '1.45rem',
+            fontWeight: 600,
+            letterSpacing: '-0.02em',
             margin: '0 0 0.25rem 0',
             color: 'var(--pub-ink)',
           }}
@@ -80,7 +81,7 @@ export default function AdminPanitiaHeader({
                 backgroundColor: activeSection === 'settings' ? 'var(--pub-coral)' : 'transparent',
                 color: activeSection === 'settings' ? '#FFFFFF' : 'var(--pub-ink)',
                 fontSize: '0.78rem',
-                fontWeight: 700,
+                fontWeight: 500,
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
               }}
@@ -96,7 +97,7 @@ export default function AdminPanitiaHeader({
                 backgroundColor: activeSection === 'operations' ? 'var(--pub-coral)' : 'transparent',
                 color: activeSection === 'operations' ? '#FFFFFF' : 'var(--pub-ink)',
                 fontSize: '0.78rem',
-                fontWeight: 700,
+                fontWeight: 500,
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
               }}

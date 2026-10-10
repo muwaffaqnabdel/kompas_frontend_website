@@ -193,17 +193,18 @@ export default function HomePage() {
 
               {/* Main Headline */}
               <h1
-                className="pub-heading"
                 style={{
-                  fontSize: 'clamp(2.4rem, 4.8vw, 3.8rem)',
-                  lineHeight: 1.12,
-                  color: 'var(--pub-ink)',
-                  marginBottom: '1.25rem',
-                  letterSpacing: '-0.03em',
+                  fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif",
+                  fontWeight: 800,
+                  fontSize: 'clamp(2.9rem, 5.8vw, 4.6rem)',
+                  lineHeight: 0.95,
+                  letterSpacing: '-0.055em',
+                  color: 'var(--pub-navy-dark, #0F1D33)',
+                  marginBottom: '1.5rem',
                 }}
               >
                 Satu alur untuk<br />
-                <span style={{ color: 'var(--pub-coral)' }}>kompetisi</span> yang<br />
+                <span style={{ color: 'var(--pub-coral, #E06D53)' }}>kompetisi</span> yang<br />
                 lebih jelas.
               </h1>
 
@@ -509,16 +510,18 @@ export default function HomePage() {
       {/* ============================================================ */}
       {/* 3. PROBLEM SECTION ("Kompetisi besar tidak harus berantakan") */}
       {/* ============================================================ */}
-      <section style={{ padding: '5rem 0', backgroundColor: 'var(--pub-canvas)', borderBottom: '1px solid var(--pub-line)' }}>
+      {/* ============================================================ */}
+      {/* 3. PROBLEM SECTION ("Kompetisi besar tidak harus terasa berantakan.") */}
+      {/* ============================================================ */}
+      <section
+        style={{
+          padding: '6rem 0',
+          backgroundColor: 'var(--pub-canvas, #F7F5F0)',
+          borderBottom: '1px solid var(--pub-line)',
+        }}
+      >
         <div className="pub-container">
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-              gap: '3.5rem',
-              alignItems: 'start',
-            }}
-          >
+          <div className="pub-problem-grid">
             {/* Left Big Title */}
             <div>
               <div
@@ -526,66 +529,106 @@ export default function HomePage() {
                   fontFamily: 'var(--font-mono)',
                   fontSize: '0.75rem',
                   fontWeight: 600,
-                  color: 'var(--pub-coral)',
+                  color: 'var(--pub-coral, #E06D53)',
                   textTransform: 'uppercase',
-                  letterSpacing: '0.1em',
-                  marginBottom: '0.75rem',
+                  letterSpacing: '0.12em',
+                  marginBottom: '1.25rem',
                 }}
               >
-                MENGAPA KOMPAS
+                KENAPA KOMPAS
               </div>
               <h2
-                className="pub-heading"
                 style={{
-                  fontSize: 'clamp(2rem, 3.8vw, 2.75rem)',
-                  lineHeight: 1.15,
-                  color: 'var(--pub-ink)',
+                  fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif",
+                  fontWeight: 800,
+                  fontSize: 'clamp(1.75rem, 2.6vw, 2.35rem)',
+                  lineHeight: 1.05,
+                  letterSpacing: '-0.045em',
+                  color: 'var(--pub-navy-dark, #0F1D33)',
+                  margin: 0,
                 }}
               >
-                Kompetisi besar<br />
-                tidak harus terasa<br />
-                berantakan.
+                <span style={{ display: 'block', whiteSpace: 'nowrap' }}>Kompetisi besar</span>
+                <span style={{ display: 'block', whiteSpace: 'nowrap' }}>tidak harus terasa</span>
+                <span style={{ display: 'block', whiteSpace: 'nowrap' }}>berantakan.</span>
               </h2>
             </div>
 
-            {/* Right 3 Problem Items */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+            {/* Right 3 Horizontal Items with Colored Top Border (Strictly 1 Row) */}
+            <div className="pub-problem-cards" style={{ paddingTop: '0.25rem' }}>
               {[
                 {
-                  dot: 'var(--pub-coral)',
-                  title: 'Data tercecer',
-                  desc: 'Informasi pendaftaran, berkas peserta, dan revisi tersebar di berbagai kanal tanpa riwayat yang jelas.',
+                  accent: 'var(--pub-coral, #E06D53)',
+                  number: '01',
+                  title: 'Info tercecer',
+                  desc: 'Peserta membuka banyak tautan hanya untuk menemukan satu jawaban.',
                 },
                 {
-                  dot: 'var(--pub-teal)',
-                  title: 'Alur tidak pasti',
-                  desc: 'Peserta bingung harus ke mana berikutnya; panitia lelah menjawab pertanyaan teknis yang berulang.',
+                  accent: 'var(--pub-teal, #1F8A78)',
+                  number: '02',
+                  title: 'Tahap tidak terlihat',
+                  desc: 'Panitia dan peserta sama-sama sulit melihat posisi mereka.',
                 },
                 {
-                  dot: '#2563EB',
-                  title: 'Penilaian tertutup',
-                  desc: 'Juri bekerja dengan format kertas berbeda, rekapitulasi lambat hingga larut malam, dan transparansi diragukan.',
+                  accent: 'var(--pub-amber, #C7832F)',
+                  number: '03',
+                  title: 'Pekerjaan berulang',
+                  desc: 'Tim menghabiskan energi untuk koordinasi, bukan untuk event.',
                 },
               ].map((item, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                <div key={idx} style={{ display: 'flex', flexDirection: 'column' }}>
+                  {/* Top Colored Accent Rule */}
                   <div
                     style={{
-                      width: '10px',
-                      height: '10px',
-                      borderRadius: '50%',
-                      backgroundColor: item.dot,
-                      marginTop: '6px',
-                      flexShrink: 0,
+                      height: '2px',
+                      backgroundColor: item.accent,
+                      width: '100%',
+                      marginBottom: '1.75rem',
                     }}
                   />
-                  <div>
-                    <h3 className="pub-heading" style={{ fontSize: '1.1rem', color: 'var(--pub-ink)', marginBottom: '0.35rem' }}>
-                      {item.title}
-                    </h3>
-                    <p style={{ fontSize: '0.875rem', color: 'var(--pub-ink-soft)', lineHeight: 1.6, margin: 0 }}>
-                      {item.desc}
-                    </p>
+
+                  {/* Mono Number */}
+                  <div
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '1.5rem',
+                      fontWeight: 500,
+                      color: item.accent,
+                      marginBottom: '1.5rem',
+                      lineHeight: 1,
+                    }}
+                  >
+                    {item.number}
                   </div>
+
+                  {/* Title */}
+                  <h3
+                    style={{
+                      fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif",
+                      fontWeight: 700,
+                      fontSize: '1.15rem',
+                      letterSpacing: '-0.025em',
+                      color: 'var(--pub-navy-dark, #0F1D33)',
+                      marginBottom: '0.75rem',
+                      lineHeight: 1.25,
+                      margin: '0 0 0.75rem 0',
+                    }}
+                  >
+                    {item.title}
+                  </h3>
+
+                  {/* Description */}
+                  <p
+                    style={{
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: '0.875rem',
+                      color: 'var(--pub-ink-soft, #596780)',
+                      lineHeight: 1.6,
+                      margin: 0,
+                    }}
+                  >
+                    {item.desc}
+                  </p>
                 </div>
               ))}
             </div>

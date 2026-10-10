@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import AdminPanitiaHeader from './admin-panitia/AdminPanitiaHeader';
 import AdminPanitiaEventSettings from './admin-panitia/AdminPanitiaEventSettings';
 import AdminPanitiaReadiness from './admin-panitia/AdminPanitiaReadiness';
+import AdminPanitiaDPConfig from './admin-panitia/AdminPanitiaDPConfig';
 import AdminPanitiaDPMonitoring from './admin-panitia/AdminPanitiaDPMonitoring';
 import AdminPanitiaParticipantTable from './admin-panitia/AdminPanitiaParticipantTable';
 
@@ -44,7 +45,7 @@ export default function AdminPanitiaView({ activeTab = 'dashboard' }) {
         <AdminPanitiaParticipantTable />
       )}
 
-      {(activeTab === 'flow-dp' || activeTab === 'live-dp') && (
+      {activeTab === 'flow-dp' && (
         <>
           <AdminPanitiaReadiness
             dpFlowLocked={dpFlowLocked}
@@ -52,8 +53,15 @@ export default function AdminPanitiaView({ activeTab = 'dashboard' }) {
             scoringLocked={scoringLocked}
             setScoringLocked={setScoringLocked}
           />
-          <AdminPanitiaDPMonitoring />
+          <AdminPanitiaDPConfig
+            dpFlowLocked={dpFlowLocked}
+            setDpFlowLocked={setDpFlowLocked}
+          />
         </>
+      )}
+
+      {activeTab === 'live-dp' && (
+        <AdminPanitiaDPMonitoring />
       )}
 
       {activeTab === 'staff' && (

@@ -273,6 +273,34 @@ body {
   letter-spacing: -0.01em;
 }
 
+/* Problem Section Layout (Kenapa KOMPAS) */
+.pub-problem-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 3rem;
+  align-items: start;
+}
+
+@media (min-width: 960px) {
+  .pub-problem-grid {
+    grid-template-columns: 390px 1fr;
+    gap: 3.5rem;
+  }
+}
+
+.pub-problem-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2rem;
+}
+
+@media (max-width: 680px) {
+  .pub-problem-cards {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+}
+
 /* Buttons */
 .pub-btn-coral {
   display: inline-flex;

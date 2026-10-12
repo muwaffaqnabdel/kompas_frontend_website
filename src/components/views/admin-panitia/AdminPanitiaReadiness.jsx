@@ -92,10 +92,21 @@ export default function AdminPanitiaReadiness({
             </span>
           </div>
           <p style={{ fontSize: '0.775rem', color: 'var(--pub-muted)', marginBottom: '0.85rem' }}>
-            4 Aba-aba / Kriteria Terkonfigurasi
+            {(() => {
+              try {
+                const s = localStorage.getItem('kompas_scoring_criteria');
+                return s ? JSON.parse(s).length : 4;
+              } catch {
+                return 4;
+              }
+            })()} Aba-aba / Kriteria Terkonfigurasi
           </p>
           <button
-            onClick={() => setScoringLocked(!scoringLocked)}
+            onClick={() => {
+              const next = !scoringLocked;
+              setScoringLocked(next);
+              localStorage.setItem('kompas_scoring_locked', String(next));
+            }}
             className="pub-btn-outline"
             style={{ width: '100%', fontSize: '0.775rem', padding: '0.45rem', justifyContent: 'center', fontWeight: 500 }}
           >
@@ -122,11 +133,18 @@ export default function AdminPanitiaReadiness({
             </span>
           </div>
           <p style={{ fontSize: '0.775rem', color: 'var(--pub-muted)', marginBottom: '0.85rem' }}>
-            4 Operator DP & 3 Juri Resmi Ditugaskan
+            4 Operator DP & {(() => {
+              try {
+                const j = localStorage.getItem('kompas_event_judges');
+                return j ? JSON.parse(j).length : 5;
+              } catch {
+                return 5;
+              }
+            })()} Dewan Juri Resmi
           </p>
           <button className="pub-btn-outline" style={{ width: '100%', fontSize: '0.775rem', padding: '0.45rem', justifyContent: 'center', fontWeight: 500 }}>
             <Users size={14} />
-            <span>Kelola Akun Lapangan</span>
+            <span>Dewan Juri & Operator Terdaftar</span>
           </button>
         </div>
       </div>

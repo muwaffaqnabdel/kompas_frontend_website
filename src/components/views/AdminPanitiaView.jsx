@@ -3,12 +3,20 @@ import AdminPanitiaHeader from './admin-panitia/AdminPanitiaHeader';
 import AdminPanitiaEventSettings from './admin-panitia/AdminPanitiaEventSettings';
 import AdminPanitiaReadiness from './admin-panitia/AdminPanitiaReadiness';
 import AdminPanitiaDPConfig from './admin-panitia/AdminPanitiaDPConfig';
+import AdminPanitiaJudgesConfig from './admin-panitia/AdminPanitiaJudgesConfig';
+import AdminPanitiaCriteriaConfig, { STORAGE_KEY_SCORING_LOCKED } from './admin-panitia/AdminPanitiaCriteriaConfig';
 import AdminPanitiaDPMonitoring from './admin-panitia/AdminPanitiaDPMonitoring';
 import AdminPanitiaParticipantTable from './admin-panitia/AdminPanitiaParticipantTable';
 
 export default function AdminPanitiaView({ activeTab = 'dashboard' }) {
   const [dpFlowLocked, setDpFlowLocked] = useState(false);
-  const [scoringLocked, setScoringLocked] = useState(false);
+  const [scoringLocked, setScoringLocked] = useState(() => {
+    try {
+      return localStorage.getItem(STORAGE_KEY_SCORING_LOCKED) === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [dashboardSection, setDashboardSection] = useState('settings'); // 'settings' or 'operations'
 
   return (
@@ -64,17 +72,23 @@ export default function AdminPanitiaView({ activeTab = 'dashboard' }) {
         <AdminPanitiaDPMonitoring />
       )}
 
-      {activeTab === 'staff' && (
-        <AdminPanitiaEventSettings />
+      {(activeTab === 'judges' || activeTab === 'staff') && (
+        <AdminPanitiaJudgesConfig />
       )}
 
       {activeTab === 'criteria' && (
-        <AdminPanitiaReadiness
-          dpFlowLocked={dpFlowLocked}
-          setDpFlowLocked={setDpFlowLocked}
-          scoringLocked={scoringLocked}
-          setScoringLocked={setScoringLocked}
-        />
+        <>
+          <AdminPanitiaReadiness
+            dpFlowLocked={dpFlowLocked}
+            setDpFlowLocked={setDpFlowLocked}
+            scoringLocked={scoringLocked}
+            setScoringLocked={setScoringLocked}
+          />
+          <AdminPanitiaCriteriaConfig
+            scoringLocked={scoringLocked}
+            setScoringLocked={setScoringLocked}
+          />
+        </>
       )}
 
       {(activeTab === 'schedule' || activeTab === 'results') && (

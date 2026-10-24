@@ -49,9 +49,7 @@ export default function Sidebar({ currentRole, activeTab, onSelectTab, onSwitchR
         ];
       case 'JURI':
         return [
-          { id: 'scoring', label: 'Lembar Nilai Lapangan', icon: Award },
-          { id: 'voice-ai', label: 'Voice Note & AI Feedback', icon: Mic },
-          { id: 'submissions', label: 'Rekap Nilai Terkirim', icon: CheckCircle },
+          { id: 'scoring', label: 'Penjurian Lapangan', icon: Award },
         ];
       case 'PESERTA':
       default:

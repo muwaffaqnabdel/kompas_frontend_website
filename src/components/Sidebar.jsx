@@ -13,6 +13,7 @@ import {
   UserCheck,
   CheckCircle,
   LogOut,
+  Video,
 } from 'lucide-react';
 
 export default function Sidebar({ currentRole, activeTab, onSelectTab, onSwitchRoleDemo }) {
@@ -36,7 +37,7 @@ export default function Sidebar({ currentRole, activeTab, onSelectTab, onSwitchR
           { id: 'flow-dp', label: 'Flow DP (4 Pos)', icon: GitCommit },
           { id: 'judges', label: 'Dewan Juri', icon: UserCheck },
           { id: 'criteria', label: 'Kriteria & Nilai', icon: Award },
-          { id: 'schedule', label: 'Jadwal & TM', icon: Clock },
+          { id: 'schedule', label: 'Technical Meeting', icon: Video },
           { id: 'live-dp', label: 'Monitoring Hari H', icon: Activity },
           { id: 'results', label: 'Hasil & Publikasi', icon: CheckCircle },
         ];

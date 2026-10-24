@@ -7,6 +7,8 @@ import AdminPanitiaJudgesConfig from './admin-panitia/AdminPanitiaJudgesConfig';
 import AdminPanitiaCriteriaConfig, { STORAGE_KEY_SCORING_LOCKED } from './admin-panitia/AdminPanitiaCriteriaConfig';
 import AdminPanitiaDPMonitoring from './admin-panitia/AdminPanitiaDPMonitoring';
 import AdminPanitiaParticipantTable from './admin-panitia/AdminPanitiaParticipantTable';
+import AdminPanitiaTechnicalMeeting from './admin-panitia/AdminPanitiaTechnicalMeeting';
+import AdminPanitiaResults from './admin-panitia/AdminPanitiaResults';
 
 export default function AdminPanitiaView({ activeTab = 'dashboard' }) {
   const [dpFlowLocked, setDpFlowLocked] = useState(false);
@@ -91,30 +93,12 @@ export default function AdminPanitiaView({ activeTab = 'dashboard' }) {
         </>
       )}
 
-      {(activeTab === 'schedule' || activeTab === 'results') && (
-        <div
-          style={{
-            backgroundColor: 'var(--pub-surface)',
-            borderRadius: 'var(--pub-radius-card)',
-            padding: '2.5rem',
-            textAlign: 'center',
-            border: '1px solid var(--pub-line)',
-          }}
-        >
-          <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', color: 'var(--pub-ink)', marginBottom: '0.5rem' }}>
-            {activeTab === 'schedule' ? 'Jadwal Pertandingan & Technical Meeting' : 'Hasil Resmi & Publikasi Nilai'}
-          </h3>
-          <p style={{ fontSize: '0.875rem', color: 'var(--pub-muted)', maxWidth: '500px', margin: '0 auto 1.5rem' }}>
-            Data jadwal dan hasil lomba disinkronkan otomatis dengan status verifikasi berkas peserta dan input penilaian juri di lapangan.
-          </p>
-          <button
-            onClick={() => setDashboardSection('settings')}
-            className="pub-btn-coral"
-            style={{ fontSize: '0.85rem' }}
-          >
-            Kelola di Pengaturan Event
-          </button>
-        </div>
+      {activeTab === 'schedule' && (
+        <AdminPanitiaTechnicalMeeting />
+      )}
+
+      {activeTab === 'results' && (
+        <AdminPanitiaResults />
       )}
     </div>
   );

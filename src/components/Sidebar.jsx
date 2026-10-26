@@ -54,7 +54,7 @@ export default function Sidebar({ currentRole, activeTab, onSelectTab, onSwitchR
       case 'PESERTA':
       default:
         return [
-          { id: 'dashboard', label: 'Progres Lomba', icon: LayoutDashboard },
+          { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
           { id: 'registration', label: 'Data Tim & Berkas', icon: FileText },
           { id: 'schedule', label: 'Jadwal & Agenda TM', icon: Clock },
           { id: 'results', label: 'Nilai & Evaluasi Juri', icon: Award },

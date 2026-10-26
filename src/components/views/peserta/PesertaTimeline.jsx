@@ -2,10 +2,10 @@ import React from 'react';
 
 export default function PesertaTimeline({ steps = [] }) {
   const defaultSteps = [
-    { title: 'Pendaftaran Tim', status: 'COMPLETED' },
-    { title: 'Validasi Berkas', status: 'COMPLETED' },
-    { title: 'Technical Meeting', status: 'CURRENT' },
-    { title: 'Jadwal Tampil', status: 'UPCOMING' },
+    { title: 'Pendaftaran Tim', date: '26 - 27 Oktober 2026', status: 'COMPLETED' },
+    { title: 'Validasi Berkas', date: '28 - 30 Oktober 2026', status: 'COMPLETED' },
+    { title: 'Technical Meeting', date: '08 November 2026', status: 'CURRENT' },
+    { title: 'Jadwal Tampil', date: '10 November 2026', status: 'UPCOMING' },
     { title: 'Penampilan Hari H', status: 'UPCOMING' },
     { title: 'Hasil & Evaluasi Juri', status: 'UPCOMING' },
   ];
@@ -26,7 +26,20 @@ export default function PesertaTimeline({ steps = [] }) {
         Tahapan Perjalanan Lomba Pasukan
       </h3>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', overflowX: 'auto', padding: '0.5rem 0' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', overflowX: 'auto', padding: '0.5rem 0' }}>
+        {/* Connecting track line */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '21px',
+            left: '60px',
+            right: '60px',
+            height: '2px',
+            backgroundColor: 'var(--pub-line)',
+            zIndex: 0,
+          }}
+        />
+
         {items.map((st, idx) => {
           const isCompleted = st.status === 'COMPLETED';
           const isCurrent = st.status === 'CURRENT';
@@ -39,8 +52,10 @@ export default function PesertaTimeline({ steps = [] }) {
                 flexDirection: 'column',
                 alignItems: 'center',
                 textAlign: 'center',
-                minWidth: '130px',
+                minWidth: '135px',
+                flex: '1 1 0px',
                 position: 'relative',
+                zIndex: 1,
               }}
             >
               <div
@@ -51,8 +66,8 @@ export default function PesertaTimeline({ steps = [] }) {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: isCompleted ? 'var(--pub-teal)' : isCurrent ? 'var(--pub-coral)' : 'var(--pub-canvas)',
-                  border: isCompleted || isCurrent ? 'none' : '1px solid var(--pub-line)',
+                  backgroundColor: isCompleted ? 'var(--pub-teal)' : isCurrent ? 'var(--pub-coral)' : 'var(--pub-surface)',
+                  border: isCompleted || isCurrent ? 'none' : '2px solid var(--pub-line)',
                   color: isCompleted || isCurrent ? '#FFFFFF' : 'var(--pub-muted)',
                   fontWeight: 800,
                   fontSize: '0.85rem',
@@ -62,16 +77,40 @@ export default function PesertaTimeline({ steps = [] }) {
               >
                 {isCompleted ? '✓' : idx + 1}
               </div>
+
               <div
                 style={{
-                  fontSize: '0.775rem',
-                  fontWeight: isCurrent ? 800 : 600,
+                  fontSize: '0.785rem',
+                  fontWeight: isCurrent ? 800 : 700,
                   color: isCurrent ? 'var(--pub-coral)' : 'var(--pub-ink)',
+                  lineHeight: 1.25,
                 }}
               >
                 {st.title}
               </div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--pub-muted)', marginTop: '0.15rem' }}>
+
+              {st.date && (
+                <div
+                  style={{
+                    fontSize: '0.7rem',
+                    color: isCurrent ? 'var(--pub-coral)' : 'var(--pub-muted)',
+                    fontWeight: isCurrent ? 700 : 600,
+                    marginTop: '0.2rem',
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {st.date}
+                </div>
+              )}
+
+              <div
+                style={{
+                  fontSize: '0.6875rem',
+                  color: isCompleted ? 'var(--pub-teal)' : isCurrent ? 'var(--pub-coral)' : 'var(--pub-muted)',
+                  marginTop: '0.25rem',
+                  fontWeight: 600,
+                }}
+              >
                 {isCompleted ? 'Selesai' : isCurrent ? 'Tahap Aktif' : 'Menunggu'}
               </div>
             </div>

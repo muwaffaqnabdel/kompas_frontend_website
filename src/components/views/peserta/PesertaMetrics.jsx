@@ -7,11 +7,9 @@ export default function PesertaMetrics({
   orderSlot = 'Slot Pagi (08:30 WIB)',
   school = 'SMAN 1 Jakarta',
   teamName = 'PASKIBRA GARUDA SAKTI',
-  members = '16 Pasukan',
-  composition = '1 Danton + 15 Pasukan',
 }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
       {/* 1. Status Berkas */}
       <div
         style={{
@@ -102,37 +100,6 @@ export default function PesertaMetrics({
         </div>
         <div style={{ fontSize: '0.75rem', color: 'var(--pub-muted)', marginTop: '0.2rem' }}>
           {teamName}
-        </div>
-      </div>
-
-      {/* 4. Jumlah Anggota */}
-      <div
-        style={{
-          backgroundColor: 'var(--pub-surface)',
-          padding: '1.35rem 1.5rem',
-          borderRadius: '16px',
-          border: '1px solid var(--pub-line)',
-          boxShadow: 'var(--pub-shadow-card)',
-          borderLeft: '5px solid var(--pub-navy)',
-        }}
-      >
-        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--pub-muted)', textTransform: 'uppercase' }}>
-          Jumlah Anggota Tim
-        </div>
-        <div
-          className="tabular-nums"
-          style={{
-            fontFamily: 'var(--font-heading)',
-            fontSize: '1.85rem',
-            fontWeight: 800,
-            color: 'var(--pub-ink)',
-            marginTop: '0.2rem',
-          }}
-        >
-          {members}
-        </div>
-        <div style={{ fontSize: '0.75rem', color: 'var(--pub-muted)', marginTop: '0.15rem' }}>
-          {composition}
         </div>
       </div>
     </div>

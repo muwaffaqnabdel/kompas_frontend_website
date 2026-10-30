@@ -6,6 +6,7 @@ export default function PesertaHero({
   location = 'GOR Remaja Jakarta Timur',
   date = '15 November 2026',
   category = 'SMA/SMK Putra-Putri',
+  onOpenSchedule,
 }) {
   return (
     <div
@@ -56,7 +57,11 @@ export default function PesertaHero({
         </p>
       </div>
 
-      <button className="pub-btn-coral" style={{ padding: '0.65rem 1.25rem', fontSize: '0.875rem' }}>
+      <button
+        onClick={onOpenSchedule}
+        className="pub-btn-coral"
+        style={{ padding: '0.65rem 1.25rem', fontSize: '0.875rem', cursor: 'pointer' }}
+      >
         Lihat Notulensi TM
       </button>
     </div>

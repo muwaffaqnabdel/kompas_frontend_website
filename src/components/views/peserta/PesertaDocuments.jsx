@@ -2,10 +2,9 @@ import React from 'react';
 
 export default function PesertaDocuments({ documents = [] }) {
   const defaultDocs = [
-    { name: 'Surat Tugas Kepala Sekolah', status: 'VERIFIED', size: '1.2 MB' },
-    { name: 'Bukti Pembayaran Registrasi', status: 'VERIFIED', size: '450 KB' },
-    { name: 'Foto Resmi Pasukan (16 Orang)', status: 'VERIFIED', size: '3.8 MB' },
-    { name: 'Surat Keterangan Sehat Anggota', status: 'VERIFIED', size: '920 KB' },
+    { name: 'File Kartu Pelajar (Kolektif Anggota)', status: 'VERIFIED', size: '3.4 MB' },
+    { name: 'File Surat Rekomendasi / Pengantar Sekolah', status: 'VERIFIED', size: '1.2 MB' },
+    { name: 'Formulir Pendaftaran & Pakta Integritas', status: 'PENDING', size: '840 KB' },
   ];
 
   const items = documents.length > 0 ? documents : defaultDocs;

@@ -1,7 +1,7 @@
 import React from 'react';
-import { Calendar, Clock } from 'lucide-react';
+import { Calendar, Clock, ArrowRight } from 'lucide-react';
 
-export default function PesertaAgenda() {
+export default function PesertaAgenda({ onOpenSchedule }) {
   return (
     <div
       style={{
@@ -12,9 +12,31 @@ export default function PesertaAgenda() {
         boxShadow: 'var(--pub-shadow-card)',
       }}
     >
-      <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.05rem', fontWeight: 800, color: 'var(--pub-ink)', margin: '0 0 1rem 0' }}>
-        Agenda & Technical Meeting
-      </h3>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.05rem', fontWeight: 800, color: 'var(--pub-ink)', margin: 0 }}>
+          Agenda & Technical Meeting
+        </h3>
+        {onOpenSchedule && (
+          <button
+            onClick={onOpenSchedule}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--pub-coral)',
+              fontSize: '0.775rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+              padding: 0,
+            }}
+          >
+            <span>Buka Jadwal</span>
+            <ArrowRight size={13} />
+          </button>
+        )}
+      </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
         <div style={{ padding: '1rem', borderRadius: '12px', backgroundColor: 'var(--pub-canvas)', border: '1px solid var(--pub-line)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--pub-coral)', fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase' }}>

@@ -32,7 +32,7 @@ export default function DashboardPage() {
       case 'JURI':
         return <JuriView activeTab={activeTab} />;
       case 'PESERTA':
-        return <PesertaView activeTab={activeTab} />;
+        return <PesertaView activeTab={activeTab} onSelectTab={setActiveTab} />;
       case 'ADMIN_PANITIA':
       default:
         return <AdminPanitiaView activeTab={activeTab} />;

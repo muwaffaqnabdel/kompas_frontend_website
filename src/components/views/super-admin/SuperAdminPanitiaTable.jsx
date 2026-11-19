@@ -131,39 +131,36 @@ export default function SuperAdminPanitiaTable({ onOpenAssignModal, events = [] 
 
       {/* Table Content */}
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+        <table style={{ width: '100%', minWidth: '950px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
           <thead>
             <tr style={{ backgroundColor: 'var(--pub-canvas)', borderBottom: '1px solid var(--pub-line)' }}>
-              <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700, color: 'var(--pub-ink)', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+              <th style={{ padding: '0.95rem 1.25rem', fontWeight: 700, color: 'var(--pub-ink)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em', width: '28%' }}>
                 Admin Panitia
               </th>
-              <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--pub-ink)', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+              <th style={{ padding: '0.95rem 1rem', fontWeight: 700, color: 'var(--pub-ink)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em', width: '32%' }}>
                 Event yang Dikelola
               </th>
-              <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--pub-ink)', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+              <th style={{ padding: '0.95rem 1rem', fontWeight: 700, color: 'var(--pub-ink)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em', width: '14%' }}>
                 Beban Penugasan
               </th>
-              <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--pub-ink)', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+              <th style={{ padding: '0.95rem 1rem', fontWeight: 700, color: 'var(--pub-ink)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em', width: '13%' }}>
                 Status Akun
               </th>
-              <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--pub-ink)', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+              <th style={{ padding: '0.95rem 1.25rem', fontWeight: 700, color: 'var(--pub-ink)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em', width: '13%' }}>
                 Terdaftar Sejak
-              </th>
-              <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700, color: 'var(--pub-ink)', fontSize: '0.75rem', textTransform: 'uppercase', textAlign: 'right' }}>
-                Aksi
               </th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--pub-muted)' }}>
+                <td colSpan={5} style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--pub-muted)' }}>
                   Memuat data akun Admin Panitia...
                 </td>
               </tr>
             ) : filteredAdmins.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--pub-muted)' }}>
+                <td colSpan={5} style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--pub-muted)' }}>
                   Tidak ada data Admin Panitia yang sesuai.
                 </td>
               </tr>
@@ -182,7 +179,7 @@ export default function SuperAdminPanitiaTable({ onOpenAssignModal, events = [] 
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                   >
                     {/* 1. Admin Panitia */}
-                    <td style={{ padding: '0.9rem 1.25rem' }}>
+                    <td style={{ padding: '0.95rem 1.25rem' }}>
                       <div style={{ fontWeight: 700, color: 'var(--pub-ink)', fontSize: '0.925rem' }}>
                         {adm.fullName}
                       </div>
@@ -192,11 +189,11 @@ export default function SuperAdminPanitiaTable({ onOpenAssignModal, events = [] 
                     </td>
 
                     {/* 2. Event yang Dikelola */}
-                    <td style={{ padding: '0.9rem 1rem' }}>
+                    <td style={{ padding: '0.95rem 1rem' }}>
                       {assignedCount > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                           {adm.assignedEvents.map((ev, i) => (
-                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
                               <span style={{ fontWeight: 600, color: 'var(--pub-ink)' }}>{ev.name}</span>
                               <code
                                 style={{
@@ -205,6 +202,7 @@ export default function SuperAdminPanitiaTable({ onOpenAssignModal, events = [] 
                                   backgroundColor: 'var(--pub-canvas)',
                                   padding: '0.1rem 0.35rem',
                                   borderRadius: '4px',
+                                  border: '1px solid var(--pub-line)',
                                   color: 'var(--pub-muted)',
                                 }}
                               >
@@ -221,14 +219,14 @@ export default function SuperAdminPanitiaTable({ onOpenAssignModal, events = [] 
                     </td>
 
                     {/* 3. Beban Penugasan */}
-                    <td style={{ padding: '0.9rem 1rem' }}>
+                    <td style={{ padding: '0.95rem 1rem' }}>
                       <span className="tabular-nums" style={{ fontWeight: 700, color: 'var(--pub-ink)' }}>
                         {assignedCount} Event
                       </span>
                     </td>
 
                     {/* 4. Status Akun */}
-                    <td style={{ padding: '0.9rem 1rem' }}>
+                    <td style={{ padding: '0.95rem 1rem' }}>
                       <span
                         style={{
                           backgroundColor: adm.isActive ? 'var(--pub-teal-light)' : 'var(--pub-coral-pale)',
@@ -245,7 +243,7 @@ export default function SuperAdminPanitiaTable({ onOpenAssignModal, events = [] 
                     </td>
 
                     {/* 5. Terdaftar Sejak */}
-                    <td style={{ padding: '0.9rem 1rem', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '0.95rem 1.25rem', whiteSpace: 'nowrap' }}>
                       <div style={{ fontSize: '0.8rem', color: 'var(--pub-ink-soft)' }}>
                         {new Date(adm.createdAt).toLocaleDateString('id-ID', {
                           day: 'numeric',
@@ -253,29 +251,6 @@ export default function SuperAdminPanitiaTable({ onOpenAssignModal, events = [] 
                           year: 'numeric',
                         })}
                       </div>
-                    </td>
-
-                    {/* 6. Aksi */}
-                    <td style={{ padding: '0.9rem 1.25rem', textAlign: 'right' }}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const targetEvent = events[0] || null;
-                          if (targetEvent) {
-                            onOpenAssignModal(targetEvent);
-                          }
-                        }}
-                        className="pub-btn-outline"
-                        style={{
-                          padding: '0.35rem 0.75rem',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          color: 'var(--pub-coral)',
-                        }}
-                        title="Tugaskan ke event lain"
-                      >
-                        Tugaskan Event
-                      </button>
                     </td>
                   </tr>
                 );

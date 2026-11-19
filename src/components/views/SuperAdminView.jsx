@@ -4,6 +4,7 @@ import SuperAdminStats from './super-admin/SuperAdminStats';
 import SuperAdminOverviewCharts from './super-admin/SuperAdminOverviewCharts';
 import SuperAdminEventTable from './super-admin/SuperAdminEventTable';
 import SuperAdminPanitiaTable from './super-admin/SuperAdminPanitiaTable';
+import SuperAdminMonitoringCards from './super-admin/SuperAdminMonitoringCards';
 import SuperAdminAuditLog from './super-admin/SuperAdminAuditLog';
 import CreateEventModal from './super-admin/modals/CreateEventModal';
 import AssignAdminModal from './super-admin/modals/AssignAdminModal';
@@ -255,6 +256,8 @@ export default function SuperAdminView({ activeTab = 'overview' }) {
                 ? 'PENGELOLA OPERASIONAL LOMBA'
                 : activeTab === 'audit'
                 ? 'SECURITY & AUDIT TRAIL'
+                : activeTab === 'monitoring'
+                ? 'MONITORING LAPANGAN & VALIDASI BERKAS'
                 : 'KONTROL & MONITORING GLOBAL'}
             </span>
           </div>
@@ -274,6 +277,8 @@ export default function SuperAdminView({ activeTab = 'overview' }) {
               ? 'Manajemen Akun Admin Panitia'
               : activeTab === 'audit'
               ? 'Jejak Audit & Log Operasional'
+              : activeTab === 'monitoring'
+              ? 'Monitoring Lapangan & Berkas Kontingen'
               : 'Overview Operasional & Kontrol Event'}
           </h1>
           <p style={{ fontSize: '0.9rem', color: 'var(--pub-muted)', margin: 0, maxWidth: '720px' }}>
@@ -283,6 +288,8 @@ export default function SuperAdminView({ activeTab = 'overview' }) {
               ? 'Daftar akun pengelola operasional yang memiliki hak akses pengelolaan event lomba Paskibra.'
               : activeTab === 'audit'
               ? 'Catatan rekaman aksi seluruh pengguna, perubahan status lomba, dan mutasi data secara kronologis.'
+              : activeTab === 'monitoring'
+              ? 'Pantau progres kesiapan lapangan, status pos Decision Point (DP 1-4), dan kelengkapan dokumen kontingen secara interaktif.'
               : 'Pusat kendali Super Admin: daftarkan lomba baru, atur status alur persiapan, delegasikan Admin Panitia, dan pantau seluruh perlombaan Paskibra se-Indonesia.'}
           </p>
         </div>
@@ -339,20 +346,12 @@ export default function SuperAdminView({ activeTab = 'overview' }) {
         />
       )}
 
-      {/* TAB: MONITORING LAPANGAN */}
+      {/* TAB: MONITORING LAPANGAN (Visual Operational Cards) */}
       {activeTab === 'monitoring' && (
-        <>
-          <SuperAdminOverviewCharts events={events} stats={stats} />
-          <SuperAdminEventTable
-            events={events}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            statusFilter={statusFilter}
-            setStatusFilter={setStatusFilter}
-            onOpenAssignModal={handleOpenAssignModal}
-            onOpenControlModal={handleOpenControlModal}
-          />
-        </>
+        <SuperAdminMonitoringCards
+          events={events}
+          onOpenControlModal={handleOpenControlModal}
+        />
       )}
 
       {/* TAB: AUDIT TRAIL & LOG */}

@@ -9,6 +9,7 @@ import {
   AlertCircle,
   ShieldAlert,
   CheckCircle2,
+  Lock,
 } from 'lucide-react';
 
 export default function SuperAdminEventTable({
@@ -686,41 +687,68 @@ export default function SuperAdminEventTable({
                             {/* Pilihan 1: Admin */}
                             <button
                               type="button"
+                              disabled={hasAdmin}
                               onClick={() => {
+                                if (hasAdmin) return;
                                 setOpenDropdownId(null);
                                 onOpenAssignModal(evt);
                               }}
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
+                                justifyContent: 'space-between',
                                 gap: '0.6rem',
                                 width: '100%',
                                 padding: '0.55rem 0.75rem',
                                 borderRadius: '6px',
                                 fontSize: '0.8125rem',
                                 fontWeight: 600,
-                                color: 'var(--pub-ink)',
+                                color: hasAdmin ? 'var(--pub-muted)' : 'var(--pub-ink)',
                                 border: 'none',
                                 backgroundColor: 'transparent',
                                 textAlign: 'left',
-                                cursor: 'pointer',
+                                cursor: hasAdmin ? 'not-allowed' : 'pointer',
+                                opacity: hasAdmin ? 0.6 : 1,
                                 transition: 'background-color 0.15s ease, color 0.15s ease',
                               }}
                               onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = 'var(--pub-canvas)';
-                                e.currentTarget.style.color = 'var(--pub-coral)';
+                                if (!hasAdmin) {
+                                  e.currentTarget.style.backgroundColor = 'var(--pub-canvas)';
+                                  e.currentTarget.style.color = 'var(--pub-coral)';
+                                }
                               }}
                               onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = 'transparent';
-                                e.currentTarget.style.color = 'var(--pub-ink)';
+                                if (!hasAdmin) {
+                                  e.currentTarget.style.backgroundColor = 'transparent';
+                                  e.currentTarget.style.color = 'var(--pub-ink)';
+                                }
                               }}
+                              title={hasAdmin ? 'Admin Panitia sudah ditugaskan (Terkunci)' : `Tugaskan Admin Panitia untuk ${evt.name}`}
                             >
-                              {evt.adminPanitia ? (
-                                <UserCheck size={15} color="var(--pub-coral)" />
-                              ) : (
-                                <UserPlus size={15} color="var(--pub-coral)" />
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+                                {hasAdmin ? (
+                                  <Lock size={15} color="var(--pub-muted)" />
+                                ) : (
+                                  <UserPlus size={15} color="var(--pub-coral)" />
+                                )}
+                                <span>Admin</span>
+                              </div>
+                              {hasAdmin && (
+                                <span
+                                  style={{
+                                    fontSize: '0.625rem',
+                                    fontWeight: 700,
+                                    backgroundColor: 'var(--pub-line)',
+                                    color: 'var(--pub-muted)',
+                                    padding: '0.1rem 0.35rem',
+                                    borderRadius: '4px',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.04em',
+                                  }}
+                                >
+                                  Terkunci
+                                </span>
                               )}
-                              <span>Admin</span>
                             </button>
 
                             <div style={{ height: '1px', backgroundColor: 'var(--pub-line-subtle)', margin: '0.1rem 0' }} />

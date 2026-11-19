@@ -1,29 +1,135 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
   ArrowUpRight,
   ChevronDown,
-  ChevronRight,
-  Shield,
-  CheckCircle2,
-  Calendar,
-  MapPin,
-  Users,
-  Sparkles,
-  GitCommit,
-  Award,
-  Layers,
-  Clock,
-  ExternalLink,
   FileText,
+  Layers,
   ClipboardCheck,
+  Users,
 } from 'lucide-react';
+
+// ---------------------------------------------------------------------------
+// FORMATION BACKGROUND PARALLAX (PASKIBRA MARCHING FORMATION DOTS & LINES)
+// ---------------------------------------------------------------------------
+function FormationBackgroundParallax({ scrollY, isMobile, prefersReducedMotion }) {
+  if (prefersReducedMotion) return null;
+
+  // Desktop: 2 layer dengan kecepatan pergerakan berbeda untuk kedalaman visual
+  // Layer 1: Formasi titik barisan (Shaf & Banjar) bergerak santai (0.05x)
+  // Layer 2: Garis geometri pandu lapangan bergerak lebih dalam (0.11x)
+  // Mobile: 1 layer sederhana (0.025x) tanpa layer kedua agar ringan
+  const offset1 = isMobile ? scrollY * 0.025 : scrollY * 0.05;
+  const offset2 = isMobile ? 0 : scrollY * 0.11;
+
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        pointerEvents: 'none',
+        zIndex: 0,
+        overflow: 'hidden',
+      }}
+    >
+      {/* LAYER 1: FORMATION DOTS & SHAF/BANJAR GUIDE LINES */}
+      <svg
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '140%',
+          transform: `translate3d(0, ${-offset1}px, 0)`,
+          willChange: 'transform',
+        }}
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <defs>
+          {/* Pola Barisan Shaf & Banjar (48px x 48px) */}
+          <pattern id="paskibra-shaf-banjar" width="48" height="48" patternUnits="userSpaceOnUse">
+            {/* Garis Shaf Horizontal Tipis */}
+            <line x1="0" y1="24" x2="48" y2="24" stroke="#172A46" strokeWidth="0.5" strokeDasharray="2 6" opacity="0.04" />
+            {/* Garis Banjar Vertikal Tipis */}
+            <line x1="24" y1="0" x2="24" y2="48" stroke="#172A46" strokeWidth="0.5" strokeDasharray="2 6" opacity="0.04" />
+            {/* Titik Formasi Pasukan (Formation Dot) */}
+            <circle cx="24" cy="24" r="1.6" fill="#172A46" opacity="0.065" />
+          </pattern>
+
+          {/* Aksentuasi Titik Penjuru & Danton (Interval 192px) */}
+          <pattern id="paskibra-danton-accent" width="192" height="192" patternUnits="userSpaceOnUse">
+            <circle cx="96" cy="96" r="2.4" fill="#C94B3C" opacity="0.09" />
+            <circle cx="96" cy="96" r="6" fill="none" stroke="#C94B3C" strokeWidth="0.5" opacity="0.055" />
+          </pattern>
+        </defs>
+
+        <rect width="100%" height="100%" fill="url(#paskibra-shaf-banjar)" />
+        <rect width="100%" height="100%" fill="url(#paskibra-danton-accent)" />
+      </svg>
+
+      {/* LAYER 2 (DESKTOP ONLY): GEOMETRIC FIELD BOUNDARIES & ALIGNMENT ANGLES */}
+      {!isMobile && (
+        <svg
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '160%',
+            transform: `translate3d(0, ${-offset2}px, 0)`,
+            willChange: 'transform',
+          }}
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          {/* Sudut Penjuru & Titik Sumbu Lapangan Paskibra */}
+          <g stroke="#1F8A78" strokeWidth="0.75" fill="none" opacity="0.045">
+            {/* Sudut Kiri Atas */}
+            <path d="M 60 140 L 60 100 L 100 100" />
+            {/* Sudut Kanan Atas */}
+            <path d="M 1180 140 L 1180 100 L 1140 100" />
+
+            {/* Sumbu Simetri Formasi */}
+            <line x1="620" y1="480" x2="620" y2="520" strokeDasharray="3 3" />
+            <line x1="600" y1="500" x2="640" y2="500" strokeDasharray="3 3" />
+            <circle cx="620" cy="500" r="14" strokeDasharray="2 3" />
+
+            {/* Sudut Bawah */}
+            <path d="M 80 1100 L 80 1140 L 120 1140" />
+            <path d="M 1160 1100 L 1160 1140 L 1120 1140" />
+          </g>
+
+          {/* Garis Diagonal Formasi Berdisiplin */}
+          <g stroke="#172A46" strokeWidth="0.5" strokeDasharray="4 8" opacity="0.03">
+            <line x1="120" y1="240" x2="320" y2="440" />
+            <line x1="1120" y1="240" x2="920" y2="440" />
+            <line x1="160" y1="1300" x2="360" y2="1500" />
+            <line x1="1080" y1="1300" x2="880" y2="1500" />
+          </g>
+        </svg>
+      )}
+    </div>
+  );
+}
 
 export default function HomePage() {
   const [activeRole, setActiveRole] = useState('penyelenggara');
   const [openFaqIndex, setOpenFaqIndex] = useState(null);
-  const [openStepIndex, setOpenStepIndex] = useState(0);
+
+  // Parallax & Device Responsive State
+  const [scrollY, setScrollY] = useState(0);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+
+  // Hero Card 3D Tilt State (Mouse-driven)
+  const [heroTilt, setHeroTilt] = useState({ x: 0, y: 0, active: false });
+  const heroCardRef = useRef(null);
 
   // Stacked Event Card Data in Hero
   const [heroCardIndex, setHeroCardIndex] = useState(0);
@@ -159,12 +265,263 @@ export default function HomePage() {
     },
   ];
 
+  // ---------------------------------------------------------------------------
+  // SCROLL PARALLAX, RESIZE & PREFERS-REDUCED-MOTION LISTENER
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    // 1. Cek prefers-reduced-motion listener
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const handleMotionChange = (e) => setPrefersReducedMotion(e.matches);
+    motionQuery.addEventListener('change', handleMotionChange);
+
+    // 2. Cek ukuran layar mobile listener
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize, { passive: true });
+
+    // 3. Scroll Parallax menggunakan requestAnimationFrame
+    let ticking = false;
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          setScrollY(window.scrollY);
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      motionQuery.removeEventListener('change', handleMotionChange);
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // SCROLL REVEAL OBSERVER (INTERSECTION OBSERVER)
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (prefersReducedMotion) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('pub-revealed');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -30px 0px' }
+    );
+
+    const revealElements = document.querySelectorAll('.pub-reveal-on-scroll');
+    revealElements.forEach((el) => observer.observe(el));
+
+    return () => observer.disconnect();
+  }, [prefersReducedMotion]);
+
+  // ---------------------------------------------------------------------------
+  // HERO MOUSE MOVE 3D TILT HANDLERS (DESKTOP ONLY)
+  // ---------------------------------------------------------------------------
+  const handleHeroMouseMove = (e) => {
+    if (isMobile || prefersReducedMotion || !heroCardRef.current) return;
+    const rect = heroCardRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left - rect.width / 2) / (rect.width / 2); // -1 to 1
+    const y = (e.clientY - rect.top - rect.height / 2) / (rect.height / 2); // -1 to 1
+
+    setHeroTilt({
+      x: -y * 5, // Rotasi X (tilt atas-bawah)
+      y: x * 5,  // Rotasi Y (tilt kiri-kanan)
+      active: true,
+    });
+  };
+
+  const handleHeroMouseLeave = () => {
+    setHeroTilt({ x: 0, y: 0, active: false });
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      {/* ===================================================================== */}
+      {/* FORMATION BACKGROUND PARALLAX (DEKORATIF PASKIBRA SHAF & BANJAR)       */}
+      {/* ===================================================================== */}
+      <FormationBackgroundParallax
+        scrollY={scrollY}
+        isMobile={isMobile}
+        prefersReducedMotion={prefersReducedMotion}
+      />
+
+      {/* ===================================================================== */}
+      {/* CSS INTERAKSI, SCROLL REVEAL & MICRO-ANIMATION MODERN                */}
+      {/* ===================================================================== */}
+      <style>{`
+        /* Scroll Reveal Utility */
+        .pub-reveal-on-scroll {
+          opacity: 0;
+          transform: translateY(18px);
+          transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+          will-change: opacity, transform;
+        }
+
+        .pub-reveal-on-scroll.pub-revealed {
+          opacity: 1;
+          transform: translateY(0);
+        }
+
+        /* Stagger Delays */
+        .pub-stagger-1 { transition-delay: 60ms; }
+        .pub-stagger-2 { transition-delay: 130ms; }
+        .pub-stagger-3 { transition-delay: 200ms; }
+        .pub-stagger-4 { transition-delay: 270ms; }
+
+        /* Button Micro-interactions (Desktop & Touch) */
+        .pub-btn-interactive {
+          transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease, background-color 0.18s ease;
+        }
+
+        @media (hover: hover) and (pointer: fine) {
+          .pub-btn-interactive:hover {
+            transform: translateY(-2px);
+          }
+          .pub-btn-interactive:hover .pub-arrow-icon {
+            transform: translateX(3px);
+          }
+        }
+
+        .pub-btn-interactive:active {
+          transform: translateY(0) scale(0.98);
+        }
+
+        .pub-arrow-icon {
+          transition: transform 0.18s ease;
+        }
+
+        /* Interactive Problem Cards (Kenapa KOMPAS) */
+        .pub-problem-item {
+          transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+          border-radius: 8px;
+          padding: 0.5rem;
+          margin: -0.5rem;
+        }
+
+        @media (hover: hover) and (pointer: fine) {
+          .pub-problem-item:hover {
+            transform: translateY(-3px);
+          }
+          .pub-problem-item:hover .pub-problem-line {
+            transform: scaleX(1.04);
+            filter: brightness(1.15);
+          }
+          .pub-problem-item:hover .pub-problem-number {
+            transform: scale(1.05);
+          }
+        }
+
+        .pub-problem-line {
+          transition: transform 0.25s ease, filter 0.25s ease;
+          transform-origin: left center;
+        }
+
+        .pub-problem-number {
+          transition: transform 0.25s ease;
+          display: inline-block;
+        }
+
+        /* Interactive Dark Quadrant Grid Items */
+        .pub-quadrant-cell {
+          transition: background-color 0.22s ease;
+        }
+
+        @media (hover: hover) and (pointer: fine) {
+          .pub-quadrant-cell:hover {
+            background-color: rgba(255, 255, 255, 0.035);
+          }
+          .pub-quadrant-cell:hover .pub-quadrant-icon {
+            transform: scale(1.1) translateY(-2px);
+          }
+        }
+
+        .pub-quadrant-icon {
+          transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Interactive Process Steps (Tahapan Lomba) */
+        .pub-process-card {
+          transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, border-color 0.22s ease;
+        }
+
+        @media (hover: hover) and (pointer: fine) {
+          .pub-process-card:hover {
+            transform: translateX(5px);
+            border-left: 3px solid var(--pub-coral);
+            box-shadow: 0 6px 18px -3px rgba(23, 32, 51, 0.07);
+          }
+          .pub-process-card:hover .pub-step-num {
+            transform: scale(1.1);
+          }
+        }
+
+        .pub-step-num {
+          transition: transform 0.2s ease;
+          display: inline-block;
+        }
+
+        /* Interactive Event Cards */
+        .pub-event-banner-wrap {
+          overflow: hidden;
+          border-radius: 18px;
+        }
+
+        .pub-event-banner-inner {
+          transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @media (hover: hover) and (pointer: fine) {
+          .pub-card-hover:hover .pub-event-banner-inner {
+            transform: scale(1.025);
+          }
+          .pub-card-hover:hover .pub-event-arrow-circle {
+            transform: translate(2px, -2px);
+          }
+        }
+
+        .pub-event-arrow-circle {
+          transition: transform 0.2s ease, background-color 0.2s ease;
+        }
+
+        /* Touch Feedback for Mobile */
+        @media (hover: none) {
+          .pub-touch-tap:active {
+            transform: scale(0.985);
+            opacity: 0.93;
+            transition: transform 0.1s ease;
+          }
+        }
+
+        /* Accessibility: Prefers Reduced Motion Override */
+        @media (prefers-reduced-motion: reduce) {
+          * {
+            animation-duration: 0.001ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.001ms !important;
+            scroll-behavior: auto !important;
+            transform: none !important;
+          }
+          .pub-reveal-on-scroll {
+            opacity: 1 !important;
+            transform: none !important;
+          }
+        }
+      `}</style>
+
       {/* ============================================================ */}
       {/* 1. HERO SECTION (Split: Left Big Headline + Right Stacked)  */}
       {/* ============================================================ */}
-      <section style={{ paddingTop: '3.5rem', paddingBottom: '4.5rem', backgroundColor: 'var(--pub-canvas)' }}>
+      <section style={{ paddingTop: '3.5rem', paddingBottom: '4.5rem', backgroundColor: 'transparent', position: 'relative', zIndex: 1 }}>
         <div className="pub-container">
           <div
             style={{
@@ -175,7 +532,7 @@ export default function HomePage() {
             }}
           >
             {/* Left Column: Headlines & Actions */}
-            <div>
+            <div className="pub-reveal-on-scroll pub-stagger-1">
               {/* Eyebrow */}
               <div
                 style={{
@@ -223,30 +580,37 @@ export default function HomePage() {
 
               {/* Action Buttons */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.85rem', alignItems: 'center' }}>
-                <Link to="/event" className="pub-btn-coral" style={{ padding: '0.8rem 1.6rem' }}>
+                <Link to="/event" className="pub-btn-coral pub-btn-interactive" style={{ padding: '0.8rem 1.6rem' }}>
                   <span>Mulai jelajahi event</span>
-                  <ArrowRight size={16} />
+                  <ArrowRight size={16} className="pub-arrow-icon" />
                 </Link>
-                <Link to="/cara-kerja" className="pub-btn-outline" style={{ padding: '0.8rem 1.4rem' }}>
+                <Link to="/cara-kerja" className="pub-btn-outline pub-btn-interactive" style={{ padding: '0.8rem 1.4rem' }}>
                   <span>Pelajari cara kerjanya</span>
-                  <ArrowRight size={14} />
+                  <ArrowRight size={14} className="pub-arrow-icon" />
                 </Link>
               </div>
             </div>
 
-            {/* Right Column: THE STACKED EVENT CARDS (Persis Screenshot) */}
-            <div style={{ position: 'relative' }}>
+            {/* Right Column: THE STACKED EVENT CARDS DENGAN MOUSE PARALLAX & 3D TILT */}
+            <div
+              ref={heroCardRef}
+              onMouseMove={handleHeroMouseMove}
+              onMouseLeave={handleHeroMouseLeave}
+              className="pub-reveal-on-scroll pub-stagger-2"
+              style={{ position: 'relative' }}
+            >
               <div
                 style={{
                   position: 'relative',
                   maxWidth: '520px',
                   margin: '0 auto',
                   cursor: 'pointer',
+                  perspective: '1000px',
                 }}
                 onClick={() => setHeroCardIndex((prev) => (prev + 1) % heroStackedCards.length)}
                 title="Klik untuk melihat event berikutnya dalam tumpukan kartu"
               >
-                {/* Green Card in the Back (Tilted) */}
+                {/* Green Card in the Back (Tilted dengan Diferensial Parallax) */}
                 <div
                   style={{
                     position: 'absolute',
@@ -256,14 +620,16 @@ export default function HomePage() {
                     bottom: '-12px',
                     backgroundColor: currentHeroCard.backColor,
                     borderRadius: '28px',
-                    transform: 'rotate(2.8deg)',
+                    transform: heroTilt.active
+                      ? `rotate(2.8deg) translate(${ -heroTilt.y * 1.2 }px, ${ -heroTilt.x * 1.2 }px)`
+                      : 'rotate(2.8deg)',
                     zIndex: 1,
                     boxShadow: '0 16px 36px -10px rgba(0, 0, 0, 0.15)',
-                    transition: 'all 0.3s ease',
+                    transition: heroTilt.active ? 'transform 0.12s ease-out' : 'all 0.45s cubic-bezier(0.16, 1, 0.3, 1)',
                   }}
                 />
 
-                {/* Mustard Sticker (Top Right): RAPI TERARAH SIAP */}
+                {/* Mustard Sticker (Top Right): RAPI TERARAH SIAP (Floating Parallax) */}
                 <div
                   style={{
                     position: 'absolute',
@@ -274,8 +640,11 @@ export default function HomePage() {
                     borderRadius: '16px',
                     padding: '14px 16px',
                     boxShadow: '0 8px 20px -2px rgba(0, 0, 0, 0.2)',
-                    transform: 'rotate(11deg)',
+                    transform: heroTilt.active
+                      ? `rotate(11deg) translate(${ heroTilt.y * 1.6 }px, ${ heroTilt.x * 1.6 }px)`
+                      : 'rotate(11deg)',
                     pointerEvents: 'none',
+                    transition: heroTilt.active ? 'transform 0.1s ease-out' : 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1)',
                   }}
                 >
                   <div
@@ -293,9 +662,9 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {/* Front White/Cream Card */}
+                {/* Front White/Cream Card (3D Tilt Responsif) */}
                 <div
-                  className="pub-animate-fade"
+                  className="pub-animate-fade pub-touch-tap"
                   key={heroCardIndex}
                   style={{
                     position: 'relative',
@@ -304,7 +673,14 @@ export default function HomePage() {
                     borderRadius: '28px',
                     padding: '1.75rem 2rem',
                     border: '1px solid rgba(228, 222, 212, 0.85)',
-                    boxShadow: '0 20px 40px -12px rgba(23, 32, 51, 0.08)',
+                    boxShadow: heroTilt.active
+                      ? '0 24px 48px -12px rgba(23, 32, 51, 0.14)'
+                      : '0 20px 40px -12px rgba(23, 32, 51, 0.08)',
+                    transform: heroTilt.active
+                      ? `rotateX(${heroTilt.x}deg) rotateY(${heroTilt.y}deg) translateZ(6px)`
+                      : 'rotateX(0deg) rotateY(0deg)',
+                    transformStyle: 'preserve-3d',
+                    transition: heroTilt.active ? 'transform 0.08s ease-out' : 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease',
                   }}
                 >
                   {/* Top Row: EVENT BOARD / 01 & Status Badge */}
@@ -451,11 +827,12 @@ export default function HomePage() {
                         alignItems: 'center',
                         justifyContent: 'center',
                         textDecoration: 'none',
-                        transition: 'all 0.15s ease',
+                        transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
                       }}
+                      className="pub-btn-interactive"
                       title="Lihat Detail Event"
                     >
-                      <ArrowUpRight size={19} />
+                      <ArrowUpRight size={19} className="pub-arrow-icon" />
                     </Link>
                   </div>
                 </div>
@@ -468,7 +845,7 @@ export default function HomePage() {
       {/* ============================================================ */}
       {/* 2. STATS / TRUST BAR (3 Columns Clean Beige Strip)           */}
       {/* ============================================================ */}
-      <section style={{ backgroundColor: 'var(--pub-surface)', borderTop: '1px solid var(--pub-line)', borderBottom: '1px solid var(--pub-line)', padding: '2rem 0' }}>
+      <section style={{ backgroundColor: 'var(--pub-surface)', borderTop: '1px solid var(--pub-line)', borderBottom: '1px solid var(--pub-line)', padding: '2rem 0', position: 'relative', zIndex: 1 }}>
         <div className="pub-container">
           <div
             style={{
@@ -483,7 +860,11 @@ export default function HomePage() {
               { stat: '14 event aktif', note: 'sedang berjalan di platform', dotColor: 'var(--pub-teal)' },
               { stat: '99.4% tepat waktu', note: 'alur berjalan sesuai linimasa', dotColor: 'var(--pub-amber)' },
             ].map((item, idx) => (
-              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div
+                key={idx}
+                className={`pub-reveal-on-scroll pub-stagger-${idx + 1}`}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}
+              >
                 <span
                   style={{
                     width: '8px',
@@ -491,6 +872,7 @@ export default function HomePage() {
                     borderRadius: '50%',
                     backgroundColor: item.dotColor,
                     flexShrink: 0,
+                    boxShadow: `0 0 8px ${item.dotColor}`,
                   }}
                 />
                 <div>
@@ -508,22 +890,21 @@ export default function HomePage() {
       </section>
 
       {/* ============================================================ */}
-      {/* 3. PROBLEM SECTION ("Kompetisi besar tidak harus berantakan") */}
-      {/* ============================================================ */}
-      {/* ============================================================ */}
       {/* 3. PROBLEM SECTION ("Kompetisi besar tidak harus terasa berantakan.") */}
       {/* ============================================================ */}
       <section
         style={{
           padding: '6rem 0',
-          backgroundColor: 'var(--pub-canvas, #F7F5F0)',
+          backgroundColor: 'transparent',
           borderBottom: '1px solid var(--pub-line)',
+          position: 'relative',
+          zIndex: 1,
         }}
       >
         <div className="pub-container">
           <div className="pub-problem-grid">
             {/* Left Big Title */}
-            <div>
+            <div className="pub-reveal-on-scroll">
               <div
                 style={{
                   fontFamily: 'var(--font-mono)',
@@ -554,7 +935,7 @@ export default function HomePage() {
               </h2>
             </div>
 
-            {/* Right 3 Horizontal Items with Colored Top Border (Strictly 1 Row) */}
+            {/* Right 3 Horizontal Items with Colored Top Border */}
             <div className="pub-problem-cards" style={{ paddingTop: '0.25rem' }}>
               {[
                 {
@@ -576,9 +957,14 @@ export default function HomePage() {
                   desc: 'Tim menghabiskan energi untuk koordinasi, bukan untuk event.',
                 },
               ].map((item, idx) => (
-                <div key={idx} style={{ display: 'flex', flexDirection: 'column' }}>
+                <div
+                  key={idx}
+                  className={`pub-problem-item pub-reveal-on-scroll pub-stagger-${idx + 1}`}
+                  style={{ display: 'flex', flexDirection: 'column' }}
+                >
                   {/* Top Colored Accent Rule */}
                   <div
+                    className="pub-problem-line"
                     style={{
                       height: '2px',
                       backgroundColor: item.accent,
@@ -589,6 +975,7 @@ export default function HomePage() {
 
                   {/* Mono Number */}
                   <div
+                    className="pub-problem-number"
                     style={{
                       fontFamily: 'var(--font-mono)',
                       fontSize: '1.5rem',
@@ -639,9 +1026,9 @@ export default function HomePage() {
       {/* ============================================================ */}
       {/* 4. DARK NAVY SECTION ("Struktur yang membantu orang bergerak") */}
       {/* ============================================================ */}
-      <section style={{ padding: '5.5rem 0', backgroundColor: '#141E2E', color: '#FFFFFF' }}>
+      <section style={{ padding: '5.5rem 0', backgroundColor: '#141E2E', color: '#FFFFFF', position: 'relative', zIndex: 1 }}>
         <div className="pub-container">
-          <div style={{ maxWidth: '960px', margin: '0 auto 2.5rem' }}>
+          <div className="pub-reveal-on-scroll" style={{ maxWidth: '960px', margin: '0 auto 2.5rem' }}>
             <div
               style={{
                 fontFamily: 'var(--font-mono)',
@@ -668,8 +1055,9 @@ export default function HomePage() {
             </h2>
           </div>
 
-          {/* Unified 2x2 Dark Quadrant Card (Strict 1 2 / 3 4 Layout, Centered) */}
+          {/* Unified 2x2 Dark Quadrant Card */}
           <div
+            className="pub-reveal-on-scroll pub-stagger-1"
             style={{
               maxWidth: '960px',
               margin: '0 auto',
@@ -683,6 +1071,7 @@ export default function HomePage() {
             <div className="pub-quadrant-grid">
               {/* Quadrant 01: Registrasi lebih siap */}
               <div
+                className="pub-quadrant-cell"
                 style={{
                   padding: '2.75rem 3rem',
                   borderRight: '1px solid rgba(255, 255, 255, 0.08)',
@@ -690,7 +1079,7 @@ export default function HomePage() {
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
-                  <FileText size={26} color="#E07153" strokeWidth={1.8} />
+                  <FileText className="pub-quadrant-icon" size={26} color="#E07153" strokeWidth={1.8} />
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: '#64748B', fontWeight: 600 }}>
                     01
                   </span>
@@ -705,13 +1094,14 @@ export default function HomePage() {
 
               {/* Quadrant 02: Alur yang terlihat */}
               <div
+                className="pub-quadrant-cell"
                 style={{
                   padding: '2.75rem 3rem',
                   borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
-                  <Layers size={26} color="#2DD4BF" strokeWidth={1.8} />
+                  <Layers className="pub-quadrant-icon" size={26} color="#2DD4BF" strokeWidth={1.8} />
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: '#64748B', fontWeight: 600 }}>
                     02
                   </span>
@@ -726,13 +1116,14 @@ export default function HomePage() {
 
               {/* Quadrant 03: Penilaian terarah */}
               <div
+                className="pub-quadrant-cell"
                 style={{
                   padding: '2.75rem 3rem',
                   borderRight: '1px solid rgba(255, 255, 255, 0.08)',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
-                  <ClipboardCheck size={26} color="#FBBF24" strokeWidth={1.8} />
+                  <ClipboardCheck className="pub-quadrant-icon" size={26} color="#FBBF24" strokeWidth={1.8} />
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: '#64748B', fontWeight: 600 }}>
                     03
                   </span>
@@ -747,12 +1138,13 @@ export default function HomePage() {
 
               {/* Quadrant 04: Komunikasi tidak hilang */}
               <div
+                className="pub-quadrant-cell"
                 style={{
                   padding: '2.75rem 3rem',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
-                  <Users size={26} color="#E07153" strokeWidth={1.8} />
+                  <Users className="pub-quadrant-icon" size={26} color="#E07153" strokeWidth={1.8} />
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: '#64748B', fontWeight: 600 }}>
                     04
                   </span>
@@ -772,7 +1164,7 @@ export default function HomePage() {
       {/* ============================================================ */}
       {/* 5. PROCESS SECTION ("Satu garis besar, banyak langkah ringan") */}
       {/* ============================================================ */}
-      <section style={{ padding: '5rem 0', backgroundColor: 'var(--pub-canvas)', borderBottom: '1px solid var(--pub-line)' }}>
+      <section style={{ padding: '5rem 0', backgroundColor: 'transparent', borderBottom: '1px solid var(--pub-line)', position: 'relative', zIndex: 1 }}>
         <div className="pub-container">
           <div
             style={{
@@ -783,7 +1175,7 @@ export default function HomePage() {
             }}
           >
             {/* Left Headline */}
-            <div>
+            <div className="pub-reveal-on-scroll">
               <div
                 style={{
                   fontFamily: 'var(--font-mono)',
@@ -811,21 +1203,23 @@ export default function HomePage() {
               </h2>
             </div>
 
-            {/* Right Process Steps */}
+            {/* Right Process Steps dengan Micro-interaction */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {processSteps.map((step, idx) => (
                 <div
                   key={idx}
+                  className={`pub-process-card pub-reveal-on-scroll pub-stagger-${idx + 1}`}
                   style={{
                     padding: '1.25rem 1.5rem',
                     backgroundColor: 'var(--pub-surface)',
                     border: '1px solid var(--pub-line)',
                     borderRadius: '14px',
-                    transition: 'all 0.15s ease',
+                    cursor: 'default',
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.35rem' }}>
                     <span
+                      className="pub-step-num"
                       style={{
                         fontFamily: 'var(--font-mono)',
                         fontSize: '0.8125rem',
@@ -852,9 +1246,9 @@ export default function HomePage() {
       {/* ============================================================ */}
       {/* 6. ROLE SHOWCASE ("Semua orang punya konteks")               */}
       {/* ============================================================ */}
-      <section style={{ padding: '5.5rem 0', backgroundColor: '#EDE7DC', borderBottom: '1px solid var(--pub-line)' }}>
+      <section style={{ padding: '5.5rem 0', backgroundColor: '#EDE7DC', borderBottom: '1px solid var(--pub-line)', position: 'relative', zIndex: 1 }}>
         <div className="pub-container" style={{ maxWidth: '980px' }}>
-          <div style={{ marginBottom: '2.5rem' }}>
+          <div className="pub-reveal-on-scroll" style={{ marginBottom: '2.5rem' }}>
             <div
               style={{
                 fontFamily: 'var(--font-mono)',
@@ -881,7 +1275,7 @@ export default function HomePage() {
               Semua orang perlu kejelasan.
             </h2>
 
-            {/* Segmented control tabs */}
+            {/* Segmented control tabs dengan Transisi Halus */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
               {[
                 { id: 'penyelenggara', label: 'Penyelenggara' },
@@ -892,6 +1286,7 @@ export default function HomePage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveRole(tab.id)}
+                  className="pub-btn-interactive"
                   style={{
                     fontFamily: 'var(--font-heading)',
                     fontSize: '0.875rem',
@@ -902,7 +1297,7 @@ export default function HomePage() {
                     backgroundColor: activeRole === tab.id ? '#172033' : 'rgba(255, 255, 255, 0.6)',
                     color: activeRole === tab.id ? '#FFFFFF' : 'var(--pub-ink)',
                     cursor: 'pointer',
-                    transition: 'all 0.15s ease',
+                    boxShadow: activeRole === tab.id ? '0 4px 12px rgba(23, 32, 51, 0.2)' : 'none',
                   }}
                 >
                   {tab.label}
@@ -913,7 +1308,7 @@ export default function HomePage() {
 
           {/* Role Card */}
           <div
-            className="pub-animate-fade"
+            className="pub-animate-fade pub-reveal-on-scroll pub-stagger-1"
             key={activeRole}
             style={{
               backgroundColor: '#FFFFFF',
@@ -964,11 +1359,11 @@ export default function HomePage() {
 
             <Link
               to="/dashboard"
-              className="pub-btn-coral"
+              className="pub-btn-coral pub-btn-interactive"
               style={{ fontSize: '0.875rem', padding: '0.65rem 1.4rem' }}
             >
               <span>Coba Workspace Role Ini di Dashboard</span>
-              <ArrowRight size={15} />
+              <ArrowRight size={15} className="pub-arrow-icon" />
             </Link>
           </div>
         </div>
@@ -977,9 +1372,9 @@ export default function HomePage() {
       {/* ============================================================ */}
       {/* 7. FEATURED EVENTS ("Temukan ruang untuk mulai")             */}
       {/* ============================================================ */}
-      <section style={{ padding: '5.5rem 0', backgroundColor: 'var(--pub-canvas)', borderBottom: '1px solid var(--pub-line)' }}>
+      <section style={{ padding: '5.5rem 0', backgroundColor: 'transparent', borderBottom: '1px solid var(--pub-line)', position: 'relative', zIndex: 1 }}>
         <div className="pub-container">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.5rem' }}>
+          <div className="pub-reveal-on-scroll" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.5rem' }}>
             <div>
               <div
                 style={{
@@ -1001,6 +1396,7 @@ export default function HomePage() {
 
             <Link
               to="/event"
+              className="pub-btn-interactive"
               style={{
                 fontSize: '0.9rem',
                 fontWeight: 700,
@@ -1012,7 +1408,7 @@ export default function HomePage() {
               }}
             >
               <span>Lihat semua event</span>
-              <ArrowRight size={15} />
+              <ArrowRight size={15} className="pub-arrow-icon" />
             </Link>
           </div>
 
@@ -1026,7 +1422,7 @@ export default function HomePage() {
           >
             {/* Card 1 (Prominent Hero Event) */}
             <div
-              className="pub-card pub-card-hover"
+              className="pub-card pub-card-hover pub-reveal-on-scroll pub-stagger-1 pub-touch-tap"
               style={{
                 backgroundColor: 'var(--pub-surface)',
                 borderRadius: '24px',
@@ -1037,45 +1433,47 @@ export default function HomePage() {
               }}
             >
               <div>
-                <div
-                  style={{
-                    background: 'linear-gradient(115deg, #DE7E5D 0%, #D88967 32%, #5E4E5C 70%, #202737 100%)',
-                    borderRadius: '18px',
-                    padding: '1.75rem',
-                    color: '#FFFFFF',
-                    marginBottom: '1.5rem',
-                    position: 'relative',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.1em', textTransform: 'uppercase', opacity: 0.85 }}>
-                      INOVASI & TEKNOLOGI
-                    </span>
-                    <span
-                      style={{
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '50%',
-                        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '0.75rem',
-                        fontFamily: 'var(--font-mono)',
-                        fontWeight: 700,
-                      }}
-                    >
-                      01
-                    </span>
-                  </div>
+                <div className="pub-event-banner-wrap" style={{ marginBottom: '1.5rem' }}>
+                  <div
+                    className="pub-event-banner-inner"
+                    style={{
+                      background: 'linear-gradient(115deg, #DE7E5D 0%, #D88967 32%, #5E4E5C 70%, #202737 100%)',
+                      padding: '1.75rem',
+                      color: '#FFFFFF',
+                      position: 'relative',
+                      borderRadius: '18px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.1em', textTransform: 'uppercase', opacity: 0.85 }}>
+                        INOVASI & TEKNOLOGI
+                      </span>
+                      <span
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '50%',
+                          backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '0.75rem',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 700,
+                        }}
+                      >
+                        01
+                      </span>
+                    </div>
 
-                  <h3 className="pub-heading" style={{ fontSize: '1.65rem', color: '#FFFFFF', margin: '0 0 1.25rem 0' }}>
-                    Nusantara Young Innovators
-                  </h3>
+                    <h3 className="pub-heading" style={{ fontSize: '1.65rem', color: '#FFFFFF', margin: '0 0 1.25rem 0' }}>
+                      Nusantara Young Innovators
+                    </h3>
 
-                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#FFFFFF', color: '#172033', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <ArrowUpRight size={18} />
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <div className="pub-event-arrow-circle" style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#FFFFFF', color: '#172033', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <ArrowUpRight size={18} />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1099,33 +1497,35 @@ export default function HomePage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
               {/* Card 2 */}
               <div
-                className="pub-card pub-card-hover"
+                className="pub-card pub-card-hover pub-reveal-on-scroll pub-stagger-2 pub-touch-tap"
                 style={{
                   backgroundColor: 'var(--pub-surface)',
                   borderRadius: '24px',
                   padding: '1.5rem',
                 }}
               >
-                <div
-                  style={{
-                    background: 'linear-gradient(115deg, #2D6A4F 0%, #205942 35%, #183F30 70%, #0D261C 100%)',
-                    borderRadius: '16px',
-                    padding: '1.25rem 1.5rem',
-                    color: '#FFFFFF',
-                    marginBottom: '1rem',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.1em', opacity: 0.85 }}>
-                      BARIS BERBARIS
-                    </span>
-                    <span style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: 'rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}>
-                      02
-                    </span>
+                <div className="pub-event-banner-wrap" style={{ marginBottom: '1rem' }}>
+                  <div
+                    className="pub-event-banner-inner"
+                    style={{
+                      background: 'linear-gradient(115deg, #2D6A4F 0%, #205942 35%, #183F30 70%, #0D261C 100%)',
+                      padding: '1.25rem 1.5rem',
+                      color: '#FFFFFF',
+                      borderRadius: '16px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.1em', opacity: 0.85 }}>
+                        BARIS BERBARIS
+                      </span>
+                      <span style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: 'rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}>
+                        02
+                      </span>
+                    </div>
+                    <h4 className="pub-heading" style={{ fontSize: '1.25rem', color: '#FFFFFF', margin: 0 }}>
+                      Festival Baris Berbaris Nusantara
+                    </h4>
                   </div>
-                  <h4 className="pub-heading" style={{ fontSize: '1.25rem', color: '#FFFFFF', margin: 0 }}>
-                    Festival Baris Berbaris Nusantara
-                  </h4>
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1136,33 +1536,35 @@ export default function HomePage() {
 
               {/* Card 3 */}
               <div
-                className="pub-card pub-card-hover"
+                className="pub-card pub-card-hover pub-reveal-on-scroll pub-stagger-3 pub-touch-tap"
                 style={{
                   backgroundColor: 'var(--pub-surface)',
                   borderRadius: '24px',
                   padding: '1.5rem',
                 }}
               >
-                <div
-                  style={{
-                    background: 'linear-gradient(115deg, #D49A3D 0%, #C7832F 35%, #593333 70%, #1A212E 100%)',
-                    borderRadius: '16px',
-                    padding: '1.25rem 1.5rem',
-                    color: '#FFFFFF',
-                    marginBottom: '1rem',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.1em', opacity: 0.85 }}>
-                      VARIASI & FORMASI
-                    </span>
-                    <span style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: 'rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}>
-                      03
-                    </span>
+                <div className="pub-event-banner-wrap" style={{ marginBottom: '1rem' }}>
+                  <div
+                    className="pub-event-banner-inner"
+                    style={{
+                      background: 'linear-gradient(115deg, #D49A3D 0%, #C7832F 35%, #593333 70%, #1A212E 100%)',
+                      padding: '1.25rem 1.5rem',
+                      color: '#FFFFFF',
+                      borderRadius: '16px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.1em', opacity: 0.85 }}>
+                        VARIASI & FORMASI
+                      </span>
+                      <span style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: 'rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}>
+                        03
+                      </span>
+                    </div>
+                    <h4 className="pub-heading" style={{ fontSize: '1.25rem', color: '#FFFFFF', margin: 0 }}>
+                      Piala Walikota Paskibra 2026
+                    </h4>
                   </div>
-                  <h4 className="pub-heading" style={{ fontSize: '1.25rem', color: '#FFFFFF', margin: 0 }}>
-                    Piala Walikota Paskibra 2026
-                  </h4>
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1178,9 +1580,10 @@ export default function HomePage() {
       {/* ============================================================ */}
       {/* 8. CORAL CTA BANNER ("Event Anda layak punya alur")          */}
       {/* ============================================================ */}
-      <section style={{ padding: '4.5rem 0', backgroundColor: 'var(--pub-canvas)' }}>
+      <section style={{ padding: '4.5rem 0', backgroundColor: 'transparent', position: 'relative', zIndex: 1 }}>
         <div className="pub-container" style={{ maxWidth: '1020px' }}>
           <div
+            className="pub-reveal-on-scroll"
             style={{
               backgroundColor: 'var(--pub-coral)',
               borderRadius: '28px',
@@ -1231,6 +1634,7 @@ export default function HomePage() {
 
             <Link
               to="/untuk-penyelenggara"
+              className="pub-btn-interactive"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -1247,7 +1651,7 @@ export default function HomePage() {
               }}
             >
               <span>Mulai kelola event</span>
-              <ArrowRight size={16} />
+              <ArrowRight size={16} className="pub-arrow-icon" />
             </Link>
           </div>
         </div>
@@ -1256,7 +1660,7 @@ export default function HomePage() {
       {/* ============================================================ */}
       {/* 9. FAQ SECTION ("Hal yang mungkin ingin Anda tahu")          */}
       {/* ============================================================ */}
-      <section style={{ padding: '5rem 0 6.5rem', backgroundColor: 'var(--pub-canvas)' }}>
+      <section style={{ padding: '5rem 0 6.5rem', backgroundColor: 'transparent', position: 'relative', zIndex: 1 }}>
         <div className="pub-container">
           <div
             style={{
@@ -1267,7 +1671,7 @@ export default function HomePage() {
             }}
           >
             {/* Left Headline */}
-            <div>
+            <div className="pub-reveal-on-scroll">
               <div
                 style={{
                   fontFamily: 'var(--font-mono)',
@@ -1295,6 +1699,7 @@ export default function HomePage() {
               </h2>
               <Link
                 to="/faq"
+                className="pub-btn-interactive"
                 style={{
                   fontSize: '0.875rem',
                   fontWeight: 600,
@@ -1306,7 +1711,7 @@ export default function HomePage() {
                 }}
               >
                 <span>Punya pertanyaan lain? Hubungi tim kami</span>
-                <ArrowRight size={14} />
+                <ArrowRight size={14} className="pub-arrow-icon" />
               </Link>
             </div>
 
@@ -1318,6 +1723,7 @@ export default function HomePage() {
                   <div
                     key={idx}
                     onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
+                    className={`pub-process-card pub-touch-tap pub-reveal-on-scroll pub-stagger-${idx + 1}`}
                     style={{
                       padding: '1.25rem 1.5rem',
                       backgroundColor: 'var(--pub-surface)',

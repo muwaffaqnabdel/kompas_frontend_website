@@ -1,5 +1,15 @@
-import React, { useState } from 'react';
-import { Search } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import {
+  Search,
+  ChevronDown,
+  UserPlus,
+  UserCheck,
+  Sliders,
+  MapPin,
+  AlertCircle,
+  ShieldAlert,
+  CheckCircle2,
+} from 'lucide-react';
 
 export default function SuperAdminEventTable({
   events = [],
@@ -11,6 +21,27 @@ export default function SuperAdminEventTable({
   onOpenControlModal,
 }) {
   const [onlyNeedsAction, setOnlyNeedsAction] = useState(false);
+  const [openDropdownId, setOpenDropdownId] = useState(null);
+
+  // Close dropdown on outside click or Escape
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.action-dropdown-menu-container')) {
+        setOpenDropdownId(null);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setOpenDropdownId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -37,6 +68,13 @@ export default function SuperAdminEventTable({
     if (diffDays > 0) return `H-${diffDays} hari`;
     if (diffDays === 0) return 'Hari H (Hari ini)';
     return `Selesai (${Math.abs(diffDays)} hari lalu)`;
+  };
+
+  const getInitials = (name) => {
+    if (!name) return 'PIC';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
   };
 
   const filteredEvents = events.filter((evt) => {
@@ -170,51 +208,157 @@ export default function SuperAdminEventTable({
         </div>
       </div>
 
-      {/* Table Content */}
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+      {/* Table Content with generous min-width & anti-cramping styling */}
+      <div style={{ overflowX: 'auto', minHeight: '340px' }}>
+        <table
+          style={{
+            width: '100%',
+            minWidth: '1050px',
+            borderCollapse: 'collapse',
+            textAlign: 'left',
+            fontSize: '0.85rem',
+          }}
+        >
           <thead>
             <tr style={{ backgroundColor: 'var(--pub-canvas)', borderBottom: '1px solid var(--pub-line)' }}>
-              <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--pub-ink)', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+              <th
+                style={{
+                  width: '27%',
+                  minWidth: '250px',
+                  padding: '0.95rem 1.15rem',
+                  fontWeight: 700,
+                  color: 'var(--pub-ink)',
+                  fontSize: '0.75rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                }}
+              >
                 Event & Lokasi
               </th>
-              <th style={{ padding: '0.85rem 0.65rem', fontWeight: 700, color: 'var(--pub-ink)', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+              <th
+                style={{
+                  width: '14%',
+                  minWidth: '145px',
+                  padding: '0.95rem 0.75rem',
+                  fontWeight: 700,
+                  color: 'var(--pub-ink)',
+                  fontSize: '0.75rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                }}
+              >
                 Status
               </th>
-              <th style={{ padding: '0.85rem 0.65rem', fontWeight: 700, color: 'var(--pub-ink)', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+              <th
+                style={{
+                  width: '20%',
+                  minWidth: '190px',
+                  padding: '0.95rem 0.75rem',
+                  fontWeight: 700,
+                  color: 'var(--pub-ink)',
+                  fontSize: '0.75rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                }}
+              >
                 Admin Panitia (PIC)
               </th>
-              <th style={{ padding: '0.85rem 0.65rem', fontWeight: 700, color: 'var(--pub-ink)', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+              <th
+                style={{
+                  width: '10%',
+                  minWidth: '105px',
+                  padding: '0.95rem 0.75rem',
+                  fontWeight: 700,
+                  color: 'var(--pub-ink)',
+                  fontSize: '0.75rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                }}
+              >
                 Peserta
               </th>
-              <th style={{ padding: '0.85rem 0.65rem', fontWeight: 700, color: 'var(--pub-ink)', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+              <th
+                style={{
+                  width: '11%',
+                  minWidth: '115px',
+                  padding: '0.95rem 0.75rem',
+                  fontWeight: 700,
+                  color: 'var(--pub-ink)',
+                  fontSize: '0.75rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                }}
+              >
                 Kesiapan
               </th>
-              <th style={{ padding: '0.85rem 0.65rem', fontWeight: 700, color: 'var(--pub-ink)', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+              <th
+                style={{
+                  width: '12%',
+                  minWidth: '125px',
+                  padding: '0.95rem 0.75rem',
+                  fontWeight: 700,
+                  color: 'var(--pub-ink)',
+                  fontSize: '0.75rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                }}
+              >
                 Hari H
               </th>
-              <th style={{ padding: '0.85rem 0.65rem', fontWeight: 700, color: 'var(--pub-ink)', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+              <th
+                style={{
+                  width: '10%',
+                  minWidth: '110px',
+                  padding: '0.95rem 0.75rem',
+                  fontWeight: 700,
+                  color: 'var(--pub-ink)',
+                  fontSize: '0.75rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                }}
+              >
                 Alert
               </th>
-              <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--pub-ink)', fontSize: '0.75rem', textTransform: 'uppercase', textAlign: 'right' }}>
-                Aksi Kontrol
+              <th
+                style={{
+                  width: '6%',
+                  minWidth: '90px',
+                  padding: '0.95rem 1.15rem',
+                  fontWeight: 700,
+                  color: 'var(--pub-ink)',
+                  fontSize: '0.75rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  textAlign: 'right',
+                }}
+              >
+                Aksi
               </th>
             </tr>
           </thead>
           <tbody>
             {filteredEvents.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ padding: '2.5rem 1.5rem', textAlign: 'center', color: 'var(--pub-muted)', fontSize: '0.875rem' }}>
+                <td
+                  colSpan={8}
+                  style={{
+                    padding: '3rem 1.5rem',
+                    textAlign: 'center',
+                    color: 'var(--pub-muted)',
+                    fontSize: '0.875rem',
+                  }}
+                >
                   Tidak ada event yang sesuai dengan filter atau kriteria pencarian.
                 </td>
               </tr>
             ) : (
-              filteredEvents.map((evt) => {
+              filteredEvents.map((evt, index) => {
                 const badge = getStatusBadge(evt.status);
                 const hasAdmin = !!evt.adminPanitia;
                 const readiness = evt.readinessScore !== undefined ? evt.readinessScore : (hasAdmin ? 75 : 50);
                 const validatedCount = evt.validatedParticipantsCount !== undefined ? evt.validatedParticipantsCount : 1;
                 const totalCount = evt.totalParticipantsCount !== undefined ? evt.totalParticipantsCount : (evt._count?.participants || 4);
+                const isBottomRow = index >= filteredEvents.length - 1 && filteredEvents.length >= 2;
 
                 return (
                   <tr
@@ -227,45 +371,121 @@ export default function SuperAdminEventTable({
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                   >
                     {/* 1. Event & Lokasi */}
-                    <td style={{ padding: '0.85rem 1rem' }}>
-                      <div style={{ fontWeight: 700, color: 'var(--pub-ink)', fontFamily: 'var(--font-heading)', fontSize: '0.925rem' }}>
+                    <td style={{ padding: '0.95rem 1.15rem', verticalAlign: 'middle' }}>
+                      <div
+                        style={{
+                          fontWeight: 700,
+                          color: 'var(--pub-ink)',
+                          fontFamily: 'var(--font-heading)',
+                          fontSize: '0.925rem',
+                          lineHeight: 1.35,
+                        }}
+                      >
                         {evt.name}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--pub-muted)', marginTop: '0.2rem' }}>
-                        ID: <code style={{ fontFamily: 'var(--font-mono)' }}>{evt.slug}</code>
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--pub-ink-soft)', marginTop: '0.15rem' }}>
-                        {evt.location || 'Lokasi Belum Diatur'}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
+                        <span
+                          style={{
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: '0.7rem',
+                            color: 'var(--pub-muted)',
+                            backgroundColor: 'var(--pub-canvas)',
+                            padding: '0.12rem 0.38rem',
+                            borderRadius: '4px',
+                            border: '1px solid var(--pub-line)',
+                          }}
+                        >
+                          {evt.slug}
+                        </span>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            fontSize: '0.75rem',
+                            color: 'var(--pub-ink-soft)',
+                          }}
+                        >
+                          <MapPin size={12} color="var(--pub-muted)" />
+                          <span>{evt.location || 'Lokasi Belum Diatur'}</span>
+                        </span>
                       </div>
                     </td>
 
                     {/* 2. Status */}
-                    <td style={{ padding: '0.85rem 0.65rem' }}>
+                    <td style={{ padding: '0.95rem 0.75rem', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                       <span
                         style={{
                           backgroundColor: badge.bg,
                           color: badge.color,
-                          padding: '0.25rem 0.65rem',
+                          padding: '0.28rem 0.65rem',
                           borderRadius: 'var(--pub-radius-pill)',
                           fontSize: '0.725rem',
                           fontWeight: 700,
-                          display: 'inline-block',
-                          whiteSpace: 'nowrap',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
                         }}
                       >
+                        <span
+                          style={{
+                            width: '6px',
+                            height: '6px',
+                            borderRadius: '50%',
+                            backgroundColor: badge.color,
+                            display: 'inline-block',
+                          }}
+                        />
                         {badge.label}
                       </span>
                     </td>
 
                     {/* 3. Admin Panitia (PIC) */}
-                    <td style={{ padding: '0.85rem 0.65rem' }}>
+                    <td style={{ padding: '0.95rem 0.75rem', verticalAlign: 'middle' }}>
                       {hasAdmin ? (
-                        <div>
-                          <div style={{ fontWeight: 700, color: 'var(--pub-ink)', fontSize: '0.85rem' }}>
-                            {evt.adminPanitia.fullName}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                          <div
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '50%',
+                              backgroundColor: 'var(--pub-navy)',
+                              color: '#FFFFFF',
+                              fontSize: '0.725rem',
+                              fontWeight: 700,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}
+                          >
+                            {getInitials(evt.adminPanitia.fullName)}
                           </div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--pub-muted)', marginTop: '0.15rem' }}>
-                            {evt.adminPanitia.email}
+                          <div style={{ minWidth: 0 }}>
+                            <div
+                              style={{
+                                fontWeight: 700,
+                                color: 'var(--pub-ink)',
+                                fontSize: '0.85rem',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                              }}
+                            >
+                              {evt.adminPanitia.fullName}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: '0.725rem',
+                                color: 'var(--pub-muted)',
+                                marginTop: '0.1rem',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                              }}
+                            >
+                              {evt.adminPanitia.email}
+                            </div>
                           </div>
                         </div>
                       ) : (
@@ -273,36 +493,52 @@ export default function SuperAdminEventTable({
                           style={{
                             backgroundColor: '#FEF3C7',
                             color: 'var(--pub-amber)',
-                            padding: '0.2rem 0.55rem',
+                            padding: '0.25rem 0.6rem',
                             borderRadius: '6px',
                             fontSize: '0.725rem',
                             fontWeight: 700,
-                            display: 'inline-block',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            whiteSpace: 'nowrap',
                           }}
                         >
+                          <AlertCircle size={13} />
                           Belum Ditugaskan
                         </span>
                       )}
                     </td>
 
                     {/* 4. Peserta */}
-                    <td style={{ padding: '0.85rem 0.65rem' }}>
+                    <td style={{ padding: '0.95rem 0.75rem', verticalAlign: 'middle' }}>
                       <div className="tabular-nums" style={{ fontWeight: 700, color: 'var(--pub-ink)', fontSize: '0.875rem' }}>
                         {totalCount} Tim
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--pub-teal)', fontWeight: 600, marginTop: '0.15rem' }}>
-                        {validatedCount} Tervalidasi
+                      <div
+                        style={{
+                          fontSize: '0.725rem',
+                          color: 'var(--pub-teal)',
+                          fontWeight: 600,
+                          marginTop: '0.15rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        <CheckCircle2 size={12} />
+                        <span>{validatedCount} Valid</span>
                       </div>
                     </td>
 
                     {/* 5. Kesiapan */}
-                    <td style={{ padding: '0.85rem 0.65rem', minWidth: '105px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                    <td style={{ padding: '0.95rem 0.75rem', verticalAlign: 'middle' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
                         <span className="tabular-nums" style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--pub-ink)' }}>
                           {readiness}%
                         </span>
                         <span style={{ fontSize: '0.7rem', color: 'var(--pub-muted)' }}>
-                          {readiness === 100 ? 'Siap Hari H' : 'Konfigurasi'}
+                          {readiness === 100 ? 'Siap' : 'Setting'}
                         </span>
                       </div>
                       <div
@@ -326,95 +562,206 @@ export default function SuperAdminEventTable({
                     </td>
 
                     {/* 6. Hari H */}
-                    <td style={{ padding: '0.85rem 0.65rem', whiteSpace: 'nowrap' }}>
-                      <div style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--pub-ink)' }}>
+                    <td style={{ padding: '0.95rem 0.75rem', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--pub-ink)' }}>
                         {new Date(evt.eventDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </div>
-                      <div className="tabular-nums" style={{ fontSize: '0.75rem', color: 'var(--pub-muted)', marginTop: '0.15rem' }}>
+                      <div className="tabular-nums" style={{ fontSize: '0.725rem', color: 'var(--pub-muted)', marginTop: '0.15rem' }}>
                         {getCountdownText(evt.eventDate)}
                       </div>
                     </td>
 
                     {/* 7. Alert */}
-                    <td style={{ padding: '0.85rem 0.65rem' }}>
+                    <td style={{ padding: '0.95rem 0.75rem', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                       {!hasAdmin ? (
                         <span
                           style={{
                             backgroundColor: 'var(--pub-coral-pale)',
                             color: 'var(--pub-coral)',
-                            padding: '0.2rem 0.55rem',
+                            padding: '0.22rem 0.55rem',
                             borderRadius: '6px',
                             fontSize: '0.725rem',
                             fontWeight: 700,
-                            display: 'inline-block',
-                            whiteSpace: 'nowrap',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
                           }}
                         >
-                          Tanpa Pengelola
+                          <ShieldAlert size={12} />
+                          Tanpa PIC
                         </span>
                       ) : !evt.dpFlowLocked && evt.status === 'LIVE' ? (
                         <span
                           style={{
                             backgroundColor: '#FEF3C7',
                             color: 'var(--pub-amber)',
-                            padding: '0.2rem 0.55rem',
+                            padding: '0.22rem 0.55rem',
                             borderRadius: '6px',
                             fontSize: '0.725rem',
                             fontWeight: 700,
-                            display: 'inline-block',
-                            whiteSpace: 'nowrap',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
                           }}
                         >
-                          Flow Belum Dikunci
+                          <AlertCircle size={12} />
+                          Flow Terbuka
                         </span>
                       ) : (
                         <span
                           style={{
                             backgroundColor: 'var(--pub-teal-light)',
                             color: 'var(--pub-teal)',
-                            padding: '0.2rem 0.55rem',
+                            padding: '0.22rem 0.55rem',
                             borderRadius: '6px',
                             fontSize: '0.725rem',
                             fontWeight: 700,
-                            display: 'inline-block',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
                           }}
                         >
+                          <CheckCircle2 size={12} />
                           Normal
                         </span>
                       )}
                     </td>
 
-                    {/* 8. Aksi Kontrol */}
-                    <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.45rem' }}>
+                    {/* 8. Aksi Kontrol (Dropdown Popover) */}
+                    <td style={{ padding: '0.95rem 1.15rem', textAlign: 'right', verticalAlign: 'middle' }}>
+                      <div
+                        className="action-dropdown-menu-container"
+                        style={{ position: 'relative', display: 'inline-block' }}
+                      >
                         <button
                           type="button"
-                          onClick={() => onOpenAssignModal(evt)}
-                          className="pub-btn-outline"
+                          onClick={() => setOpenDropdownId(openDropdownId === evt.id ? null : evt.id)}
                           style={{
-                            padding: '0.4rem 0.75rem',
-                            fontSize: '0.75rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            padding: '0.42rem 0.75rem',
+                            borderRadius: '8px',
+                            fontSize: '0.785rem',
                             fontWeight: 600,
-                            color: 'var(--pub-coral)',
+                            cursor: 'pointer',
+                            border: openDropdownId === evt.id ? '1px solid var(--pub-coral)' : '1px solid var(--pub-line)',
+                            backgroundColor: openDropdownId === evt.id ? 'var(--pub-coral-pale)' : 'var(--pub-canvas)',
+                            color: openDropdownId === evt.id ? 'var(--pub-coral)' : 'var(--pub-ink)',
+                            boxShadow: openDropdownId === evt.id ? '0 0 0 2px rgba(201, 75, 60, 0.15)' : 'none',
+                            transition: 'all 0.15s ease',
                           }}
-                          title={`Buat Akun Admin Panitia untuk ${evt.name}`}
+                          title="Pilihan Aksi Event"
+                          aria-haspopup="true"
+                          aria-expanded={openDropdownId === evt.id}
                         >
-                          Admin
+                          <span>Aksi</span>
+                          <ChevronDown
+                            size={14}
+                            style={{
+                              transform: openDropdownId === evt.id ? 'rotate(180deg)' : 'none',
+                              transition: 'transform 0.15s ease',
+                            }}
+                          />
                         </button>
 
-                        <button
-                          type="button"
-                          onClick={() => onOpenControlModal(evt)}
-                          className="pub-btn-coral"
-                          style={{
-                            padding: '0.4rem 0.75rem',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                          }}
-                          title="Buka kontrol status event"
-                        >
-                          Kontrol
-                        </button>
+                        {openDropdownId === evt.id && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              right: 0,
+                              ...(isBottomRow ? { bottom: 'calc(100% + 6px)' } : { top: 'calc(100% + 6px)' }),
+                              zIndex: 60,
+                              minWidth: '155px',
+                              backgroundColor: 'var(--pub-surface)',
+                              borderRadius: '10px',
+                              border: '1px solid var(--pub-line)',
+                              boxShadow: '0 10px 25px -4px rgba(23, 32, 51, 0.14), 0 4px 8px -2px rgba(23, 32, 51, 0.06)',
+                              padding: '0.35rem',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '0.2rem',
+                            }}
+                          >
+                            {/* Pilihan 1: Admin */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenDropdownId(null);
+                                onOpenAssignModal(evt);
+                              }}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.6rem',
+                                width: '100%',
+                                padding: '0.55rem 0.75rem',
+                                borderRadius: '6px',
+                                fontSize: '0.8125rem',
+                                fontWeight: 600,
+                                color: 'var(--pub-ink)',
+                                border: 'none',
+                                backgroundColor: 'transparent',
+                                textAlign: 'left',
+                                cursor: 'pointer',
+                                transition: 'background-color 0.15s ease, color 0.15s ease',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = 'var(--pub-canvas)';
+                                e.currentTarget.style.color = 'var(--pub-coral)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = 'transparent';
+                                e.currentTarget.style.color = 'var(--pub-ink)';
+                              }}
+                            >
+                              {evt.adminPanitia ? (
+                                <UserCheck size={15} color="var(--pub-coral)" />
+                              ) : (
+                                <UserPlus size={15} color="var(--pub-coral)" />
+                              )}
+                              <span>Admin</span>
+                            </button>
+
+                            <div style={{ height: '1px', backgroundColor: 'var(--pub-line-subtle)', margin: '0.1rem 0' }} />
+
+                            {/* Pilihan 2: Kontrol */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenDropdownId(null);
+                                onOpenControlModal(evt);
+                              }}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.6rem',
+                                width: '100%',
+                                padding: '0.55rem 0.75rem',
+                                borderRadius: '6px',
+                                fontSize: '0.8125rem',
+                                fontWeight: 600,
+                                color: 'var(--pub-ink)',
+                                border: 'none',
+                                backgroundColor: 'transparent',
+                                textAlign: 'left',
+                                cursor: 'pointer',
+                                transition: 'background-color 0.15s ease, color 0.15s ease',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = 'var(--pub-canvas)';
+                                e.currentTarget.style.color = 'var(--pub-teal)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = 'transparent';
+                                e.currentTarget.style.color = 'var(--pub-ink)';
+                              }}
+                            >
+                              <Sliders size={15} color="var(--pub-teal)" />
+                              <span>Kontrol</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>

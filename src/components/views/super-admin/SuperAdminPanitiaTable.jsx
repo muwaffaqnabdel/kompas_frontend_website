@@ -14,7 +14,7 @@ export default function SuperAdminPanitiaTable({ onOpenAssignModal, events = [] 
   const fetchAdmins = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/super-admin/admins');
+      const res = await fetch('/api/super-admin/admins', { credentials: 'include' });
       const data = await res.json();
       if (data.success) {
         setAdmins(data.admins || []);

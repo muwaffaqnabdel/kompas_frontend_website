@@ -62,8 +62,8 @@ export default function SuperAdminView({ activeTab = 'overview' }) {
     setLoading(true);
     try {
       const [overviewRes, eventsRes] = await Promise.all([
-        fetch('/api/super-admin/overview'),
-        fetch('/api/events'),
+        fetch('/api/super-admin/overview', { credentials: 'include' }),
+        fetch('/api/events', { credentials: 'include' }),
       ]);
 
       const overviewData = await overviewRes.json();
@@ -90,11 +90,12 @@ export default function SuperAdminView({ activeTab = 'overview' }) {
       const res = await fetch('/api/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(newEventForm),
       });
       const data = await res.json();
       if (data.success) {
-        setNotification({ type: 'success', text: `Event "${data.event.name}" berhasil didaftarkan!` });
+        setNotification({ type: 'success', text: `Event "${data.event.name}" berhasil didaftarkan ke Supabase!` });
         setCreateModalOpen(false);
         setNewEventForm({ name: '', location: '', eventDate: '2026-11-20', description: '', status: 'REGISTRATION_OPEN' });
         await fetchSuperAdminData();
@@ -126,6 +127,7 @@ export default function SuperAdminView({ activeTab = 'overview' }) {
       const res = await fetch(`/api/events/${assignForm.eventId}/assign-admin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           email: assignForm.email,
           username: assignForm.username,
@@ -169,6 +171,7 @@ export default function SuperAdminView({ activeTab = 'overview' }) {
       const res = await fetch(`/api/events/${selectedEvent.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(controlForm),
       });
       const data = await res.json();

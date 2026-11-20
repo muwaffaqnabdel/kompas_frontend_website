@@ -173,9 +173,31 @@ export function getStoredPublicEvents() {
   }
 }
 
+export function getStoredBanner(idOrSlug) {
+  if (typeof window === 'undefined' || !idOrSlug) return null;
+  try {
+    return localStorage.getItem(`kompas_banner_${idOrSlug}`) || null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveStoredBanner(idOrSlug, bannerUrl) {
+  if (typeof window === 'undefined' || !idOrSlug || !bannerUrl) return;
+  try {
+    localStorage.setItem(`kompas_banner_${idOrSlug}`, bannerUrl);
+  } catch (e) {
+    console.warn('Failed to save banner to localStorage:', e);
+  }
+}
+
 export function saveStoredPublicEvent(slugOrId, updatedData) {
   if (typeof window === 'undefined') return;
   try {
+    if (updatedData?.bannerUrl) {
+      saveStoredBanner(slugOrId, updatedData.bannerUrl);
+    }
+
     const events = getStoredPublicEvents();
     const index = events.findIndex((e) => e.slug === slugOrId || e.id === slugOrId);
     if (index !== -1) {
@@ -183,6 +205,19 @@ export function saveStoredPublicEvent(slugOrId, updatedData) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
       window.dispatchEvent(new CustomEvent('kompas_event_updated', { detail: events[index] }));
       return events[index];
+    } else {
+      const newEntry = {
+        id: slugOrId,
+        slug: slugOrId,
+        title: updatedData.title || updatedData.name || 'Event Paskibra',
+        category: updatedData.category || 'Tingkat Nasional',
+        bannerUrl: updatedData.bannerUrl || DEFAULT_BANNER_FALLBACK,
+        ...updatedData,
+      };
+      events.push(newEntry);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+      window.dispatchEvent(new CustomEvent('kompas_event_updated', { detail: newEntry }));
+      return newEntry;
     }
   } catch (err) {
     console.error('Failed to save public event:', err);

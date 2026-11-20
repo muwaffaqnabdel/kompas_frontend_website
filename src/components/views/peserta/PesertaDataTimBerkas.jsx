@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   FileText,
   Upload,
@@ -12,7 +12,11 @@ import {
   FileCheck,
   User,
   ShieldCheck,
+  AlertCircle,
 } from 'lucide-react';
+
+const STORAGE_KEY_PARTICIPANTS = 'kompas_panitia_participants_data';
+const STORAGE_KEY_REQUIREMENTS = 'kompas_panitia_doc_requirements';
 
 export default function PesertaDataTimBerkas() {
   // ---------------------------------------------------------------------------
@@ -86,6 +90,84 @@ export default function PesertaDataTimBerkas() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
+  // Sinkronkan status dokumen & catatan revisi dari Admin Panitia
+  useEffect(() => {
+    const syncFromPanitia = () => {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_PARTICIPANTS);
+        if (!raw) return;
+        const list = JSON.parse(raw);
+        const mainTeam = list.find((p) => p.id === 'part-1') || list[0];
+        if (mainTeam && mainTeam.documents) {
+          setDocuments((prev) =>
+            prev.map((doc, idx) => {
+              const matchedPanitiaDoc = mainTeam.documents[idx] || mainTeam.documents.find((d) => d.title.toLowerCase().includes(doc.title.toLowerCase()));
+              if (matchedPanitiaDoc) {
+                return {
+                  ...doc,
+                  status: matchedPanitiaDoc.status,
+                  note: matchedPanitiaDoc.note,
+                };
+              }
+              return doc;
+            })
+          );
+        }
+      } catch (err) {
+        console.error('Failed to sync documents from panitia:', err);
+      }
+    };
+
+    syncFromPanitia();
+    window.addEventListener('kompas_participants_updated', syncFromPanitia);
+    return () => window.removeEventListener('kompas_participants_updated', syncFromPanitia);
+  }, []);
+
+  // Sinkronkan daftar persyaratan berkas yang ditentukan oleh Admin Panitia
+  useEffect(() => {
+    const syncDocRequirements = () => {
+      try {
+        const rawReqs = localStorage.getItem(STORAGE_KEY_REQUIREMENTS);
+        if (rawReqs) {
+          const reqList = JSON.parse(rawReqs);
+          if (Array.isArray(reqList) && reqList.length > 0) {
+            setDocuments((prevDocs) => {
+              return reqList.map((req, idx) => {
+                const existing = prevDocs.find(
+                  (d) =>
+                    d.id === req.id ||
+                    d.title.toLowerCase().includes(req.title.toLowerCase()) ||
+                    req.title.toLowerCase().includes(d.title.toLowerCase())
+                );
+                return {
+                  id: req.id || `doc-${idx}`,
+                  title: req.title,
+                  description: req.description || '',
+                  required: req.isRequired !== undefined ? req.isRequired : true,
+                  allowedFormats: `${req.allowedFormats || 'PDF, DOC, DOCX'} (Maks. ${req.maxSizeMb || 10}MB)`,
+                  fileName: existing?.fileName || null,
+                  fileSize: existing?.fileSize || null,
+                  uploadedAt: existing?.uploadedAt || null,
+                  status: existing?.status || 'EMPTY',
+                  note: existing?.note || '',
+                  hasTemplate: Boolean(req.templateName || req.templateUrl),
+                  templateName: req.templateName,
+                  templateUrl: req.templateUrl,
+                };
+              });
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Error syncing requirements in Peserta:', err);
+      }
+    };
+
+    syncDocRequirements();
+    window.addEventListener('kompas_document_requirements_updated', syncDocRequirements);
+    return () => window.removeEventListener('kompas_document_requirements_updated', syncDocRequirements);
+  }, []);
+
   // Handler Upload Dokumen
   const handleDocUpload = (docId, file) => {
     if (!file) return;
@@ -102,10 +184,40 @@ export default function PesertaDataTimBerkas() {
               fileSize: sizeStr,
               uploadedAt: 'Baru saja diunggah',
               status: 'PENDING',
+              note: '',
             }
           : doc
       )
     );
+
+    // Sinkronkan ke data panitia agar admin panitia langsung melihat berkas yang diperbaiki
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_PARTICIPANTS);
+      if (raw) {
+        const list = JSON.parse(raw);
+        const mainTeamIdx = list.findIndex((p) => p.id === 'part-1') !== -1 ? list.findIndex((p) => p.id === 'part-1') : 0;
+        if (list[mainTeamIdx] && list[mainTeamIdx].documents) {
+          list[mainTeamIdx].documents = list[mainTeamIdx].documents.map((d) => {
+            if (d.id === docId || d.title.toLowerCase().includes(docId.replace('doc-', ''))) {
+              return {
+                ...d,
+                fileName: file.name,
+                size: sizeStr,
+                uploadedAt: 'Baru saja diunggah',
+                status: 'PENDING',
+                note: '',
+              };
+            }
+            return d;
+          });
+          localStorage.setItem(STORAGE_KEY_PARTICIPANTS, JSON.stringify(list));
+          window.dispatchEvent(new CustomEvent('kompas_participants_updated', { detail: list }));
+        }
+      }
+    } catch (err) {
+      console.error('Error updating panitia storage from peserta:', err);
+    }
+
     showToast(`Dokumen "${file.name}" berhasil diunggah.`);
   };
 
@@ -735,6 +847,31 @@ export default function PesertaDataTimBerkas() {
                         Format diterima: <span style={{ fontWeight: 600, color: 'var(--pub-ink)' }}>{doc.allowedFormats}</span>
                       </div>
                     )}
+
+                    {/* Alert Catatan Revisi dari Panitia */}
+                    {doc.note && (
+                      <div
+                        style={{
+                          marginTop: '0.65rem',
+                          padding: '0.6rem 0.85rem',
+                          borderRadius: '8px',
+                          backgroundColor: '#FFFBEB',
+                          border: '1px solid #FCD34D',
+                          color: '#92400E',
+                          fontSize: '0.775rem',
+                          lineHeight: 1.45,
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '0.5rem',
+                        }}
+                      >
+                        <AlertCircle size={15} style={{ flexShrink: 0, marginTop: '2px', color: '#D97706' }} />
+                        <div>
+                          <strong style={{ color: '#B45309' }}>Catatan Revisi dari Admin Panitia:</strong>
+                          <div style={{ marginTop: '0.2rem', color: '#78350F' }}>{doc.note}</div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -757,6 +894,25 @@ export default function PesertaDataTimBerkas() {
                     >
                       <CheckCircle2 size={13} />
                       TERVERIFIKASI
+                    </span>
+                  )}
+                  {doc.status === 'REVISION' && (
+                    <span
+                      style={{
+                        backgroundColor: '#FEF3C7',
+                        color: '#B45309',
+                        padding: '0.3rem 0.75rem',
+                        borderRadius: 'var(--pub-radius-pill)',
+                        fontSize: '0.725rem',
+                        fontWeight: 800,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        border: '1px solid #FCD34D',
+                      }}
+                    >
+                      <AlertCircle size={13} />
+                      PERLU REVISI
                     </span>
                   )}
                   {doc.status === 'PENDING' && (
@@ -795,7 +951,7 @@ export default function PesertaDataTimBerkas() {
                   {doc.hasTemplate && (
                     <button
                       type="button"
-                      onClick={() => showToast('Mengunduh template formulir pendaftaran (.DOCX)...')}
+                      onClick={() => showToast(`Mengunduh template ${doc.templateName || 'blanko formulir'}...`)}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -840,14 +996,14 @@ export default function PesertaDataTimBerkas() {
                       padding: '0.45rem 0.85rem',
                       borderRadius: '6px',
                       border: '1px solid var(--pub-coral)',
-                      backgroundColor: hasFile ? '#FFFFFF' : 'var(--pub-coral)',
-                      color: hasFile ? 'var(--pub-coral)' : '#FFFFFF',
+                      backgroundColor: doc.status === 'REVISION' ? 'var(--pub-coral)' : hasFile ? '#FFFFFF' : 'var(--pub-coral)',
+                      color: doc.status === 'REVISION' ? '#FFFFFF' : hasFile ? 'var(--pub-coral)' : '#FFFFFF',
                       cursor: 'pointer',
                       fontWeight: 700,
                     }}
                   >
                     <Upload size={14} />
-                    <span>{hasFile ? 'Ganti File' : 'Unggah Berkas'}</span>
+                    <span>{doc.status === 'REVISION' ? 'Unggah Perbaikan' : hasFile ? 'Ganti File' : 'Unggah Berkas'}</span>
                   </button>
 
                   {/* Hapus File jika ada */}

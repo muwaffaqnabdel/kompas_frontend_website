@@ -50,8 +50,14 @@ export default function SuperAdminEventTable({
         return { bg: 'var(--pub-teal-light)', color: 'var(--pub-teal)', label: 'Pendaftaran Dibuka' };
       case 'DRAFT_SETUP':
         return { bg: '#FEF3C7', color: 'var(--pub-amber)', label: 'Draft Setup' };
+      case 'VALIDATION':
+        return { bg: '#E0F2FE', color: '#0369A1', label: 'Verifikasi Berkas' };
+      case 'TECHNICAL_MEETING':
+        return { bg: '#F3E8FF', color: '#7E22CE', label: 'Technical Meeting' };
       case 'LIVE':
         return { bg: 'var(--pub-coral-pale)', color: 'var(--pub-coral)', label: 'Hari H (Live)' };
+      case 'SCORING_REVIEW':
+        return { bg: '#FFEDD5', color: '#C2410C', label: 'Review Penilaian' };
       case 'PUBLISHED':
         return { bg: '#E0E7FF', color: '#4338CA', label: 'Hasil Dipublikasi' };
       case 'ARCHIVED':

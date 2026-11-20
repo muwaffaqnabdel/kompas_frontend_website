@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Plus, CheckCircle, X } from 'lucide-react';
+import {
+  RefreshCw,
+  Plus,
+  CheckCircle2,
+  X,
+  Sliders,
+  Lock,
+  Unlock,
+  UserCheck,
+} from 'lucide-react';
 import SuperAdminStats from './super-admin/SuperAdminStats';
 import SuperAdminOverviewCharts from './super-admin/SuperAdminOverviewCharts';
 import SuperAdminEventTable from './super-admin/SuperAdminEventTable';
@@ -59,6 +68,15 @@ export default function SuperAdminView({ activeTab = 'overview' }) {
     fetchSuperAdminData();
   }, []);
 
+  // Auto-dismiss floating toast notification setelah 5 detik
+  useEffect(() => {
+    if (!notification) return;
+    const timer = setTimeout(() => {
+      setNotification(null);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [notification]);
+
   const fetchSuperAdminData = async () => {
     setLoading(true);
     try {
@@ -96,7 +114,13 @@ export default function SuperAdminView({ activeTab = 'overview' }) {
       });
       const data = await res.json();
       if (data.success) {
-        setNotification({ type: 'success', text: `Event "${data.event.name}" berhasil didaftarkan ke Supabase!` });
+        setNotification({
+          type: 'success',
+          category: 'CREATE_EVENT',
+          title: 'Event Berhasil Didaftarkan',
+          eventName: data.event.name,
+          text: `Event "${data.event.name}" berhasil didaftarkan ke Supabase dan siap dikonfigurasi.`,
+        });
         setCreateModalOpen(false);
         setNewEventForm({ name: '', location: '', eventDate: '2026-11-20', description: '', status: 'REGISTRATION_OPEN' });
         await fetchSuperAdminData();
@@ -140,7 +164,10 @@ export default function SuperAdminView({ activeTab = 'overview' }) {
       if (data.success) {
         setNotification({
           type: 'success',
-          text: `Akun Admin "${assignForm.username}" (${assignForm.email}) berhasil dibuat dan ditugaskan ke "${targetAssignEvent?.name || 'Event'}"!`,
+          category: 'ASSIGN_ADMIN',
+          title: 'Admin Panitia Berhasil Ditugaskan',
+          eventName: targetAssignEvent?.name || 'Event',
+          text: `Akun Admin "${assignForm.username}" (${assignForm.email}) berhasil dibuat dan ditugaskan ke "${targetAssignEvent?.name || 'Event'}".`,
         });
         setAssignModalOpen(false);
         setAssignForm({ eventId: '', username: '', email: '', password: '' });
@@ -177,8 +204,47 @@ export default function SuperAdminView({ activeTab = 'overview' }) {
       });
       const data = await res.json();
       if (data.success) {
-        setNotification({ type: 'success', text: `Konfigurasi lomba "${selectedEvent.name}" berhasil diperbarui!` });
+        const STATUS_LABEL_MAP = {
+          DRAFT_SETUP: 'Draft Setup',
+          REGISTRATION_OPEN: 'Pendaftaran Dibuka',
+          VALIDATION: 'Verifikasi Berkas',
+          TECHNICAL_MEETING: 'Technical Meeting',
+          LIVE: 'Hari H (Live)',
+          SCORING_REVIEW: 'Review Penilaian',
+          PUBLISHED: 'Hasil Dipublikasi',
+          ARCHIVED: 'Arsip',
+        };
+        const statusLabel = STATUS_LABEL_MAP[controlForm.status] || controlForm.status;
+
+        setNotification({
+          type: 'success',
+          category: 'KONTROL_STATUS',
+          title: 'Status & Kontrol Berhasil Diperbarui',
+          eventName: selectedEvent.name,
+          statusLabel,
+          statusKey: controlForm.status,
+          dpFlowLocked: controlForm.dpFlowLocked,
+          scoringLocked: controlForm.scoringLocked,
+          resultsPublished: controlForm.resultsPublished,
+          text: `Status tahapan event "${selectedEvent.name}" berhasil diubah menjadi "${statusLabel}".`,
+        });
         setControlModalOpen(false);
+        // Update state lokal secara instan (optimistic UI) agar tabel dan kartu langsung ter-update
+        setEvents((prev) =>
+          prev.map((e) =>
+            e.id === selectedEvent.id
+              ? {
+                  ...e,
+                  ...controlForm,
+                  status: controlForm.status,
+                  dpFlowLocked: controlForm.dpFlowLocked,
+                  scoringLocked: controlForm.scoringLocked,
+                  resultsPublished: controlForm.resultsPublished,
+                  ...(data.event || {}),
+                }
+              : e
+          )
+        );
         await fetchSuperAdminData();
       } else {
         alert(data.message || 'Gagal mengubah status event.');
@@ -189,34 +255,187 @@ export default function SuperAdminView({ activeTab = 'overview' }) {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem', fontFamily: 'var(--font-sans)' }}>
-      {/* Toast Notification */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem', fontFamily: 'var(--font-sans)', position: 'relative' }}>
+      {/* FLOATING TOAST NOTIFICATION (Pojok Kanan Atas - Sangat Jelas & Eye-Catching) */}
       {notification && (
         <div
+          role="status"
+          aria-live="polite"
           style={{
-            backgroundColor: notification.type === 'success' ? 'var(--pub-teal-light)' : 'var(--pub-coral-pale)',
-            border: `1px solid ${notification.type === 'success' ? 'var(--pub-teal)' : 'var(--pub-coral)'}`,
-            color: notification.type === 'success' ? 'var(--pub-teal)' : 'var(--pub-coral)',
-            padding: '0.85rem 1.25rem',
-            borderRadius: '12px',
-            fontSize: '0.875rem',
-            fontWeight: 600,
+            position: 'fixed',
+            top: '24px',
+            right: '28px',
+            zIndex: 99999,
+            minWidth: '340px',
+            maxWidth: '440px',
+            backgroundColor: 'var(--pub-surface)',
+            borderRadius: '16px',
+            border: notification.category === 'KONTROL_STATUS' ? '1px solid var(--pub-teal)' : '1px solid var(--pub-line)',
+            boxShadow: '0 16px 40px -8px rgba(23, 42, 70, 0.22), 0 4px 14px rgba(23, 42, 70, 0.08)',
+            padding: '1.15rem 1.25rem',
             display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            boxShadow: 'var(--pub-shadow-card)',
+            flexDirection: 'column',
+            gap: '0.65rem',
+            animation: 'toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+            fontFamily: 'var(--font-sans)',
+            overflow: 'hidden',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <CheckCircle size={18} />
-            <span>{notification.text}</span>
+          <style>{`
+            @keyframes toastSlideIn {
+              from { transform: translateY(-16px) scale(0.96); opacity: 0; }
+              to { transform: translateY(0) scale(1); opacity: 1; }
+            }
+            @keyframes toastProgress {
+              from { width: 100%; }
+              to { width: 0%; }
+            }
+          `}</style>
+
+          {/* Toast Top Header */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <div
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '10px',
+                  backgroundColor: notification.type === 'success' ? 'var(--pub-teal-light)' : 'var(--pub-coral-pale)',
+                  color: notification.type === 'success' ? 'var(--pub-teal)' : 'var(--pub-coral)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                {notification.category === 'KONTROL_STATUS' ? (
+                  <Sliders size={18} />
+                ) : notification.category === 'ASSIGN_ADMIN' ? (
+                  <UserCheck size={18} />
+                ) : (
+                  <CheckCircle2 size={18} />
+                )}
+              </div>
+              <div>
+                <div
+                  style={{
+                    fontSize: '0.6875rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                    color: notification.type === 'success' ? 'var(--pub-teal)' : 'var(--pub-coral)',
+                    fontWeight: 800,
+                  }}
+                >
+                  {notification.category === 'KONTROL_STATUS'
+                    ? 'KONTROL STATUS'
+                    : notification.category === 'ASSIGN_ADMIN'
+                    ? 'PENUGASAN PIC'
+                    : 'EVENT MANAGEMENT'}
+                </div>
+                <div style={{ fontWeight: 800, color: 'var(--pub-ink)', fontSize: '0.925rem', fontFamily: 'var(--font-heading)' }}>
+                  {notification.title || 'Operasi Berhasil'}
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setNotification(null)}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--pub-muted)',
+                padding: '0.2rem',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'color 0.15s ease',
+              }}
+              title="Tutup notifikasi"
+            >
+              <X size={16} />
+            </button>
           </div>
-          <button
-            onClick={() => setNotification(null)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}
+
+          {/* Toast Message Body */}
+          <div style={{ fontSize: '0.825rem', color: 'var(--pub-ink)', lineHeight: 1.45 }}>
+            {notification.text}
+          </div>
+
+          {/* Detail Khusus Aksi Kontrol (Badge Status & Status Kunci Alur) */}
+          {notification.category === 'KONTROL_STATUS' && (
+            <div
+              style={{
+                backgroundColor: 'var(--pub-canvas)',
+                padding: '0.55rem 0.75rem',
+                borderRadius: '8px',
+                border: '1px solid var(--pub-line)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '0.5rem',
+                fontSize: '0.75rem',
+                marginTop: '0.1rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span style={{ color: 'var(--pub-muted)', fontWeight: 600 }}>Status:</span>
+                <span
+                  style={{
+                    padding: '0.15rem 0.5rem',
+                    borderRadius: '999px',
+                    backgroundColor: 'var(--pub-teal-light)',
+                    color: 'var(--pub-teal)',
+                    fontWeight: 700,
+                    fontSize: '0.72rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
+                  }}
+                >
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: 'var(--pub-teal)' }} />
+                  {notification.statusLabel}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.7rem' }}>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.2rem',
+                    color: notification.dpFlowLocked ? 'var(--pub-teal)' : 'var(--pub-muted)',
+                    fontWeight: 600,
+                  }}
+                >
+                  {notification.dpFlowLocked ? <Lock size={11} /> : <Unlock size={11} />}
+                  <span>{notification.dpFlowLocked ? 'Alur DP Kunci' : 'Alur DP Buka'}</span>
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Animated Countdown Progress Bar (5s Auto-Dismiss) */}
+          <div
+            style={{
+              height: '3px',
+              backgroundColor: 'var(--pub-line-subtle)',
+              borderRadius: '999px',
+              overflow: 'hidden',
+              marginTop: '0.2rem',
+            }}
           >
-            <X size={16} />
-          </button>
+            <div
+              style={{
+                height: '100%',
+                backgroundColor: notification.type === 'success' ? 'var(--pub-teal)' : 'var(--pub-coral)',
+                animation: 'toastProgress 5s linear forwards',
+              }}
+            />
+          </div>
         </div>
       )}
 

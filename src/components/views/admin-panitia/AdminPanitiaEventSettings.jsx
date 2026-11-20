@@ -18,29 +18,45 @@ import {
   AlertCircle,
   Sparkles,
 } from 'lucide-react';
-import { getStoredPublicEvents, saveStoredPublicEvent, DEFAULT_PUBLIC_EVENTS } from '../../../data/publicEvents';
+import { getStoredPublicEvents, saveStoredPublicEvent, getStoredBanner, saveStoredBanner, DEFAULT_PUBLIC_EVENTS } from '../../../data/publicEvents';
 
 const DEFAULT_BANNER_FALLBACK = 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1000&q=80';
 
-export default function AdminPanitiaEventSettings({ eventId = 'lkbb-nasional-2026' }) {
+export default function AdminPanitiaEventSettings({
+  currentEvent: propCurrentEvent,
+  onUpdateEvent,
+  eventId = 'lkbb-nasional-2026',
+}) {
   const events = getStoredPublicEvents();
-  const currentEvent = events.find((e) => e.id === eventId || e.slug === eventId) || events[0] || DEFAULT_PUBLIC_EVENTS[0];
+  const fallbackEvent = events.find((e) => e.id === eventId || e.slug === eventId) || events[0] || DEFAULT_PUBLIC_EVENTS[0];
+  const currentEvent = propCurrentEvent || fallbackEvent;
+
+  const resolveBanner = (ev) => {
+    if (!ev) return DEFAULT_BANNER_FALLBACK;
+    if (ev.bannerUrl && ev.bannerUrl !== DEFAULT_BANNER_FALLBACK) return ev.bannerUrl;
+    const fromStorage = getStoredBanner(ev.id) || getStoredBanner(ev.slug) || (eventId ? getStoredBanner(eventId) : null);
+    if (fromStorage) return fromStorage;
+    const storedEvents = getStoredPublicEvents();
+    const match = storedEvents.find((e) => e.id === ev.id || e.slug === ev.slug || e.id === eventId || e.slug === eventId);
+    if (match?.bannerUrl) return match.bannerUrl;
+    return ev.bannerUrl || DEFAULT_BANNER_FALLBACK;
+  };
 
   // Local Form State
-  const [formData, setFormData] = useState({
-    title: currentEvent.title || '',
+  const [formData, setFormData] = useState(() => ({
+    title: currentEvent.name || currentEvent.title || '',
     category: currentEvent.category || 'SMA/SMK Sederajat',
     organizer: currentEvent.organizer || '',
-    date: currentEvent.date || '',
+    date: currentEvent.eventDate ? new Date(currentEvent.eventDate).toISOString().split('T')[0] : (currentEvent.date || ''),
     registrationDeadline: currentEvent.registrationDeadline || '',
     location: currentEvent.location || '',
     address: currentEvent.address || '',
     quota: currentEvent.quota || '32 Tim',
     fee: currentEvent.fee || 'Rp 650.000 / Tim',
-    status: currentEvent.status || 'OPEN',
-    shortDesc: currentEvent.shortDesc || '',
+    status: currentEvent.status || 'REGISTRATION_OPEN',
+    shortDesc: currentEvent.description || currentEvent.shortDesc || '',
     fullDesc: currentEvent.fullDesc || '',
-    bannerUrl: currentEvent.bannerUrl || DEFAULT_BANNER_FALLBACK,
+    bannerUrl: resolveBanner(currentEvent),
     judges: currentEvent.judges || [
       {
         id: 'juri-1',
@@ -64,7 +80,7 @@ export default function AdminPanitiaEventSettings({ eventId = 'lkbb-nasional-202
         verified: true,
       },
     ],
-  });
+  }));
 
   // State untuk Tambah Juri Baru
   const [newJudge, setNewJudge] = useState({
@@ -81,24 +97,26 @@ export default function AdminPanitiaEventSettings({ eventId = 'lkbb-nasional-202
   // Update formData when event changes
   useEffect(() => {
     if (currentEvent) {
-      setFormData({
-        title: currentEvent.title || '',
-        category: currentEvent.category || 'SMA/SMK Sederajat',
-        organizer: currentEvent.organizer || '',
-        date: currentEvent.date || '',
-        registrationDeadline: currentEvent.registrationDeadline || '',
-        location: currentEvent.location || '',
-        address: currentEvent.address || '',
-        quota: currentEvent.quota || '32 Tim',
-        fee: currentEvent.fee || 'Rp 650.000 / Tim',
-        status: currentEvent.status || 'OPEN',
-        shortDesc: currentEvent.shortDesc || '',
-        fullDesc: currentEvent.fullDesc || '',
-        bannerUrl: currentEvent.bannerUrl || DEFAULT_BANNER_FALLBACK,
-        judges: currentEvent.judges || [],
-      });
+      const resolvedBanner = resolveBanner(currentEvent);
+      setFormData((prev) => ({
+        ...prev,
+        title: currentEvent.name || currentEvent.title || prev.title,
+        category: currentEvent.category || prev.category || 'SMA/SMK Sederajat',
+        organizer: currentEvent.organizer || prev.organizer || '',
+        date: currentEvent.eventDate ? new Date(currentEvent.eventDate).toISOString().split('T')[0] : (currentEvent.date || prev.date),
+        registrationDeadline: currentEvent.registrationDeadline || prev.registrationDeadline || '',
+        location: currentEvent.location || prev.location || '',
+        address: currentEvent.address || prev.address || '',
+        quota: currentEvent.quota || prev.quota || '32 Tim',
+        fee: currentEvent.fee || prev.fee || 'Rp 650.000 / Tim',
+        status: currentEvent.status || prev.status || 'REGISTRATION_OPEN',
+        shortDesc: currentEvent.description || currentEvent.shortDesc || prev.shortDesc,
+        fullDesc: currentEvent.fullDesc || prev.fullDesc || '',
+        bannerUrl: resolvedBanner || prev.bannerUrl || DEFAULT_BANNER_FALLBACK,
+        judges: currentEvent.judges?.length > 0 ? currentEvent.judges : prev.judges,
+      }));
     }
-  }, [eventId]);
+  }, [currentEvent?.id, currentEvent?.bannerUrl, currentEvent?.name, eventId]);
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({
@@ -107,16 +125,49 @@ export default function AdminPanitiaEventSettings({ eventId = 'lkbb-nasional-202
     }));
   };
 
-  // Upload gambar lokal simulator (convert to data URL)
+  // Upload gambar lokal dengan optimasi & kompresi canvas otomatis
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        handleInputChange('bannerUrl', reader.result);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Harap pilih file gambar (JPG, PNG, WebP).');
+      return;
     }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        // Otomatis resize gambar agar tajam namun ringan (maksimum 1280px lebar)
+        const maxWidth = 1280;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Kompresi kualitas tinggi format JPEG
+        const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+        handleInputChange('bannerUrl', optimizedDataUrl);
+        saveStoredBanner(currentEvent.id, optimizedDataUrl);
+        if (currentEvent.slug) saveStoredBanner(currentEvent.slug, optimizedDataUrl);
+        if (eventId) saveStoredBanner(eventId, optimizedDataUrl);
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+
+    // Reset value input agar pengguna dapat mengunggah file yang sama kembali
+    e.target.value = '';
   };
 
   // Tambah Dewan Juri
@@ -149,25 +200,38 @@ export default function AdminPanitiaEventSettings({ eventId = 'lkbb-nasional-202
   const handleSave = async () => {
     setSaveStatus('saving');
     try {
-      // 1. Simpan ke local stored public events
+      // 1. Simpan ke local cache banner & stored public events
+      if (formData.bannerUrl) {
+        saveStoredBanner(currentEvent.id, formData.bannerUrl);
+        if (currentEvent.slug) saveStoredBanner(currentEvent.slug, formData.bannerUrl);
+        if (eventId) saveStoredBanner(eventId, formData.bannerUrl);
+      }
       saveStoredPublicEvent(currentEvent.slug || currentEvent.id, formData);
 
-      // 2. Sync ke backend endpoint (jika server aktif)
-      try {
-        await fetch(`/api/events/${currentEvent.id}`, {
+      // 2. Simpan ke backend Supabase via API Panitia
+      if (onUpdateEvent) {
+        await onUpdateEvent({
+          eventId: currentEvent.id,
+          name: formData.title,
+          description: formData.shortDesc,
+          location: formData.location,
+          eventDate: formData.date ? new Date(formData.date) : currentEvent.eventDate,
+          bannerUrl: formData.bannerUrl,
+        });
+      } else {
+        await fetch('/api/panitia/event', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({
+            eventId: currentEvent.id,
             name: formData.title,
             description: formData.shortDesc,
             location: formData.location,
-            status: formData.status === 'OPEN' ? 'REGISTRATION_OPEN' : formData.status === 'SOON' ? 'DRAFT_SETUP' : 'COMPLETED',
+            eventDate: formData.date ? new Date(formData.date) : currentEvent.eventDate,
             bannerUrl: formData.bannerUrl,
-            judges: formData.judges,
           }),
         });
-      } catch (apiErr) {
-        console.warn('Backend API sync fallback to local state:', apiErr);
       }
 
       setSaveStatus('saved');
@@ -180,22 +244,25 @@ export default function AdminPanitiaEventSettings({ eventId = 'lkbb-nasional-202
 
   // Reset ke Default
   const handleReset = () => {
-    const defaultEv = DEFAULT_PUBLIC_EVENTS.find((e) => e.id === currentEvent.id) || DEFAULT_PUBLIC_EVENTS[0];
+    const defaultEv = DEFAULT_PUBLIC_EVENTS.find((e) => e.id === currentEvent.id || e.slug === currentEvent.slug) || DEFAULT_PUBLIC_EVENTS[0];
+    saveStoredBanner(currentEvent.id, DEFAULT_BANNER_FALLBACK);
+    if (currentEvent.slug) saveStoredBanner(currentEvent.slug, DEFAULT_BANNER_FALLBACK);
+    if (eventId) saveStoredBanner(eventId, DEFAULT_BANNER_FALLBACK);
     setFormData({
-      title: defaultEv.title,
-      category: defaultEv.category,
-      organizer: defaultEv.organizer,
-      date: defaultEv.date,
-      registrationDeadline: defaultEv.registrationDeadline,
-      location: defaultEv.location,
-      address: defaultEv.address,
-      quota: defaultEv.quota,
-      fee: defaultEv.fee,
-      status: defaultEv.status,
-      shortDesc: defaultEv.shortDesc,
-      fullDesc: defaultEv.fullDesc,
-      bannerUrl: defaultEv.bannerUrl,
-      judges: defaultEv.judges,
+      title: defaultEv.title || defaultEv.name || '',
+      category: defaultEv.category || 'SMA/SMK Sederajat',
+      organizer: defaultEv.organizer || '',
+      date: defaultEv.date || '',
+      registrationDeadline: defaultEv.registrationDeadline || '',
+      location: defaultEv.location || '',
+      address: defaultEv.address || '',
+      quota: defaultEv.quota || '32 Tim',
+      fee: defaultEv.fee || 'Rp 650.000 / Tim',
+      status: defaultEv.status || 'REGISTRATION_OPEN',
+      shortDesc: defaultEv.shortDesc || defaultEv.description || '',
+      fullDesc: defaultEv.fullDesc || '',
+      bannerUrl: DEFAULT_BANNER_FALLBACK,
+      judges: defaultEv.judges || [],
     });
   };
 
@@ -436,7 +503,71 @@ export default function AdminPanitiaEventSettings({ eventId = 'lkbb-nasional-202
                   <input type="file" accept="image/*" onChange={handleFileUpload} style={{ display: 'none' }} />
                 </label>
               </div>
-              <div style={{ fontSize: '0.725rem', color: 'var(--pub-muted)', marginTop: '0.35rem' }}>
+
+              {/* Box Thumbnail Preview Instan */}
+              {formData.bannerUrl && (
+                <div
+                  style={{
+                    marginTop: '0.85rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '1rem',
+                    padding: '0.75rem 1rem',
+                    backgroundColor: 'var(--pub-canvas)',
+                    borderRadius: '12px',
+                    border: '1px solid var(--pub-line)',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '120px',
+                      height: '68px',
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                      border: '1px solid var(--pub-line)',
+                      backgroundColor: 'var(--pub-navy)',
+                      position: 'relative',
+                    }}
+                  >
+                    <img
+                      src={formData.bannerUrl}
+                      alt="Thumbnail Banner"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onError={(e) => {
+                        e.currentTarget.src = DEFAULT_BANNER_FALLBACK;
+                      }}
+                    />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--pub-ink)' }}>
+                      Banner Terpasang
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--pub-muted)', marginTop: '0.15rem' }}>
+                      Gambar ini aktif dan tampil pada live card preview di sebelah kanan.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleInputChange('bannerUrl', DEFAULT_BANNER_FALLBACK)}
+                    style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      color: 'var(--pub-coral)',
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '0.35rem 0.6rem',
+                      borderRadius: '6px',
+                    }}
+                    title="Kembalikan ke gambar default"
+                  >
+                    Reset Default
+                  </button>
+                </div>
+              )}
+
+              <div style={{ fontSize: '0.725rem', color: 'var(--pub-muted)', marginTop: '0.45rem' }}>
                 Rekomendasi rasio aspek 16:9 atau lebar minimal 800px untuk ketajaman optimal pada card publik.
               </div>
             </div>
@@ -1070,12 +1201,12 @@ export default function AdminPanitiaEventSettings({ eventId = 'lkbb-nasional-202
                 />
               )}
 
-              {/* Warm cinematic gradient overlay matching Image 2 */}
+              {/* Gradient overlay for text legibility while keeping banner crisp and visible */}
               <div
                 style={{
                   position: 'absolute',
                   inset: 0,
-                  background: 'linear-gradient(135deg, rgba(201, 75, 60, 0.82) 0%, rgba(23, 32, 51, 0.88) 100%)',
+                  background: 'linear-gradient(180deg, rgba(23, 32, 51, 0.2) 0%, rgba(23, 32, 51, 0.78) 100%)',
                   pointerEvents: 'none',
                 }}
               />

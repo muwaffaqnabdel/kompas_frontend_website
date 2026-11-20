@@ -20,14 +20,19 @@ export default function EventCatalogPage() {
   }, []);
 
   const filteredEvents = events.filter((evt) => {
+    const titleStr = (evt.title || evt.name || '').toLowerCase();
+    const locStr = (evt.location || '').toLowerCase();
+    const orgStr = (evt.organizer || '').toLowerCase();
+    const query = searchQuery.toLowerCase();
+
     const matchesSearch =
-      evt.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      evt.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      evt.organizer.toLowerCase().includes(searchQuery.toLowerCase());
+      titleStr.includes(query) ||
+      locStr.includes(query) ||
+      orgStr.includes(query);
 
     const matchesCategory =
       selectedCategory === 'ALL' ||
-      evt.category.toLowerCase().includes(selectedCategory.toLowerCase());
+      (evt.category || '').toLowerCase().includes(selectedCategory.toLowerCase());
 
     return matchesSearch && matchesCategory;
   });
@@ -228,12 +233,12 @@ export default function EventCatalogPage() {
                           />
                         )}
 
-                        {/* Warm cinematic gradient overlay matching Image 2 */}
+                        {/* Gradient overlay for text legibility while keeping banner crisp and visible */}
                         <div
                           style={{
                             position: 'absolute',
                             inset: 0,
-                            background: 'linear-gradient(135deg, rgba(201, 75, 60, 0.82) 0%, rgba(23, 32, 51, 0.88) 100%)',
+                            background: 'linear-gradient(180deg, rgba(23, 32, 51, 0.2) 0%, rgba(23, 32, 51, 0.78) 100%)',
                             pointerEvents: 'none',
                           }}
                         />
@@ -268,7 +273,7 @@ export default function EventCatalogPage() {
                               textShadow: '0 2px 8px rgba(0, 0, 0, 0.5)',
                             }}
                           >
-                            {evt.title}
+                            {evt.title || evt.name}
                           </h2>
                         </div>
                       </div>

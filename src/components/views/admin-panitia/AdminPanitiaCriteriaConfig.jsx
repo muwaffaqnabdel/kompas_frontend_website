@@ -293,7 +293,10 @@ export const DEFAULT_CRITERIA = [
 export default function AdminPanitiaCriteriaConfig({
   scoringLocked = false,
   setScoringLocked,
+  currentEvent,
 }) {
+  const eventId = currentEvent?.id || 'evt-lkbb-2026';
+
   // 1. Registered Judges State (from localStorage / shared)
   const [judges, setJudges] = useState(() => getStoredJudges());
 
@@ -309,7 +312,9 @@ export default function AdminPanitiaCriteriaConfig({
   // 2. Criteria List State with category normalization
   const [criteria, setCriteria] = useState(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY_CRITERIA);
+      const saved =
+        localStorage.getItem(`${STORAGE_KEY_CRITERIA}_${eventId}`) ||
+        localStorage.getItem(STORAGE_KEY_CRITERIA);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -334,6 +339,31 @@ export default function AdminPanitiaCriteriaConfig({
       return DEFAULT_CRITERIA;
     }
   });
+
+  // Fetch dari Backend API saat pertama kali dimuat
+  useEffect(() => {
+    const fetchCriteriaData = async () => {
+      try {
+        const res = await fetch(`/api/panitia/criteria?eventId=${eventId}`, { credentials: 'include' });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.criteria) && data.criteria.length > 0) {
+          const normalized = data.criteria.map((c) => ({
+            ...c,
+            category: normalizeCategory(c.category),
+            assignedJudges: c.assignedJudges || ['juri-1', 'juri-2', 'juri-3'],
+          }));
+          setCriteria(normalized);
+          localStorage.setItem(`${STORAGE_KEY_CRITERIA}_${eventId}`, JSON.stringify(normalized));
+          localStorage.setItem(STORAGE_KEY_CRITERIA, JSON.stringify(normalized));
+          window.dispatchEvent(new CustomEvent('kompas_criteria_updated', { detail: normalized }));
+        }
+      } catch (err) {
+        console.warn('Backend criteria API offline, menggunakan penyimpanan lokal:', err);
+      }
+    };
+
+    fetchCriteriaData();
+  }, [eventId]);
 
   // 3. Active Editing or Adding Form State
   const [editingId, setEditingId] = useState(null);
@@ -454,19 +484,38 @@ export default function AdminPanitiaCriteriaConfig({
     setCurrentPage(1);
   };
 
-  // Save criteria to localStorage
-  const handleSaveAll = () => {
+  // Simpan criteria ke state, localStorage dan emit event
+  const saveCriteriaState = (updated) => {
+    setCriteria(updated);
     try {
-      localStorage.setItem(STORAGE_KEY_CRITERIA, JSON.stringify(criteria));
-      setSaveFeedback('Konfigurasi kriteria, daftar nilai, dan penugasan juri berhasil disimpan.');
-      setTimeout(() => setSaveFeedback(null), 3500);
+      localStorage.setItem(`${STORAGE_KEY_CRITERIA}_${eventId}`, JSON.stringify(updated));
+      localStorage.setItem(STORAGE_KEY_CRITERIA, JSON.stringify(updated));
+      window.dispatchEvent(new CustomEvent('kompas_criteria_updated', { detail: updated }));
     } catch (err) {
       console.error('Error saving criteria config', err);
     }
   };
 
+  // Save all criteria ke backend & localStorage
+  const handleSaveAll = async () => {
+    saveCriteriaState(criteria);
+    try {
+      await fetch('/api/panitia/criteria', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ eventId, criteria }),
+      });
+      setSaveFeedback('Konfigurasi kriteria, daftar nilai, dan penugasan juri berhasil disimpan.');
+    } catch (err) {
+      console.error('Error saving criteria config to backend', err);
+      setSaveFeedback('Konfigurasi berhasil disimpan secara lokal.');
+    }
+    setTimeout(() => setSaveFeedback(null), 3500);
+  };
+
   // Submit / Add / Update Criteria
-  const handleSubmitCriteria = (e) => {
+  const handleSubmitCriteria = async (e) => {
     e.preventDefault();
     if (scoringLocked) return;
     if (!formData.name.trim()) {
@@ -497,21 +546,35 @@ export default function AdminPanitiaCriteriaConfig({
     }
 
     if (editingId) {
+      const updatedItem = {
+        ...formData,
+        category: targetCategory,
+        options: [...formData.options],
+        assignedJudges: autoAssigned,
+      };
       const updated = criteria.map((c) =>
         c.id === editingId
           ? {
               ...c,
-              ...formData,
-              category: targetCategory,
-              options: [...formData.options],
-              assignedJudges: autoAssigned,
+              ...updatedItem,
             }
           : c
       );
-      setCriteria(updated);
-      localStorage.setItem(STORAGE_KEY_CRITERIA, JSON.stringify(updated));
+      saveCriteriaState(updated);
       setEditingId(null);
       setSaveFeedback(`Aba-aba "${formData.name}" berhasil diperbarui.`);
+
+      // Sinkronkan ke backend API
+      try {
+        await fetch(`/api/panitia/criteria/${editingId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ eventId, ...updatedItem }),
+        });
+      } catch (err) {
+        console.warn('Backend update criterion offline, tersimpan di lokal:', err);
+      }
     } else {
       const newCrit = {
         id: `c-${Date.now()}`,
@@ -522,9 +585,25 @@ export default function AdminPanitiaCriteriaConfig({
         assignedJudges: autoAssigned,
       };
       const updated = [...criteria, newCrit];
-      setCriteria(updated);
-      localStorage.setItem(STORAGE_KEY_CRITERIA, JSON.stringify(updated));
+      saveCriteriaState(updated);
       setSaveFeedback(`Aba-aba "${newCrit.name}" berhasil ditambahkan ke kategori ${targetCategory}.`);
+
+      // Sinkronkan ke backend API
+      try {
+        const res = await fetch('/api/panitia/criteria', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ eventId, ...newCrit }),
+        });
+        const data = await res.json();
+        if (data.success && data.criterion?.id) {
+          const synced = updated.map((c) => (c.id === newCrit.id ? { ...c, id: data.criterion.id } : c));
+          saveCriteriaState(synced);
+        }
+      } catch (err) {
+        console.warn('Backend create criterion offline, tersimpan di lokal:', err);
+      }
     }
 
     // Reset Form namun pertahankan kategori aktif
@@ -581,7 +660,7 @@ export default function AdminPanitiaCriteriaConfig({
   };
 
   // Delete Criteria
-  const handleDeleteCriteria = (id) => {
+  const handleDeleteCriteria = async (id) => {
     if (scoringLocked) return;
     if (criteria.length <= 1) {
       alert('Event kompetisi minimal membutuhkan 1 kriteria penilaian aktif.');
@@ -593,8 +672,7 @@ export default function AdminPanitiaCriteriaConfig({
     const updated = criteria
       .filter((c) => c.id !== id)
       .map((c, idx) => ({ ...c, orderIndex: idx + 1 }));
-    setCriteria(updated);
-    localStorage.setItem(STORAGE_KEY_CRITERIA, JSON.stringify(updated));
+    saveCriteriaState(updated);
     if (editingId === id) handleCancelEdit();
 
     // Recalculate pagination for active category
@@ -608,10 +686,20 @@ export default function AdminPanitiaCriteriaConfig({
 
     setSaveFeedback(`Aba-aba berhasil dihapus.`);
     setTimeout(() => setSaveFeedback(null), 3500);
+
+    // Sinkronkan ke backend API
+    try {
+      await fetch(`/api/panitia/criteria/${id}?eventId=${eventId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+    } catch (err) {
+      console.warn('Backend delete criterion offline:', err);
+    }
   };
 
   // Reorder Criteria within Active Category
-  const handleMoveOrder = (critId, direction) => {
+  const handleMoveOrder = async (critId, direction) => {
     if (scoringLocked) return;
     const catItems = criteria.filter((c) => normalizeCategory(c.category) === activeCategory);
     const currCatIdx = catItems.findIndex((c) => c.id === critId);
@@ -631,37 +719,75 @@ export default function AdminPanitiaCriteriaConfig({
     newArr[globalIdx2] = temp;
 
     const reordered = newArr.map((c, i) => ({ ...c, orderIndex: i + 1 }));
-    setCriteria(reordered);
-    localStorage.setItem(STORAGE_KEY_CRITERIA, JSON.stringify(reordered));
+    saveCriteriaState(reordered);
+
+    // Sinkronkan urutan ke backend API
+    try {
+      await fetch('/api/panitia/criteria', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ eventId, criteria: reordered }),
+      });
+    } catch (err) {
+      console.warn('Backend reorder criteria offline:', err);
+    }
   };
 
   // Reset to default LKBB criteria template
-  const handleResetDefaults = () => {
+  const handleResetDefaults = async () => {
     if (scoringLocked) return;
     if (!window.confirm('Muat rubrik standar resmi LKBB (15 aba-aba lengkap: PBB, Variasi & Formasi, Danton, Make Up / Kostum)?')) return;
 
-    setCriteria(DEFAULT_CRITERIA);
-    localStorage.setItem(STORAGE_KEY_CRITERIA, JSON.stringify(DEFAULT_CRITERIA));
+    saveCriteriaState(DEFAULT_CRITERIA);
     setCurrentPage(1);
     handleCancelEdit();
     setSaveFeedback('Rubrik standar resmi LKBB berhasil dimuat.');
     setTimeout(() => setSaveFeedback(null), 3500);
+
+    // Sinkronkan ke backend API
+    try {
+      const res = await fetch('/api/panitia/criteria/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ eventId }),
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.criteria) && data.criteria.length > 0) {
+        saveCriteriaState(data.criteria);
+      }
+    } catch (err) {
+      console.warn('Backend reset criteria offline:', err);
+    }
   };
 
   // Critical Action: Lock toggle
-  const handleToggleLockConfirm = () => {
-    if (scoringLocked) {
-      if (setScoringLocked) setScoringLocked(false);
-      localStorage.setItem(STORAGE_KEY_SCORING_LOCKED, 'false');
-      setSaveFeedback('Kunci kriteria dibuka. Konfigurasi kini dapat disunting kembali.');
-    } else {
-      if (setScoringLocked) setScoringLocked(true);
-      localStorage.setItem(STORAGE_KEY_SCORING_LOCKED, 'true');
+  const handleToggleLockConfirm = async () => {
+    const nextLock = !scoringLocked;
+    if (setScoringLocked) setScoringLocked(nextLock);
+    localStorage.setItem(STORAGE_KEY_SCORING_LOCKED, String(nextLock));
+
+    if (nextLock) {
       handleSaveAll();
       setSaveFeedback('Kriteria & daftar nilai resmi berhasil dikunci (Locked V1.0).');
+    } else {
+      setSaveFeedback('Kunci kriteria dibuka. Konfigurasi kini dapat disunting kembali.');
     }
     setShowLockModal(false);
     setTimeout(() => setSaveFeedback(null), 3500);
+
+    // Sinkronkan status penguncian ke backend API
+    try {
+      await fetch('/api/panitia/criteria/lock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ eventId, locked: nextLock }),
+      });
+    } catch (err) {
+      console.warn('Backend lock criteria offline:', err);
+    }
   };
 
   // Total and average score for the active category simulator
@@ -1334,7 +1460,7 @@ export default function AdminPanitiaCriteriaConfig({
                   >
                     <th style={{ padding: '0.75rem 1rem', width: '50px', textAlign: 'center' }}>No</th>
                     <th style={{ padding: '0.75rem 1rem' }}>Aba-Aba & Rentang Nilai</th>
-                    <th style={{ padding: '0.75rem 1rem', width: '170px' }}>Panel Penilai</th>
+                    <th style={{ padding: '0.75rem 1rem', width: '140px' }}>Penilaian</th>
                     {!scoringLocked && (
                       <th style={{ padding: '0.75rem 1rem', width: '130px', textAlign: 'right' }}>Aksi</th>
                     )}
@@ -1365,17 +1491,6 @@ export default function AdminPanitiaCriteriaConfig({
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                               <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--pub-ink)' }}>
                                 {crit.name}
-                              </span>
-                              <span
-                                style={{
-                                  fontSize: '0.675rem',
-                                  fontWeight: 700,
-                                  padding: '0.12rem 0.45rem',
-                                  borderRadius: '4px',
-                                  ...getCategoryBadgeStyle(crit.category),
-                                }}
-                              >
-                                {normalizeCategory(crit.category)}
                               </span>
                               {crit.isMandatory && (
                                 <span
@@ -1411,24 +1526,21 @@ export default function AdminPanitiaCriteriaConfig({
                             </div>
                           </td>
 
-                          {/* Panel Penilai Kategori */}
+                          {/* Penilaian */}
                           <td style={{ padding: '0.75rem 1rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                              <span
-                                style={{
-                                  fontSize: '0.725rem',
-                                  fontWeight: 700,
-                                  padding: '0.15rem 0.5rem',
-                                  borderRadius: '4px',
-                                  ...getCategoryBadgeStyle(crit.category),
-                                }}
-                              >
-                                Juri {normalizeCategory(crit.category)}
-                              </span>
-                            </div>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--pub-muted)', marginTop: '0.2rem' }}>
-                              Otomatis ke tablet tim juri {normalizeCategory(crit.category)}
-                            </div>
+                            <span
+                              style={{
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                padding: '0.2rem 0.6rem',
+                                borderRadius: '4px',
+                                display: 'inline-block',
+                                letterSpacing: '0.02em',
+                                ...getCategoryBadgeStyle(crit.category),
+                              }}
+                            >
+                              {normalizeCategory(crit.category)}
+                            </span>
                           </td>
 
                           {/* Aksi */}

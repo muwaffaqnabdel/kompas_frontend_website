@@ -77,8 +77,10 @@ export default function PesertaScheduleView() {
 
   const [summaryNotes, setSummaryNotes] = useState(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY_TM_NOTES);
-      return saved !== null ? saved : DEFAULT_SUMMARY_NOTES;
+      const saved =
+        localStorage.getItem(`${STORAGE_KEY_TM_NOTES}_evt-lkbb-2026`) ||
+        localStorage.getItem(STORAGE_KEY_TM_NOTES);
+      return saved && saved !== 'null' ? saved : DEFAULT_SUMMARY_NOTES;
     } catch {
       return DEFAULT_SUMMARY_NOTES;
     }
@@ -87,8 +89,36 @@ export default function PesertaScheduleView() {
   const [copied, setCopied] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
 
-  // Sync dengan perubahan yang dilakukan admin jika ada event storage
+  // Fetch dari backend API saat mount & sync dengan perubahan admin
   useEffect(() => {
+    const fetchPesertaTM = async () => {
+      try {
+        const res = await fetch('/api/peserta/technical-meeting?eventId=evt-lkbb-2026');
+        const data = await res.json();
+        if (data.success) {
+          if (data.meetingInfo) setMeetingInfo(data.meetingInfo);
+          if (Array.isArray(data.documents)) setDocuments(data.documents);
+          if (data.summaryNotes !== undefined && data.summaryNotes !== null) {
+            setSummaryNotes(data.summaryNotes);
+          }
+        }
+      } catch (err) {
+        console.warn('Peserta TM API offline, fallback ke localStorage:', err);
+      }
+    };
+
+    fetchPesertaTM();
+
+    const handleCustomTMUpdate = (e) => {
+      if (e.detail) {
+        if (e.detail.meetingInfo) setMeetingInfo(e.detail.meetingInfo);
+        if (e.detail.documents) setDocuments(e.detail.documents);
+        if (e.detail.summaryNotes !== undefined && e.detail.summaryNotes !== null) {
+          setSummaryNotes(e.detail.summaryNotes);
+        }
+      }
+    };
+
     const handleStorageChange = () => {
       try {
         const savedInfo = localStorage.getItem(STORAGE_KEY_TM_INFO);
@@ -98,14 +128,18 @@ export default function PesertaScheduleView() {
         if (savedDocs) setDocuments(JSON.parse(savedDocs));
 
         const savedNotes = localStorage.getItem(STORAGE_KEY_TM_NOTES);
-        if (savedNotes !== null) setSummaryNotes(savedNotes);
+        if (savedNotes && savedNotes !== 'null') setSummaryNotes(savedNotes);
       } catch (err) {
         console.error('Failed to sync TM storage:', err);
       }
     };
 
+    window.addEventListener('kompas_tm_updated', handleCustomTMUpdate);
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('kompas_tm_updated', handleCustomTMUpdate);
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   const showToast = (msg) => {

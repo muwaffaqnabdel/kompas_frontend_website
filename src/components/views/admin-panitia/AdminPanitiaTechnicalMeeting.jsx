@@ -64,11 +64,15 @@ const DEFAULT_SUMMARY_NOTES = `1. Batas waktu tampil peleton maksimal 10 menit (
 4. Musik pengiring variasi & formasi wajib diserahkan ke meja operator sound paling lambat saat gladi kotor H-1.
 5. Kostum Danton wajib mengenakan PDH resmi pangkalan satuan masing-masing.`;
 
-export default function AdminPanitiaTechnicalMeeting() {
+export default function AdminPanitiaTechnicalMeeting({ currentEvent }) {
+  const eventId = currentEvent?.id || 'evt-lkbb-2026';
+
   // State Card 1: Zoom Info
   const [meetingInfo, setMeetingInfo] = useState(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY_TM_INFO);
+      const saved =
+        localStorage.getItem(`${STORAGE_KEY_TM_INFO}_${eventId}`) ||
+        localStorage.getItem(STORAGE_KEY_TM_INFO);
       return saved ? JSON.parse(saved) : DEFAULT_TM_INFO;
     } catch {
       return DEFAULT_TM_INFO;
@@ -78,7 +82,9 @@ export default function AdminPanitiaTechnicalMeeting() {
   // State Card 2: Documents (PDF & Word)
   const [documents, setDocuments] = useState(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY_TM_DOCS);
+      const saved =
+        localStorage.getItem(`${STORAGE_KEY_TM_DOCS}_${eventId}`) ||
+        localStorage.getItem(STORAGE_KEY_TM_DOCS);
       return saved ? JSON.parse(saved) : DEFAULT_DOCUMENTS;
     } catch {
       return DEFAULT_DOCUMENTS;
@@ -88,16 +94,20 @@ export default function AdminPanitiaTechnicalMeeting() {
   // State Card 2: Summary Notes
   const [summaryNotes, setSummaryNotes] = useState(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY_TM_NOTES);
-      return saved ? saved : DEFAULT_SUMMARY_NOTES;
+      const saved =
+        localStorage.getItem(`${STORAGE_KEY_TM_NOTES}_${eventId}`) ||
+        localStorage.getItem(STORAGE_KEY_TM_NOTES);
+      return saved && saved !== 'null' ? saved : DEFAULT_SUMMARY_NOTES;
     } catch {
       return DEFAULT_SUMMARY_NOTES;
     }
   });
 
-  // Toast Feedback State
+  // Toast & Inline Feedback State
   const [toastMessage, setToastMessage] = useState(null);
   const [isCopied, setIsCopied] = useState(false);
+  const [zoomSavedFeedback, setZoomSavedFeedback] = useState(false);
+  const [notesSavedFeedback, setNotesSavedFeedback] = useState(false);
   const fileInputRef = useRef(null);
 
   const showToast = (msg) => {
@@ -105,15 +115,89 @@ export default function AdminPanitiaTechnicalMeeting() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // 1. Handlers Card 1 (Zoom Meeting)
-  const handleSaveMeetingInfo = (e) => {
-    e.preventDefault();
+  // Ambil data TM dari Backend API saat pertama kali dimuat
+  useEffect(() => {
+    const fetchTMData = async () => {
+      try {
+        const res = await fetch(`/api/panitia/technical-meeting?eventId=${eventId}`, {
+          credentials: 'include',
+        });
+        const data = await res.json();
+        if (data.success) {
+          if (data.meetingInfo) {
+            setMeetingInfo(data.meetingInfo);
+            localStorage.setItem(`${STORAGE_KEY_TM_INFO}_${eventId}`, JSON.stringify(data.meetingInfo));
+            localStorage.setItem(STORAGE_KEY_TM_INFO, JSON.stringify(data.meetingInfo));
+          }
+          if (Array.isArray(data.documents)) {
+            setDocuments(data.documents);
+            localStorage.setItem(`${STORAGE_KEY_TM_DOCS}_${eventId}`, JSON.stringify(data.documents));
+            localStorage.setItem(STORAGE_KEY_TM_DOCS, JSON.stringify(data.documents));
+          }
+          if (data.summaryNotes !== undefined && data.summaryNotes !== null) {
+            setSummaryNotes(data.summaryNotes);
+            localStorage.setItem(`${STORAGE_KEY_TM_NOTES}_${eventId}`, data.summaryNotes);
+            localStorage.setItem(STORAGE_KEY_TM_NOTES, data.summaryNotes);
+          }
+        }
+      } catch (err) {
+        console.warn('Backend TM API offline, menggunakan penyimpanan lokal:', err);
+      }
+    };
+
+    fetchTMData();
+  }, [eventId]);
+
+  const syncLocalAndEvent = (newInfo, newDocs, newNotes) => {
     try {
-      localStorage.setItem(STORAGE_KEY_TM_INFO, JSON.stringify(meetingInfo));
-      showToast('Informasi & Tautan Zoom Technical Meeting berhasil disimpan dan disinkronkan ke peserta!');
+      if (newInfo) {
+        localStorage.setItem(`${STORAGE_KEY_TM_INFO}_${eventId}`, JSON.stringify(newInfo));
+        localStorage.setItem(STORAGE_KEY_TM_INFO, JSON.stringify(newInfo));
+      }
+      if (newDocs) {
+        localStorage.setItem(`${STORAGE_KEY_TM_DOCS}_${eventId}`, JSON.stringify(newDocs));
+        localStorage.setItem(STORAGE_KEY_TM_DOCS, JSON.stringify(newDocs));
+      }
+      if (newNotes !== undefined && newNotes !== null) {
+        localStorage.setItem(`${STORAGE_KEY_TM_NOTES}_${eventId}`, newNotes);
+        localStorage.setItem(STORAGE_KEY_TM_NOTES, newNotes);
+      }
+      window.dispatchEvent(
+        new CustomEvent('kompas_tm_updated', {
+          detail: {
+            meetingInfo: newInfo || meetingInfo,
+            documents: newDocs || documents,
+            summaryNotes: newNotes !== undefined && newNotes !== null ? newNotes : summaryNotes,
+          },
+        })
+      );
     } catch (err) {
-      console.error(err);
-      alert('Gagal menyimpan ke penyimpanan lokal.');
+      console.error('Failed to sync TM localStorage:', err);
+    }
+  };
+
+  // 1. Handlers Card 1 (Zoom Meeting)
+  const handleSaveMeetingInfo = async (e) => {
+    e.preventDefault();
+    syncLocalAndEvent(meetingInfo, null, null);
+    setZoomSavedFeedback(true);
+    setTimeout(() => setZoomSavedFeedback(false), 4500);
+    showToast('Informasi & Tautan Zoom Technical Meeting berhasil disimpan dan disinkronkan ke peserta!');
+
+    // Sinkronkan ke backend API
+    try {
+      await fetch('/api/panitia/technical-meeting', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          eventId,
+          meetingInfo,
+          summaryNotes,
+        }),
+      });
+    } catch (err) {
+      console.warn('Backend update TM offline:', err);
     }
   };
 
@@ -146,7 +230,7 @@ _Panitia Pelaksana LKBB Paskibra 2026_`;
   };
 
   // 2. Handlers Card 2 (Documents Upload & Notes)
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
@@ -164,47 +248,89 @@ _Panitia Pelaksana LKBB Paskibra 2026_`;
       const sizeInMb = (file.size / (1024 * 1024)).toFixed(1);
       const sizeStr = file.size > 1024 * 1024 ? `${sizeInMb} MB` : `${Math.round(file.size / 1024)} KB`;
 
-      newDocs.push({
+      const docItem = {
         id: `doc-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
         name: file.name,
         ext: ext,
         size: sizeStr,
-        uploadedAt: new Date().toLocaleDateString('id-ID', {
-          day: 'numeric',
-          month: 'short',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-        }) + ' WIB',
+        uploadedAt:
+          new Date().toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          }) + ' WIB',
         uploader: 'Admin Panitia',
         isPublished: true,
-      });
+      };
+
+      newDocs.push(docItem);
+
+      // Simpan dokumen ke backend API
+      try {
+        await fetch('/api/panitia/technical-meeting/documents', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            eventId,
+            document: docItem,
+          }),
+        });
+      } catch (err) {
+        console.warn('Backend upload TM doc offline:', err);
+      }
     }
 
     if (newDocs.length > 0) {
       const updated = [...documents, ...newDocs];
       setDocuments(updated);
-      localStorage.setItem(STORAGE_KEY_TM_DOCS, JSON.stringify(updated));
+      syncLocalAndEvent(null, updated, null);
       showToast(`${newDocs.length} dokumen hasil TM berhasil ditambahkan!`);
     }
 
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleDeleteDocument = (id, name) => {
+  const handleDeleteDocument = async (id, name) => {
     if (!window.confirm(`Hapus dokumen notulensi "${name}"?`)) return;
     const updated = documents.filter((d) => d.id !== id);
     setDocuments(updated);
-    localStorage.setItem(STORAGE_KEY_TM_DOCS, JSON.stringify(updated));
+    syncLocalAndEvent(null, updated, null);
     showToast(`Dokumen "${name}" berhasil dihapus.`);
+
+    // Hapus di backend API
+    try {
+      await fetch(`/api/panitia/technical-meeting/documents/${id}?eventId=${eventId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+    } catch (err) {
+      console.warn('Backend delete TM doc offline:', err);
+    }
   };
 
-  const handleSaveNotes = () => {
+  const handleSaveNotes = async () => {
+    syncLocalAndEvent(null, null, summaryNotes);
+    setNotesSavedFeedback(true);
+    setTimeout(() => setNotesSavedFeedback(false), 4500);
+    showToast('Poin-poin kesepakatan dan notulensi TM berhasil disimpan!');
+
+    // Sinkronkan ke backend API
     try {
-      localStorage.setItem(STORAGE_KEY_TM_NOTES, summaryNotes);
-      showToast('Poin-poin kesepakatan dan notulensi TM berhasil disimpan!');
+      await fetch('/api/panitia/technical-meeting', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          eventId,
+          meetingInfo,
+          summaryNotes,
+        }),
+      });
     } catch (err) {
-      console.error(err);
+      console.warn('Backend save TM notes offline:', err);
     }
   };
 
@@ -581,7 +707,7 @@ _Panitia Pelaksana LKBB Paskibra 2026_`;
           </div>
 
           {/* Submit Action */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '0.5rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.45rem', paddingTop: '0.5rem' }}>
             <button
               type="submit"
               className="pub-btn-coral"
@@ -597,6 +723,27 @@ _Panitia Pelaksana LKBB Paskibra 2026_`;
               <Check size={16} />
               <span>Simpan Pengaturan Link TM</span>
             </button>
+            {zoomSavedFeedback && (
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  color: '#15803D',
+                  backgroundColor: '#DCFCE7',
+                  border: '1px solid #86EFAC',
+                  padding: '0.35rem 0.75rem',
+                  borderRadius: '6px',
+                  fontSize: '0.775rem',
+                  fontWeight: 600,
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  animation: 'fadeIn 0.2s ease',
+                }}
+              >
+                <Check size={14} style={{ color: '#16A34A', strokeWidth: 2.5 }} />
+                <span>setting zoom telah disimpan</span>
+              </div>
+            )}
           </div>
         </form>
       </div>
@@ -847,7 +994,7 @@ _Panitia Pelaksana LKBB Paskibra 2026_`;
             }}
           />
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.45rem', marginTop: '1rem' }}>
             <button
               type="button"
               onClick={handleSaveNotes}
@@ -864,6 +1011,27 @@ _Panitia Pelaksana LKBB Paskibra 2026_`;
               <Check size={16} />
               <span>Simpan & Publikasikan Notulensi</span>
             </button>
+            {notesSavedFeedback && (
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  color: '#15803D',
+                  backgroundColor: '#DCFCE7',
+                  border: '1px solid #86EFAC',
+                  padding: '0.35rem 0.75rem',
+                  borderRadius: '6px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  animation: 'fadeIn 0.2s ease',
+                }}
+              >
+                <Check size={14} style={{ color: '#16A34A', strokeWidth: 2.5 }} />
+                <span>notulensi telah disimpan</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

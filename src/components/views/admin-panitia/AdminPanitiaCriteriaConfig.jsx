@@ -441,72 +441,13 @@ export default function AdminPanitiaCriteriaConfig({
     setCustomScoreInput('');
   };
 
-  // Toggle judge assignment in checkbox
-  const handleToggleJudge = (judgeId) => {
-    setFormData((prev) => {
-      const current = prev.assignedJudges || [];
-      const updated = current.includes(judgeId)
-        ? current.filter((id) => id !== judgeId)
-        : [...current, judgeId];
-      return { ...prev, assignedJudges: updated };
-    });
-  };
-
-  // Quick preset shortcuts for judge selection
-  const handleSelectAllJudges = () => {
-    setFormData((prev) => ({
-      ...prev,
-      assignedJudges: judges.map((j) => j.id),
-    }));
-  };
-
-  const handleSelectPbbJudges = () => {
-    const pbbIds = judges.filter((j) => normalizeCategory(j.category) === 'PBB').map((j) => j.id);
-    setFormData((prev) => ({
-      ...prev,
-      assignedJudges: pbbIds.length > 0 ? pbbIds : ['juri-1', 'juri-2', 'juri-3'],
-    }));
-  };
-
-  const handleSelectVariasiJudges = () => {
-    const varIds = judges.filter((j) => normalizeCategory(j.category) === 'VARIASI & FORMASI').map((j) => j.id);
-    setFormData((prev) => ({
-      ...prev,
-      assignedJudges: varIds.length > 0 ? varIds : ['juri-4', 'juri-5'],
-    }));
-  };
-
-  const handleClearJudges = () => {
-    setFormData((prev) => ({
-      ...prev,
-      assignedJudges: [],
-    }));
-  };
-
-  // Auto-suggest judges and update view when category dropdown changes
+  // Update view when category dropdown changes
   const handleCategoryChange = (newCatRaw) => {
     const newCat = normalizeCategory(newCatRaw);
-    let suggested = [];
-
-    if (newCat === 'PBB') {
-      suggested = judges.filter((j) => normalizeCategory(j.category) === 'PBB').map((j) => j.id);
-      if (suggested.length === 0) suggested = ['juri-1', 'juri-2', 'juri-3'];
-    } else if (newCat === 'VARIASI & FORMASI') {
-      suggested = judges.filter((j) => normalizeCategory(j.category) === 'VARIASI & FORMASI').map((j) => j.id);
-      if (suggested.length === 0) suggested = ['juri-4', 'juri-5'];
-    } else if (newCat === 'DANTON') {
-      suggested = [judges[0]?.id || 'juri-1'];
-    } else if (newCat === 'MAKE UP / KOSTUM') {
-      suggested = judges.filter((j) => (j.specialties || []).some(s => s.toLowerCase().includes('kostum')) || j.id === 'juri-5').map((j) => j.id);
-      if (suggested.length === 0) suggested = ['juri-5'];
-    } else {
-      suggested = judges.map((j) => j.id);
-    }
 
     setFormData((prev) => ({
       ...prev,
       category: newCat,
-      assignedJudges: suggested.length > 0 ? suggested : prev.assignedJudges,
     }));
 
     // Reset pagination ke halaman 1 agar daftar rubrik langsung tampil rapi
@@ -539,6 +480,22 @@ export default function AdminPanitiaCriteriaConfig({
 
     const targetCategory = normalizeCategory(formData.category);
 
+    // Otomatis tentukan ID juri penilai sesuai kategori di background tanpa membebani antarmuka pengguna
+    let autoAssigned = [];
+    if (targetCategory === 'PBB') {
+      autoAssigned = judges.filter((j) => normalizeCategory(j.category) === 'PBB').map((j) => j.id);
+      if (autoAssigned.length === 0) autoAssigned = ['juri-1', 'juri-2', 'juri-3'];
+    } else if (targetCategory === 'VARIASI & FORMASI') {
+      autoAssigned = judges.filter((j) => normalizeCategory(j.category) === 'VARIASI & FORMASI').map((j) => j.id);
+      if (autoAssigned.length === 0) autoAssigned = ['juri-4', 'juri-5'];
+    } else if (targetCategory === 'DANTON') {
+      autoAssigned = [judges[0]?.id || 'juri-1'];
+    } else if (targetCategory === 'MAKE UP / KOSTUM') {
+      autoAssigned = ['juri-5'];
+    } else {
+      autoAssigned = judges.map((j) => j.id);
+    }
+
     if (editingId) {
       const updated = criteria.map((c) =>
         c.id === editingId
@@ -547,7 +504,7 @@ export default function AdminPanitiaCriteriaConfig({
               ...formData,
               category: targetCategory,
               options: [...formData.options],
-              assignedJudges: [...(formData.assignedJudges || [])],
+              assignedJudges: autoAssigned,
             }
           : c
       );
@@ -562,7 +519,7 @@ export default function AdminPanitiaCriteriaConfig({
         category: targetCategory,
         orderIndex: criteria.length + 1,
         options: [...formData.options],
-        assignedJudges: [...(formData.assignedJudges || [])],
+        assignedJudges: autoAssigned,
       };
       const updated = [...criteria, newCrit];
       setCriteria(updated);
@@ -990,11 +947,11 @@ export default function AdminPanitiaCriteriaConfig({
               </div>
 
               <form onSubmit={handleSubmitCriteria} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {/* 1. Input Nama & Kategori Dropdown (HANYA 4 OPSI SESUAI PERMINTAAN USER) */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1.1fr', gap: '0.75rem' }}>
+                {/* 1. Input Nama & Kategori Dropdown */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--slate-text)', marginBottom: '0.35rem' }}>
-                      Nama Aba-Aba / Kriteria <span style={{ color: 'var(--crimson)' }}>*</span>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--pub-ink)', marginBottom: '0.35rem' }}>
+                      Nama Aba-Aba / Kriteria <span style={{ color: 'var(--pub-coral)' }}>*</span>
                     </label>
                     <input
                       type="text"
@@ -1004,38 +961,40 @@ export default function AdminPanitiaCriteriaConfig({
                       required
                       style={{
                         width: '100%',
-                        padding: '0.55rem 0.75rem',
+                        padding: '0.6rem 0.85rem',
                         fontSize: '0.85rem',
                         borderRadius: '8px',
                         border: '1px solid var(--pub-line)',
                         backgroundColor: '#FFFFFF',
                         color: 'var(--pub-ink)',
+                        outline: 'none',
                       }}
                     />
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--slate-text)', marginBottom: '0.35rem' }}>
-                      Kategori Penilaian <span style={{ color: 'var(--pub-coral)', fontSize: '0.7rem' }}>● Mengubah Tampilan</span>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--pub-ink)', marginBottom: '0.35rem' }}>
+                      Kategori Penilaian <span style={{ color: 'var(--pub-coral)' }}>*</span>
                     </label>
                     <select
                       value={formData.category}
                       onChange={(e) => handleCategoryChange(e.target.value)}
                       style={{
                         width: '100%',
-                        padding: '0.55rem 0.75rem',
+                        padding: '0.6rem 0.85rem',
                         fontSize: '0.85rem',
                         borderRadius: '8px',
-                        border: '1.5px solid var(--pub-coral)',
+                        border: '1px solid var(--pub-line)',
                         backgroundColor: '#FFFFFF',
                         color: 'var(--pub-ink)',
                         fontWeight: 700,
                         cursor: 'pointer',
+                        outline: 'none',
                       }}
                     >
-                      <option value="PBB">PBB</option>
+                      <option value="PBB">PBB (PBB Murni)</option>
                       <option value="VARIASI & FORMASI">VARIASI & FORMASI</option>
-                      <option value="DANTON">DANTON</option>
+                      <option value="DANTON">DANTON (Komandan Peleton)</option>
                       <option value="MAKE UP / KOSTUM">MAKE UP / KOSTUM</option>
                     </select>
                   </div>
@@ -1236,133 +1195,39 @@ export default function AdminPanitiaCriteriaConfig({
                   </div>
                 </div>
 
-                {/* 4. Checkbox Penugasan Dewan Juri */}
+                {/* 4. Alokasi Otomatis Berdasarkan Kategori (Tanpa Perlu Memilih Nama Juri Manual) */}
                 <div
                   style={{
-                    backgroundColor: '#FFFFFF',
+                    backgroundColor: 'var(--pub-canvas)',
                     borderRadius: '10px',
-                    padding: '1rem',
-                    border: '1.5px solid var(--pub-line)',
+                    padding: '0.85rem 1rem',
+                    border: '1px solid var(--pub-line)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <UserCheck size={16} style={{ color: 'var(--pub-coral)' }} />
-                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--pub-ink)' }}>
-                          Penugasan Dewan Juri Penilai
-                        </span>
-                      </div>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--pub-muted)', margin: '0.15rem 0 0 0' }}>
-                        Centang dewan juri yang di tabletnya akan muncul aba-aba kategori <strong>{activeCategory}</strong> ini:
-                      </p>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                      <button
-                        type="button"
-                        onClick={handleSelectAllJudges}
-                        className="pub-btn-outline"
-                        style={{ padding: '0.25rem 0.55rem', fontSize: '0.725rem' }}
-                      >
-                        Centang Semua
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleSelectPbbJudges}
-                        className="pub-btn-outline"
-                        style={{ padding: '0.25rem 0.55rem', fontSize: '0.725rem' }}
-                      >
-                        Juri PBB
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleSelectVariasiJudges}
-                        className="pub-btn-outline"
-                        style={{ padding: '0.25rem 0.55rem', fontSize: '0.725rem' }}
-                      >
-                        Juri Variasi
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleClearJudges}
-                        className="pub-btn-outline"
-                        style={{ padding: '0.25rem 0.45rem', fontSize: '0.725rem', color: 'var(--pub-muted)' }}
-                      >
-                        Kosongkan
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Grid Checkbox Dewan Juri */}
                   <div
                     style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                      gap: '0.5rem',
-                      marginTop: '0.65rem',
+                      backgroundColor: 'var(--pub-teal-light)',
+                      color: 'var(--pub-teal)',
+                      padding: '0.4rem',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
                     }}
                   >
-                    {judges.map((j, idx) => {
-                      const isChecked = (formData.assignedJudges || []).includes(j.id);
-                      const isPbb = normalizeCategory(j.category) === 'PBB';
-
-                      return (
-                        <label
-                          key={j.id}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handleToggleJudge(j.id);
-                          }}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.55rem',
-                            padding: '0.55rem 0.65rem',
-                            borderRadius: '8px',
-                            border: isChecked ? '1.5px solid var(--pub-coral)' : '1px solid var(--pub-line)',
-                            backgroundColor: isChecked ? 'var(--pub-coral-pale)' : 'var(--pub-canvas)',
-                            cursor: 'pointer',
-                            userSelect: 'none',
-                            transition: 'all 0.15s ease',
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => {}}
-                            style={{
-                              width: '15px',
-                              height: '15px',
-                              accentColor: 'var(--pub-coral)',
-                              cursor: 'pointer',
-                            }}
-                          />
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--pub-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {j.name}
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.1rem' }}>
-                              <span
-                                style={{
-                                  fontSize: '0.625rem',
-                                  fontWeight: 600,
-                                  backgroundColor: isPbb ? '#E0F2FE' : '#FEF3C7',
-                                  color: isPbb ? '#0369A1' : '#B45309',
-                                  padding: '0.08rem 0.3rem',
-                                  borderRadius: '3px',
-                                }}
-                              >
-                                {j.category}
-                              </span>
-                              <span style={{ fontSize: '0.675rem', color: 'var(--pub-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                Juri {idx + 1}
-                              </span>
-                            </div>
-                          </div>
-                        </label>
-                      );
-                    })}
+                    <Check size={16} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--pub-ink)' }}>
+                      Alokasi Penjurian Otomatis Kategori {formData.category}
+                    </div>
+                    <p style={{ fontSize: '0.725rem', color: 'var(--pub-muted)', margin: '0.15rem 0 0 0', lineHeight: 1.4 }}>
+                      Butir aba-aba ini otomatis disinkronkan ke seluruh tablet dewan juri penilai kategori <strong>{formData.category}</strong>.
+                    </p>
                   </div>
                 </div>
 
@@ -1469,7 +1334,7 @@ export default function AdminPanitiaCriteriaConfig({
                   >
                     <th style={{ padding: '0.75rem 1rem', width: '50px', textAlign: 'center' }}>No</th>
                     <th style={{ padding: '0.75rem 1rem' }}>Aba-Aba & Rentang Nilai</th>
-                    <th style={{ padding: '0.75rem 1rem', width: '160px' }}>Dewan Juri</th>
+                    <th style={{ padding: '0.75rem 1rem', width: '170px' }}>Panel Penilai</th>
                     {!scoringLocked && (
                       <th style={{ padding: '0.75rem 1rem', width: '130px', textAlign: 'right' }}>Aksi</th>
                     )}
@@ -1479,9 +1344,6 @@ export default function AdminPanitiaCriteriaConfig({
                   {paginatedCriteria.length > 0 ? (
                     paginatedCriteria.map((crit, localIdx) => {
                       const displayNo = startIndex + localIdx + 1;
-                      const assignedList = (crit.assignedJudges || [])
-                        .map((id) => judges.find((j) => j.id === id))
-                        .filter(Boolean);
                       const isEditing = editingId === crit.id;
 
                       return (
@@ -1549,18 +1411,23 @@ export default function AdminPanitiaCriteriaConfig({
                             </div>
                           </td>
 
-                          {/* Dewan Juri */}
+                          {/* Panel Penilai Kategori */}
                           <td style={{ padding: '0.75rem 1rem' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                              <UserCheck size={13} style={{ color: 'var(--pub-coral)', flexShrink: 0 }} />
-                              <span style={{ fontSize: '0.775rem', fontWeight: 600, color: 'var(--pub-ink)' }}>
-                                {assignedList.length} Juri Penilai
+                              <span
+                                style={{
+                                  fontSize: '0.725rem',
+                                  fontWeight: 700,
+                                  padding: '0.15rem 0.5rem',
+                                  borderRadius: '4px',
+                                  ...getCategoryBadgeStyle(crit.category),
+                                }}
+                              >
+                                Juri {normalizeCategory(crit.category)}
                               </span>
                             </div>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--pub-muted)', marginTop: '0.15rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '160px' }}>
-                              {assignedList.length > 0
-                                ? assignedList.map((j) => j.name.split(',')[0]).join(', ')
-                                : '(Belum dicentang)'}
+                            <div style={{ fontSize: '0.7rem', color: 'var(--pub-muted)', marginTop: '0.2rem' }}>
+                              Otomatis ke tablet tim juri {normalizeCategory(crit.category)}
                             </div>
                           </td>
 
@@ -1729,49 +1596,66 @@ export default function AdminPanitiaCriteriaConfig({
           <div
             style={{
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
+              flexDirection: 'column',
+              gap: '0.65rem',
               marginBottom: '1rem',
               paddingBottom: '0.85rem',
               borderBottom: '1px solid var(--pub-line)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Smartphone size={18} style={{ color: 'var(--pub-coral)' }} />
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                  <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.975rem', fontWeight: 800, color: 'var(--pub-ink)', margin: 0 }}>
-                    Simulasi Live Lembar Juri
-                  </h3>
-                  <span
-                    style={{
-                      fontSize: '0.675rem',
-                      fontWeight: 700,
-                      padding: '0.12rem 0.45rem',
-                      borderRadius: '4px',
-                      ...getCategoryBadgeStyle(activeCategory),
-                    }}
-                  >
-                    {activeCategory}
-                  </span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+                <div
+                  style={{
+                    backgroundColor: 'var(--pub-coral-pale)',
+                    color: 'var(--pub-coral)',
+                    width: '30px',
+                    height: '30px',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Smartphone size={16} />
                 </div>
-                <span style={{ fontSize: '0.7rem', color: 'var(--pub-muted)' }}>
-                  Preview lembar nilai juri untuk kategori {activeCategory} ({filteredCriteria.length} item)
+                <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.975rem', fontWeight: 800, color: 'var(--pub-ink)', margin: 0 }}>
+                  Simulasi Live Lembar Juri
+                </h3>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
+                <span
+                  style={{
+                    fontSize: '0.675rem',
+                    fontWeight: 800,
+                    padding: '0.15rem 0.5rem',
+                    borderRadius: '4px',
+                    ...getCategoryBadgeStyle(activeCategory),
+                  }}
+                >
+                  {activeCategory}
+                </span>
+                <span
+                  style={{
+                    backgroundColor: 'var(--pub-coral-pale)',
+                    color: 'var(--pub-coral-dark)',
+                    fontSize: '0.65rem',
+                    fontWeight: 800,
+                    padding: '0.15rem 0.45rem',
+                    borderRadius: '5px',
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  INTERAKTIF
                 </span>
               </div>
             </div>
-            <span
-              style={{
-                backgroundColor: 'var(--pub-coral-pale)',
-                color: 'var(--pub-coral-dark)',
-                fontSize: '0.675rem',
-                fontWeight: 700,
-                padding: '0.2rem 0.5rem',
-                borderRadius: '6px',
-              }}
-            >
-              INTERAKTIF
-            </span>
+
+            <p style={{ fontSize: '0.725rem', color: 'var(--pub-muted)', margin: 0, lineHeight: 1.4 }}>
+              Preview lembar nilai tablet juri kategori {activeCategory} ({filteredCriteria.length} item aba-aba)
+            </p>
           </div>
 
           <p style={{ fontSize: '0.775rem', color: 'var(--pub-muted)', margin: '0 0 1rem 0', lineHeight: 1.45 }}>
@@ -1801,7 +1685,7 @@ export default function AdminPanitiaCriteriaConfig({
                         {c.name}
                       </span>
                       <span style={{ fontSize: '0.675rem', color: 'var(--pub-muted)', display: 'block', marginTop: '0.1rem' }}>
-                        {c.category} · {c.assignedJudges?.length || 0} Juri Ditugaskan
+                        Kategori: <strong>{normalizeCategory(c.category)}</strong> · Bobot {c.weight ?? 1.0}
                       </span>
                     </div>
                     <span

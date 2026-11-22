@@ -72,9 +72,11 @@ export const DEFAULT_JUDGES = [
   },
 ];
 
-export function getStoredJudges() {
+export function getStoredJudges(eventId = 'evt-lkbb-2026') {
   if (typeof window === 'undefined') return DEFAULT_JUDGES;
   try {
+    const eventSaved = localStorage.getItem(`${STORAGE_KEY_JUDGES}_${eventId}`);
+    if (eventSaved) return JSON.parse(eventSaved);
     const saved = localStorage.getItem(STORAGE_KEY_JUDGES);
     return saved ? JSON.parse(saved) : DEFAULT_JUDGES;
   } catch {
@@ -82,9 +84,11 @@ export function getStoredJudges() {
   }
 }
 
-export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria }) {
+export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria, currentEvent }) {
+  const eventId = currentEvent?.id || currentEvent?.slug || 'evt-lkbb-2026';
+
   // 1. Judges List State
-  const [judges, setJudges] = useState(() => getStoredJudges());
+  const [judges, setJudges] = useState(() => getStoredJudges(eventId));
 
   // 2. Criteria list state (to see what criteria each judge grades)
   const [criteria, setCriteria] = useState(() => {
@@ -110,6 +114,25 @@ export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria }) {
   // 4. Feedback Alert State
   const [feedback, setFeedback] = useState(null);
 
+  // Ambil daftar dewan juri dari backend saat halaman dimuat
+  useEffect(() => {
+    const fetchJudgesData = async () => {
+      try {
+        const res = await fetch(`/api/panitia/judges?eventId=${eventId}`, { credentials: 'include' });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.judges) && data.judges.length > 0) {
+          setJudges(data.judges);
+          localStorage.setItem(`${STORAGE_KEY_JUDGES}_${eventId}`, JSON.stringify(data.judges));
+          localStorage.setItem(STORAGE_KEY_JUDGES, JSON.stringify(data.judges));
+        }
+      } catch (err) {
+        console.warn('Backend judges API offline, menggunakan penyimpanan lokal:', err);
+      }
+    };
+
+    fetchJudgesData();
+  }, [eventId]);
+
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_CRITERIA);
@@ -122,6 +145,7 @@ export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria }) {
   const saveJudgesToStorage = (updated) => {
     setJudges(updated);
     try {
+      localStorage.setItem(`${STORAGE_KEY_JUDGES}_${eventId}`, JSON.stringify(updated));
       localStorage.setItem(STORAGE_KEY_JUDGES, JSON.stringify(updated));
       window.dispatchEvent(new CustomEvent('kompas_judges_updated', { detail: updated }));
     } catch (err) {
@@ -129,7 +153,7 @@ export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria }) {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim()) {
       alert('Nama Dewan Juri wajib diisi.');
@@ -149,18 +173,61 @@ export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria }) {
       saveJudgesToStorage(updated);
       setEditingId(null);
       setFeedback(`Data juri "${formData.name}" berhasil diperbarui.`);
+
+      // Sinkronkan pembaruan ke backend
+      try {
+        await fetch(`/api/panitia/judges/${editingId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            eventId,
+            ...formData,
+            name: formData.name.trim(),
+          }),
+        });
+      } catch (err) {
+        console.warn('Backend sync failed, saved locally:', err);
+      }
     } else {
       const nextNum = judges.length + 1;
+      const cleanPin = formData.pin || String(Math.floor(1000 + Math.random() * 9000));
       const newJudge = {
         id: `juri-${Date.now()}`,
         ...formData,
         name: formData.name.trim(),
         role: formData.role || `Anggota Dewan Juri (Juri ${nextNum})`,
-        pin: formData.pin || String(Math.floor(1000 + Math.random() * 9000)),
+        pin: cleanPin,
       };
       const updated = [...judges, newJudge];
       saveJudgesToStorage(updated);
       setFeedback(`Dewan Juri "${newJudge.name}" berhasil didaftarkan.`);
+
+      // Kirim juri baru ke backend
+      try {
+        const res = await fetch('/api/panitia/judges', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            eventId,
+            name: newJudge.name,
+            role: newJudge.role,
+            category: newJudge.category,
+            institution: newJudge.institution,
+            pin: newJudge.pin,
+            status: newJudge.status,
+          }),
+        });
+        const data = await res.json();
+        if (data.success && data.judge) {
+          // Ganti ID lokal sementara dengan ID dari database jika ada
+          const synced = updated.map((j) => (j.id === newJudge.id ? { ...j, id: data.judge.id } : j));
+          saveJudgesToStorage(synced);
+        }
+      } catch (err) {
+        console.warn('Backend sync failed, saved locally:', err);
+      }
     }
 
     setFormData({
@@ -199,7 +266,7 @@ export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria }) {
     });
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (judges.length <= 1) {
       alert('Event minimal membutuhkan 1 Dewan Juri.');
       return;
@@ -212,14 +279,40 @@ export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria }) {
     if (editingId === id) handleCancelEdit();
     setFeedback(`Dewan Juri berhasil dihapus.`);
     setTimeout(() => setFeedback(null), 3500);
+
+    // Hapus di backend
+    try {
+      await fetch(`/api/panitia/judges/${id}?eventId=${eventId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+    } catch (err) {
+      console.warn('Backend delete sync failed, saved locally:', err);
+    }
   };
 
-  const handleResetStandard5 = () => {
+  const handleResetStandard5 = async () => {
     if (!window.confirm('Reset daftar juri ke format standar 5 Dewan Juri LKBB (3 PBB + 2 Variasi & Formasi)?')) return;
     saveJudgesToStorage(DEFAULT_JUDGES);
     handleCancelEdit();
     setFeedback('Format standar 5 Dewan Juri LKBB berhasil dimuat.');
     setTimeout(() => setFeedback(null), 3500);
+
+    // Sinkronkan reset ke backend
+    try {
+      const res = await fetch('/api/panitia/judges/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ eventId }),
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.judges)) {
+        saveJudgesToStorage(data.judges);
+      }
+    } catch (err) {
+      console.warn('Backend reset sync failed, saved locally:', err);
+    }
   };
 
   // Helper to count how many criteria are assigned to each judge

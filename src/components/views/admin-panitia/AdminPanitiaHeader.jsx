@@ -1,13 +1,11 @@
 import React from 'react';
-import { Radio, Calendar, MapPin, Trophy, ShieldCheck, ChevronDown } from 'lucide-react';
+import { Calendar, MapPin, Trophy, ShieldCheck, ChevronDown } from 'lucide-react';
 
 export default function AdminPanitiaHeader({
   currentEvent,
   events = [],
   selectedEventId,
   onSelectEvent,
-  activeSection = 'settings',
-  onSelectSection,
 }) {
   const getStatusBadge = (status) => {
     switch (status) {
@@ -146,66 +144,6 @@ export default function AdminPanitiaHeader({
             </span>
           )}
         </div>
-      </div>
-
-      {/* Kanan: Navigasi Sub-Tab & Aksi Hari H */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-        {onSelectSection && (
-          <div
-            style={{
-              display: 'flex',
-              backgroundColor: 'var(--pub-canvas)',
-              padding: '0.25rem',
-              borderRadius: 'var(--pub-radius-pill)',
-              border: '1px solid var(--pub-line)',
-            }}
-          >
-            <button
-              onClick={() => onSelectSection('settings')}
-              style={{
-                padding: '0.45rem 1rem',
-                borderRadius: 'var(--pub-radius-pill)',
-                border: 'none',
-                backgroundColor: activeSection === 'settings' ? 'var(--pub-coral)' : 'transparent',
-                color: activeSection === 'settings' ? '#FFFFFF' : 'var(--pub-ink)',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              Pengaturan Lomba & Detail
-            </button>
-            <button
-              onClick={() => onSelectSection('operations')}
-              style={{
-                padding: '0.45rem 1rem',
-                borderRadius: 'var(--pub-radius-pill)',
-                border: 'none',
-                backgroundColor: activeSection === 'operations' ? 'var(--pub-coral)' : 'transparent',
-                color: activeSection === 'operations' ? '#FFFFFF' : 'var(--pub-ink)',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              Kesiapan Hari H & Pos DP
-            </button>
-          </div>
-        )}
-
-        <button
-          className="pub-btn-coral"
-          style={{ padding: '0.55rem 1.15rem', fontSize: '0.825rem' }}
-          onClick={() => {
-            if (onSelectSection) onSelectSection('operations');
-          }}
-          title="Pantau operasional live 4 Pos DP"
-        >
-          <Radio size={14} />
-          <span>Status Pos Hari H</span>
-        </button>
       </div>
     </div>
   );

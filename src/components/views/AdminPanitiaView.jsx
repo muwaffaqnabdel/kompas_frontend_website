@@ -31,7 +31,6 @@ export default function AdminPanitiaView({ activeTab = 'dashboard' }) {
       return false;
     }
   });
-  const [dashboardSection, setDashboardSection] = useState('settings'); // 'settings' or 'operations'
 
   // 1. Ambil daftar event yang dapat diakses oleh Admin Panitia ini
   useEffect(() => {
@@ -172,37 +171,15 @@ export default function AdminPanitiaView({ activeTab = 'dashboard' }) {
         events={events}
         selectedEventId={selectedEventId}
         onSelectEvent={setSelectedEventId}
-        activeSection={dashboardSection}
-        onSelectSection={setDashboardSection}
       />
 
       {/* 2. Content View Based on activeTab */}
       {activeTab === 'dashboard' && (
-        <>
-          {dashboardSection === 'settings' ? (
-            <AdminPanitiaEventSettings
-              currentEvent={currentEvent}
-              onUpdateEvent={handleUpdateEvent}
-              eventId={selectedEventId}
-            />
-          ) : (
-            <>
-              {/* Checklist Kesiapan Konfigurasi */}
-              <AdminPanitiaReadiness
-                currentEvent={currentEvent}
-                dpFlowLocked={dpFlowLocked}
-                setDpFlowLocked={setDpFlowLocked}
-                scoringLocked={scoringLocked}
-                setScoringLocked={setScoringLocked}
-              />
-
-              {/* Monitoring 4 Pos DP Live */}
-              <AdminPanitiaDPMonitoring
-                currentEvent={currentEvent}
-              />
-            </>
-          )}
-        </>
+        <AdminPanitiaEventSettings
+          currentEvent={currentEvent}
+          onUpdateEvent={handleUpdateEvent}
+          eventId={selectedEventId}
+        />
       )}
 
       {activeTab === 'participants' && (

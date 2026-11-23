@@ -146,7 +146,9 @@ const INITIAL_DP_BANJAR_DATA = [
   },
 ];
 
-export default function AdminPanitiaDPMonitoring() {
+export default function AdminPanitiaDPMonitoring({ currentEvent }) {
+  const eventId = currentEvent?.id || 'evt-lkbb-2026';
+
   const [dpData, setDpData] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_LIVE_DP);
@@ -163,23 +165,86 @@ export default function AdminPanitiaDPMonitoring() {
   });
 
   const [simulationToast, setSimulationToast] = useState(null);
+  const [isConnectedLive, setIsConnectedLive] = useState(true);
+  const [isAdvancing, setIsAdvancing] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
-  // Sync state to local storage
-  useEffect(() => {
+  // Fungsi Fetch Status Pos DP dari Backend
+  const fetchDPStatus = async (isSilent = false) => {
     try {
-      localStorage.setItem(STORAGE_KEY_LIVE_DP, JSON.stringify(dpData));
-    } catch (e) {
-      console.error(e);
+      const res = await fetch(`/api/dp/status?eventId=${encodeURIComponent(eventId)}`);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.decisionPoints) && data.decisionPoints.length > 0) {
+        setDpData(data.decisionPoints);
+        setIsConnectedLive(true);
+        try {
+          localStorage.setItem(STORAGE_KEY_LIVE_DP, JSON.stringify(data.decisionPoints));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    } catch (err) {
+      if (!isSilent) console.warn('Koneksi status live DP backend:', err);
+      setIsConnectedLive(false);
     }
-  }, [dpData]);
+  };
+
+  // Live polling dari backend setiap 4 detik & listener event perpindahan tim
+  useEffect(() => {
+    fetchDPStatus(false);
+
+    const intervalId = setInterval(() => {
+      fetchDPStatus(true);
+    }, 4000);
+
+    const handleExternalMove = () => {
+      fetchDPStatus(true);
+    };
+
+    window.addEventListener('kompas_dp_moved', handleExternalMove);
+    window.addEventListener('storage', handleExternalMove);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('kompas_dp_moved', handleExternalMove);
+      window.removeEventListener('storage', handleExternalMove);
+    };
+  }, [eventId]);
 
   const showToast = (msg) => {
     setSimulationToast(msg);
     setTimeout(() => setSimulationToast(null), 3500);
   };
 
-  // Simulasi Majukan Pasukan 1 Langkah
-  const handleSimulateAdvance = () => {
+  // Simulasi Majukan Pasukan 1 Langkah (Kirim ke backend & fallback lokal)
+  const handleSimulateAdvance = async () => {
+    setIsAdvancing(true);
+    try {
+      const res = await fetch('/api/dp/move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventId,
+          participantId: 'SIMULATE_NEXT',
+          operatorName: 'Admin Panitia (Simulasi Maju)',
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Simulasi Berhasil! Pasukan bergerak maju ke pos berikutnya.');
+        await fetchDPStatus(true);
+        window.dispatchEvent(new CustomEvent('kompas_dp_moved'));
+        setIsAdvancing(false);
+        return;
+      }
+    } catch (e) {
+      console.warn('Backend move error, using local fallback:', e);
+    } finally {
+      setIsAdvancing(false);
+    }
+
+    // Fallback lokal jika backend tidak merespons
     setDpData((prev) => {
       const updated = JSON.parse(JSON.stringify(prev));
 
@@ -229,12 +294,35 @@ export default function AdminPanitiaDPMonitoring() {
       showToast('Simulasi Alur DP Berhasil! Pasukan bergerak maju ke pos berikutnya.');
       return updated;
     });
+    window.dispatchEvent(new CustomEvent('kompas_dp_moved'));
   };
 
-  const handleResetSimulation = () => {
+  const handleResetSimulation = async () => {
+    setIsResetting(true);
+    try {
+      const res = await fetch('/api/dp/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Alur susunan pos DP berhasil direset ke awal.');
+        await fetchDPStatus(true);
+        window.dispatchEvent(new CustomEvent('kompas_dp_moved'));
+        setIsResetting(false);
+        return;
+      }
+    } catch (e) {
+      console.warn('Backend reset error, using local fallback:', e);
+    } finally {
+      setIsResetting(false);
+    }
+
     setDpData(INITIAL_DP_BANJAR_DATA);
     localStorage.setItem(STORAGE_KEY_LIVE_DP, JSON.stringify(INITIAL_DP_BANJAR_DATA));
     showToast('Alur simulasi berhasil direset ke susunan awal.');
+    window.dispatchEvent(new CustomEvent('kompas_dp_moved'));
   };
 
   return (
@@ -280,6 +368,50 @@ export default function AdminPanitiaDPMonitoring() {
               <Activity size={13} />
               LIVE MONITORING HARI H
             </span>
+            {isConnectedLive ? (
+              <span
+                style={{
+                  backgroundColor: '#ECFDF5',
+                  color: '#047857',
+                  border: '1px solid #A7F3D0',
+                  padding: '0.2rem 0.55rem',
+                  borderRadius: '6px',
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                }}
+              >
+                <span
+                  style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    backgroundColor: '#10B981',
+                    boxShadow: '0 0 6px #10B981',
+                  }}
+                />
+                SYNC LIVE OPERATOR DP
+              </span>
+            ) : (
+              <span
+                style={{
+                  backgroundColor: '#F1F5F9',
+                  color: '#64748B',
+                  border: '1px solid #CBD5E1',
+                  padding: '0.2rem 0.55rem',
+                  borderRadius: '6px',
+                  fontSize: '0.7rem',
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                }}
+              >
+                MODE LOKAL
+              </span>
+            )}
             <span style={{ fontSize: '0.8rem', color: 'var(--muted-slate)' }}>
               Format Banjar Operasional (Pos 01 &rarr; Pos 04)
             </span>
@@ -307,6 +439,7 @@ export default function AdminPanitiaDPMonitoring() {
           <button
             type="button"
             onClick={handleResetSimulation}
+            disabled={isResetting || isAdvancing}
             className="pub-btn-outline"
             style={{
               fontSize: '0.775rem',
@@ -315,16 +448,18 @@ export default function AdminPanitiaDPMonitoring() {
               alignItems: 'center',
               gap: '0.35rem',
               fontWeight: 600,
+              opacity: isResetting ? 0.7 : 1,
             }}
             title="Kembalikan posisi simulasi pasukan ke awal"
           >
-            <RotateCcw size={13} />
-            <span>Reset Pos</span>
+            <RotateCcw size={13} className={isResetting ? 'animate-spin' : ''} />
+            <span>{isResetting ? 'Mereset...' : 'Reset Pos'}</span>
           </button>
 
           <button
             type="button"
             onClick={handleSimulateAdvance}
+            disabled={isAdvancing || isResetting}
             className="pub-btn-coral"
             style={{
               fontSize: '0.775rem',
@@ -334,11 +469,12 @@ export default function AdminPanitiaDPMonitoring() {
               gap: '0.45rem',
               fontWeight: 700,
               boxShadow: '0 2px 4px rgba(201, 75, 60, 0.2)',
+              opacity: isAdvancing ? 0.7 : 1,
             }}
             title="Simulasikan tim maju ke pos berikutnya"
           >
             <Play size={13} fill="currentColor" />
-            <span>Simulasikan Pasukan Maju Pos</span>
+            <span>{isAdvancing ? 'Memajukan Tim...' : 'Simulasikan Pasukan Maju Pos'}</span>
           </button>
         </div>
       </div>

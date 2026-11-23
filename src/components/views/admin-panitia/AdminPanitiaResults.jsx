@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 
 const STORAGE_KEY_OFFICIAL_RESULTS = 'kompas_official_results_data';
+export const STORAGE_KEY_PARTICIPANTS = 'kompas_panitia_participants_data';
 
 // Data Template 30 Aba-Aba Resmi Lembar Penilaian Juri Sesuai Screenshot
 export const OFFICIAL_RUBRIC_ITEMS = [
@@ -208,24 +209,136 @@ export const getAspectScoreRows = (aspectKey, team) => {
   return [];
 };
 
-// Data Hasil Resmi 7 Tim Simulasi LKBB Paskibra
+// 9 Tingkatan Standar Jenjang Juara LKBB Paskibra (Tiap Jenjang Berisi 3 Peringkat)
+export const LKBB_PREDICATE_TIERS = [
+  { name: 'Utama', start: 1, end: 3, badgeColor: { bg: '#FEF3C7', text: '#92400E', border: '#FDE68A' } },
+  { name: 'Harapan', start: 4, end: 6, badgeColor: { bg: '#E2E8F0', text: '#334155', border: '#CBD5E1' } },
+  { name: 'Madya', start: 7, end: 9, badgeColor: { bg: '#FFEDD5', text: '#C2410C', border: '#FED7AA' } },
+  { name: 'Bina', start: 10, end: 12, badgeColor: { bg: '#E0F2FE', text: '#0369A1', border: '#BAE6FD' } },
+  { name: 'Mula', start: 13, end: 15, badgeColor: { bg: '#ECFDF5', text: '#047857', border: '#A7F3D0' } },
+  { name: 'Purwa', start: 16, end: 18, badgeColor: { bg: '#F3E8FF', text: '#7E22CE', border: '#E9D5FF' } },
+  { name: 'Caraka', start: 19, end: 21, badgeColor: { bg: '#FDF2F8', text: '#BE185D', border: '#FBCFE8' } },
+  { name: 'Potensial', start: 22, end: 24, badgeColor: { bg: '#FEF9C3', text: '#854D0E', border: '#FEF08A' } },
+  { name: 'Perintis', start: 25, end: 27, badgeColor: { bg: '#F1F5F9', text: '#475569', border: '#CBD5E1' } },
+];
+
+// Helper Menghasilkan Predikat Juara LKBB Berdasarkan Rank Akhir
+export const getLKBBTrophyTitle = (rank) => {
+  const num = Number(rank);
+  if (!num || num < 1) return `Peringkat ${rank}`;
+  const tier = LKBB_PREDICATE_TIERS.find((t) => num >= t.start && num <= t.end);
+  if (tier) {
+    const subIndex = num - tier.start + 1;
+    return `JUARA ${tier.name.toUpperCase()} ${subIndex}`;
+  }
+  return `PERINGKAT ${num}`;
+};
+
+// Helper Menghasilkan Warna Badge Predikat
+export const getLKBBPredicateBadgeColor = (rank) => {
+  const num = Number(rank);
+  const tier = LKBB_PREDICATE_TIERS.find((t) => num >= t.start && num <= t.end);
+  return tier ? tier.badgeColor : { bg: '#F8FAFC', text: '#64748B', border: '#E2E8F0' };
+};
+
+// Helper Menghitung Klasemen Per Kategori (Juara Umum, Best PBB, Best Variasi, Best Danton, Best Kostum)
+export const computeCategoryStandings = (resultsList = DEFAULT_OFFICIAL_RESULTS) => {
+  const getSorted = (scoreGetter, maxScore, keyName) => {
+    return [...resultsList]
+      .map((team) => ({
+        ...team,
+        categoryScore: scoreGetter(team),
+        maxScore,
+        aspectKey: keyName,
+      }))
+      .sort((a, b) => b.categoryScore - a.categoryScore)
+      .map((team, index) => {
+        const catRank = index + 1;
+        const isTop3 = catRank <= 3;
+        const catBadge = isTop3
+          ? (catRank === 1 ? { bg: '#FEF3C7', text: '#92400E', border: '#FDE68A' }
+            : catRank === 2 ? { bg: '#E2E8F0', text: '#334155', border: '#CBD5E1' }
+            : { bg: '#FFEDD5', text: '#C2410C', border: '#FED7AA' })
+          : { bg: '#F1F5F9', text: '#64748B', border: '#E2E8F0' };
+
+        return {
+          ...team,
+          categoryRank: catRank,
+          categoryMedal: catRank === 1 ? '🥇' : catRank === 2 ? '🥈' : catRank === 3 ? '🥉' : null,
+          categoryTitle:
+            catRank === 1 ? 'JUARA 1' :
+            catRank === 2 ? 'JUARA 2' :
+            catRank === 3 ? 'JUARA 3' :
+            `PERINGKAT ${catRank}`,
+          badgeColor: catBadge,
+        };
+      });
+  };
+
+  return {
+    overall: [...resultsList]
+      .sort((a, b) => b.totalScore - a.totalScore)
+      .map((t, idx) => {
+        const dynamicRank = idx + 1;
+        const dynamicTitle = getLKBBTrophyTitle(dynamicRank);
+        const dynamicBadge = getLKBBPredicateBadgeColor(dynamicRank);
+        return {
+          ...t,
+          rank: dynamicRank,
+          categoryRank: dynamicRank,
+          categoryScore: t.totalScore,
+          maxScore: 1200,
+          trophyTitle: dynamicTitle,
+          categoryTitle: dynamicTitle,
+          badgeColor: dynamicBadge,
+          categoryMedal: dynamicRank === 1 ? '🥇' : dynamicRank === 2 ? '🥈' : dynamicRank === 3 ? '🥉' : null,
+          aspectKey: 'overall',
+        };
+      }),
+    pbb: getSorted((t) => t.categoryScores?.pbb?.score || 0, 400, 'pbb'),
+    variasi: getSorted((t) => t.categoryScores?.variasi?.score || 0, 300, 'variasi'),
+    danton: getSorted((t) => t.categoryScores?.danton?.score || 0, 200, 'danton'),
+    kostum: getSorted((t) => t.categoryScores?.kostum?.score || 0, 200, 'kostum'),
+  };
+};
+
+export const getTeamAchievements = (teamId, resultsList = DEFAULT_OFFICIAL_RESULTS) => {
+  const standings = computeCategoryStandings(resultsList);
+  const pbb = standings.pbb.find((t) => t.teamId === teamId);
+  const variasi = standings.variasi.find((t) => t.teamId === teamId);
+  const danton = standings.danton.find((t) => t.teamId === teamId);
+  const kostum = standings.kostum.find((t) => t.teamId === teamId);
+  const overall = standings.overall.find((t) => t.teamId === teamId);
+
+  return {
+    overall,
+    categories: [
+      { key: 'pbb', label: 'Best PBB Murni', rank: pbb?.categoryRank || '-', score: pbb?.categoryScore || 0, max: 400, medal: pbb?.categoryMedal, title: pbb?.categoryTitle },
+      { key: 'variasi', label: 'Best Variasi & Formasi', rank: variasi?.categoryRank || '-', score: variasi?.categoryScore || 0, max: 300, medal: variasi?.categoryMedal, title: variasi?.categoryTitle },
+      { key: 'danton', label: 'Best Komandan Peleton (Danton)', rank: danton?.categoryRank || '-', score: danton?.categoryScore || 0, max: 200, medal: danton?.categoryMedal, title: danton?.categoryTitle },
+      { key: 'kostum', label: 'Best Make Up & Kostum', rank: kostum?.categoryRank || '-', score: kostum?.categoryScore || 0, max: 200, medal: kostum?.categoryMedal, title: kostum?.categoryTitle },
+    ],
+  };
+};
+
+// Data Hasil Resmi 4 Kontingen Peserta Terdaftar (Sesuai Data Peserta Event di Backend Data Service)
 export const DEFAULT_OFFICIAL_RESULTS = [
   {
     rank: 1,
-    teamId: 'team-01',
+    teamId: 'part-1',
     orderNumber: '01',
-    regCode: 'LKBB-2026-001',
+    regCode: 'REG-LKBB26-001',
     school: 'SMAN 1 Jakarta',
     teamName: 'PASKIBRA GARUDA SAKTI',
-    danton: 'Fakhri Pratama Yudha',
+    danton: 'Dimas Aditya',
     category: 'SMA/SMK Sederajat',
     performanceTime: '08:30 – 08:39 WIB',
     duration: '09:15 Menit',
     totalScore: 1035,
-    rubricTotal: 600, // Total skor lembar rubrik sesuai screenshot
+    rubricTotal: 600,
     averageScore: 86.25,
     trophyTitle: 'JUARA UTAMA 1',
-    badgeColor: { bg: '#FEF3C7', text: '#B45309', border: '#FDE68A' },
+    badgeColor: { bg: '#FEF3C7', text: '#92400E', border: '#FDE68A' },
     status: 'TERVALIDASI DEWAN JURI',
     categoryScores: {
       pbb: { name: 'PBB Murni (8 Gerakan)', score: 375, max: 400 },
@@ -249,14 +362,14 @@ export const DEFAULT_OFFICIAL_RESULTS = [
   },
   {
     rank: 2,
-    teamId: 'team-02',
+    teamId: 'part-2',
     orderNumber: '02',
-    regCode: 'LKBB-2026-002',
+    regCode: 'REG-LKBB26-002',
     school: 'SMAN 3 Bandung',
-    teamName: 'PASKIBRA DWI WARNA',
+    teamName: 'SATRIA BHAYANGKARA',
     danton: 'Ahmad Faisal',
     category: 'SMA/SMK Sederajat',
-    performanceTime: '08:45 – 08:54 WIB',
+    performanceTime: '09:00 – 09:09 WIB',
     duration: '09:40 Menit',
     totalScore: 1030,
     rubricTotal: 585,
@@ -281,19 +394,19 @@ export const DEFAULT_OFFICIAL_RESULTS = [
     aiFeedback: {
       rawVoiceText: 'variasi formasi luar biasa dinamis estetika panggung hidup yel yel lantang pbb murni stabil putaran balik kanan tegas',
       refinedFeedback: 'Variasi formasi sangat dinamis dan memukau dewan juri seni panggung. Harmonisasi yel-yel lantang dan serempak. PBB murni cukup stabil dengan poros tumit balik kanan yang tegas dan tidak goyang.',
-      recordedAt: '08:55 WIB',
+      recordedAt: '09:10 WIB',
     },
   },
   {
     rank: 3,
-    teamId: 'team-03',
+    teamId: 'part-3',
     orderNumber: '03',
-    regCode: 'LKBB-2026-003',
-    school: 'SMKN 2 Bogor',
-    teamName: 'PASKIBRA KSATRIA PANDAWA',
+    regCode: 'REG-LKBB26-003',
+    school: 'SMKN 2 Surabaya',
+    teamName: 'KARTIKA WIRATAMA',
     danton: 'M. Rizky Pratama',
     category: 'SMA/SMK Sederajat',
-    performanceTime: '09:00 – 09:09 WIB',
+    performanceTime: '09:30 – 09:39 WIB',
     duration: '09:30 Menit',
     totalScore: 1010,
     rubricTotal: 568,
@@ -318,25 +431,25 @@ export const DEFAULT_OFFICIAL_RESULTS = [
     aiFeedback: {
       rawVoiceText: 'danton sangat prima suara menggelegar aba aba jelas postur gagah formasi tengah sedikit kurang rapat',
       refinedFeedback: 'Artikulasi dan intonasi komandan peleton sangat prima. Aba-aba petunjuk dan peringatan terdengar sangat jelas di seluruh penjuru tribun. Catatan: kerapihan jarak banjar pada saat variasi tengah perlu diperkecil agar tidak renggang.',
-      recordedAt: '09:10 WIB',
+      recordedAt: '09:40 WIB',
     },
   },
   {
     rank: 4,
-    teamId: 'team-04',
+    teamId: 'part-4',
     orderNumber: '04',
-    regCode: 'LKBB-2026-004',
-    school: 'SMAN 5 Depok',
-    teamName: 'PASKIBRA SATYA BHAKTI',
+    regCode: 'REG-LKBB26-004',
+    school: 'SMA Taruna Nusantara Magelang',
+    teamName: 'PASKIBRA PANDU NUSANTARA',
     danton: 'Bagas Aditya',
     category: 'SMA/SMK Sederajat',
-    performanceTime: '09:15 – 09:24 WIB',
+    performanceTime: '10:00 – 10:09 WIB',
     duration: '09:20 Menit',
     totalScore: 995,
     rubricTotal: 552,
     averageScore: 82.91,
     trophyTitle: 'JUARA HARAPAN 1',
-    badgeColor: { bg: '#F1F5F9', text: '#475569', border: '#E2E8F0' },
+    badgeColor: { bg: '#E2E8F0', text: '#334155', border: '#CBD5E1' },
     status: 'TERVALIDASI DEWAN JURI',
     categoryScores: {
       pbb: { name: 'PBB Murni (8 Gerakan)', score: 350, max: 400 },
@@ -355,135 +468,64 @@ export const DEFAULT_OFFICIAL_RESULTS = [
     aiFeedback: {
       rawVoiceText: 'kostum sangat rapi riasan wajah serasi lencana atribut lurus kerapihan seragam sempurna',
       refinedFeedback: 'Kerapihan seragam, kelurusan tali peluit, dasi, dan estetika tata rias wajah sangat istimewa dan serasi dengan tema pasukan. PBB murni cukup solid, tingkatkan ketegasan hentakan langkah tegap.',
-      recordedAt: '09:25 WIB',
-    },
-  },
-  {
-    rank: 5,
-    teamId: 'team-05',
-    orderNumber: '05',
-    regCode: 'LKBB-2026-005',
-    school: 'SMA Labschool Kebayoran',
-    teamName: 'PASKIBRA TARUNA SAKTI',
-    danton: 'Dion Permana',
-    category: 'SMA/SMK Sederajat',
-    performanceTime: '09:30 – 09:40 WIB',
-    duration: '09:55 Menit',
-    totalScore: 975,
-    rubricTotal: 538,
-    averageScore: 81.25,
-    trophyTitle: 'JUARA HARAPAN 2',
-    badgeColor: { bg: '#F1F5F9', text: '#475569', border: '#E2E8F0' },
-    status: 'TERVALIDASI DEWAN JURI',
-    categoryScores: {
-      pbb: { name: 'PBB Murni (8 Gerakan)', score: 355, max: 400 },
-      variasi: { name: 'Variasi & Formasi (3 Rubrik)', score: 265, max: 300 },
-      danton: { name: 'Komandan Peleton (2 Rubrik)', score: 175, max: 200 },
-      kostum: { name: 'Make Up & Kostum (2 Rubrik)', score: 185, max: 200 },
-    },
-    penalty: -5,
-    judgeScores: [
-      { judgeId: 'juri-1', name: 'Kolonel (Purn) Bambang S., M.Pd', role: 'Ketua Dewan Juri / PBB', score: 260 },
-      { judgeId: 'juri-2', name: 'Mayor Aris Setiawan', role: 'Juri 2 / PBB', score: 255 },
-      { judgeId: 'juri-3', name: 'Kapten Kav. Hendra Gunawan', role: 'Juri 3 / PBB', score: 260 },
-      { judgeId: 'juri-4', name: 'Dra. Endang Lestari', role: 'Juri 4 / Variasi & Formasi', score: 175 },
-      { judgeId: 'juri-5', name: 'Rian Syahputra, S.Sn', role: 'Juri 5 / Variasi & Kostum', score: 180 },
-    ],
-    aiFeedback: {
-      rawVoiceText: 'pbb bagus berhimpun rapi ada penalti minus lima kena garis batas kiri panggung',
-      refinedFeedback: 'Kekompakan berhimpun dan lencang kanan sangat baik. Dikenakan penalti minor (-5 poin) akibat sentuhan ujung kaki pasukan pada garis pembatas batas kiri panggung.',
-      recordedAt: '09:41 WIB',
-    },
-  },
-  {
-    rank: 6,
-    teamId: 'team-06',
-    orderNumber: '06',
-    regCode: 'LKBB-2026-006',
-    school: 'MAN 1 Kota Bekasi',
-    teamName: 'PASKIBRA BINTANG SEMBILAN',
-    danton: 'Irfan Hakim',
-    category: 'SMA/SMK Sederajat',
-    performanceTime: '09:45 – 09:55 WIB',
-    duration: '10:00 Menit',
-    totalScore: 965,
-    rubricTotal: 520,
-    averageScore: 80.41,
-    trophyTitle: 'JUARA HARAPAN 3',
-    badgeColor: { bg: '#F1F5F9', text: '#475569', border: '#E2E8F0' },
-    status: 'TERVALIDASI DEWAN JURI',
-    categoryScores: {
-      pbb: { name: 'PBB Murni (8 Gerakan)', score: 345, max: 400 },
-      variasi: { name: 'Variasi & Formasi (3 Rubrik)', score: 260, max: 300 },
-      danton: { name: 'Komandan Peleton (2 Rubrik)', score: 180, max: 200 },
-      kostum: { name: 'Make Up & Kostum (2 Rubrik)', score: 180, max: 200 },
-    },
-    penalty: 0,
-    judgeScores: [
-      { judgeId: 'juri-1', name: 'Kolonel (Purn) Bambang S., M.Pd', role: 'Ketua Dewan Juri / PBB', score: 255 },
-      { judgeId: 'juri-2', name: 'Mayor Aris Setiawan', role: 'Juri 2 / PBB', score: 250 },
-      { judgeId: 'juri-3', name: 'Kapten Kav. Hendra Gunawan', role: 'Juri 3 / PBB', score: 255 },
-      { judgeId: 'juri-4', name: 'Dra. Endang Lestari', role: 'Juri 4 / Variasi & Formasi', score: 175 },
-      { judgeId: 'juri-5', name: 'Rian Syahputra, S.Sn', role: 'Juri 5 / Variasi & Kostum', score: 175 },
-    ],
-    aiFeedback: {
-      rawVoiceText: 'semangat tinggi tempo jalan di tempat stabil transisi balik kanan perlu dipertajam',
-      refinedFeedback: 'Semangat dan artikulasi pasukan sangat baik. Tempo jalan di tempat teratur. Perlu peningkatan sinkronisasi hentakan kaki penutup saat transisi balik kanan.',
-      recordedAt: '09:56 WIB',
-    },
-  },
-  {
-    rank: 7,
-    teamId: 'team-07',
-    orderNumber: '07',
-    regCode: 'LKBB-2026-007',
-    school: 'SMAN 8 Tangerang',
-    teamName: 'PASKIBRA TRI DHARMA',
-    danton: 'Yoga Pratama',
-    category: 'SMA/SMK Sederajat',
-    performanceTime: '10:00 – 10:10 WIB',
-    duration: '09:45 Menit',
-    totalScore: 950,
-    rubricTotal: 505,
-    averageScore: 79.16,
-    trophyTitle: 'PERINGKAT 7',
-    badgeColor: { bg: '#F1F5F9', text: '#475569', border: '#E2E8F0' },
-    status: 'TERVALIDASI DEWAN JURI',
-    categoryScores: {
-      pbb: { name: 'PBB Murni (8 Gerakan)', score: 340, max: 400 },
-      variasi: { name: 'Variasi & Formasi (3 Rubrik)', score: 255, max: 300 },
-      danton: { name: 'Komandan Peleton (2 Rubrik)', score: 175, max: 200 },
-      kostum: { name: 'Make Up & Kostum (2 Rubrik)', score: 180, max: 200 },
-    },
-    penalty: 0,
-    judgeScores: [
-      { judgeId: 'juri-1', name: 'Kolonel (Purn) Bambang S., M.Pd', role: 'Ketua Dewan Juri / PBB', score: 250 },
-      { judgeId: 'juri-2', name: 'Mayor Aris Setiawan', role: 'Juri 2 / PBB', score: 250 },
-      { judgeId: 'juri-3', name: 'Kapten Kav. Hendra Gunawan', role: 'Juri 3 / PBB', score: 250 },
-      { judgeId: 'juri-4', name: 'Dra. Endang Lestari', role: 'Juri 4 / Variasi & Formasi', score: 170 },
-      { judgeId: 'juri-5', name: 'Rian Syahputra, S.Sn', role: 'Juri 5 / Variasi & Kostum', score: 175 },
-    ],
-    aiFeedback: {
-      rawVoiceText: 'formasi awal rapi perhatikan hentakan penutup hadap serong kanan',
-      refinedFeedback: 'Formasi awal simetris dan rapi. Perlu peningkatan sinkronisasi hentakan kaki penutup hadap serong kanan serta kestabilan bahu saat penghormatan umum.',
-      recordedAt: '10:11 WIB',
+      recordedAt: '10:10 WIB',
     },
   },
 ];
 
-export default function AdminPanitiaResults() {
-  const [results, setResults] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_OFFICIAL_RESULTS);
-      return saved ? JSON.parse(saved) : DEFAULT_OFFICIAL_RESULTS;
-    } catch {
-      return DEFAULT_OFFICIAL_RESULTS;
+// Helper Mengambil Data Hasil yang Sinkron Otomatis dengan Data Peserta yang Ada
+export const getInitialOfficialResults = () => {
+  try {
+    const panitiaRaw = localStorage.getItem(STORAGE_KEY_PARTICIPANTS);
+    if (panitiaRaw) {
+      const panitiaList = JSON.parse(panitiaRaw);
+      if (Array.isArray(panitiaList) && panitiaList.length > 0) {
+        return panitiaList.map((p, idx) => {
+          const defaultMatch =
+            DEFAULT_OFFICIAL_RESULTS.find((d) => d.school.toLowerCase() === (p.school || '').toLowerCase()) ||
+            DEFAULT_OFFICIAL_RESULTS[idx] ||
+            DEFAULT_OFFICIAL_RESULTS[0];
+          const cleanOrder = p.orderNumber ? p.orderNumber.replace('#', '').trim() : String(idx + 1).padStart(2, '0');
+          const rank = idx + 1;
+          const trophyTitle = getLKBBTrophyTitle(rank);
+          const badgeColor = getLKBBPredicateBadgeColor(rank);
+          return {
+            ...defaultMatch,
+            rank,
+            teamId: p.id || `team-${cleanOrder}`,
+            orderNumber: cleanOrder,
+            regCode: p.teamNumber ? p.teamNumber.split('/')[1]?.trim() || `REG-LKBB26-${cleanOrder}` : `REG-LKBB26-${cleanOrder}`,
+            school: p.school,
+            teamName: p.teamName,
+            category: p.category || 'SMA/SMK Sederajat',
+            trophyTitle,
+            badgeColor,
+          };
+        });
+      }
     }
-  });
+    return DEFAULT_OFFICIAL_RESULTS;
+  } catch {
+    return DEFAULT_OFFICIAL_RESULTS;
+  }
+};
+
+export default function AdminPanitiaResults() {
+  const [results, setResults] = useState(() => getInitialOfficialResults());
+
+  // Sinkronkan data hasil secara real-time bila ada perubahan data peserta di Admin Panitia
+  useEffect(() => {
+    const handleSyncParticipants = () => {
+      setResults(getInitialOfficialResults());
+    };
+    window.addEventListener('kompas_participants_updated', handleSyncParticipants);
+    return () => window.removeEventListener('kompas_participants_updated', handleSyncParticipants);
+  }, []);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTeam, setSelectedTeam] = useState(null); // Modal view lembar cek nilai per aba-aba
   const [activeAspectTab, setActiveAspectTab] = useState('all'); // 'all', 'pbb', 'variasi', 'danton', 'kostum'
+  const [activeCategory, setActiveCategory] = useState('overall'); // 'overall', 'pbb', 'variasi', 'danton', 'kostum'
   const [showCheckMarks, setShowCheckMarks] = useState(true); // Toggle mode cek (lingkaran merah nilai dewan juri)
   const [toastMessage, setToastMessage] = useState(null);
   const scrollContainerRef = useRef(null);
@@ -500,12 +542,17 @@ export default function AdminPanitiaResults() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
+  // Hitung Klasemen Per Kategori
+  const standings = computeCategoryStandings(results);
+  const activeList = standings[activeCategory] || standings.overall;
+
   // Filter Search
-  const filteredResults = results.filter(
+  const filteredResults = activeList.filter(
     (r) =>
       r.school.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.teamName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.orderNumber.includes(searchTerm)
+      r.orderNumber.includes(searchTerm) ||
+      (r.danton && r.danton.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   // Trigger Print / Cetak PDF Hasil Akhir Resmi (Sesuai Aspek & Kop Resmi yang Sudah Benar)
@@ -854,8 +901,111 @@ export default function AdminPanitiaResults() {
         </div>
       )}
 
-      {/* 2. TABEL HASIL AKHIR SESUAI PERMINTAAN USER */}
-      {/* Kolom: no | sekolah | waktu tampil | button view | tombol cepat cetak pdf */}
+      {/* 2. PODIUM REKAP JUARA 4 KATEGORI KHUSUS LKBB (BEST PBB, VARIASI, DANTON, KOSTUM) */}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div>
+            <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.05rem', fontWeight: 800, color: 'var(--pub-ink)', margin: 0 }}>
+              Podium Juara Kategori Unggulan (Best Category)
+            </h3>
+            <p style={{ fontSize: '0.775rem', color: 'var(--pub-muted)', margin: '0.15rem 0 0 0' }}>
+              Klik salah satu kategori di bawah untuk menyaring klasemen lengkap secara instan.
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(235px, 1fr))', gap: '0.875rem' }}>
+          {[
+            {
+              id: 'pbb',
+              icon: '🎖️',
+              title: 'Best PBB Murni',
+              max: 400,
+              data: standings.pbb,
+              getWinnerName: (t) => t?.school || '-',
+            },
+            {
+              id: 'variasi',
+              icon: '🎭',
+              title: 'Best Variasi & Formasi',
+              max: 300,
+              data: standings.variasi,
+              getWinnerName: (t) => t?.school || '-',
+            },
+            {
+              id: 'danton',
+              icon: '🗣️',
+              title: 'Best Komandan (Danton)',
+              max: 200,
+              data: standings.danton,
+              getWinnerName: (t) => (t ? `${t.danton} (${t.school})` : '-'),
+            },
+            {
+              id: 'kostum',
+              icon: '👔',
+              title: 'Best Make Up & Kostum',
+              max: 200,
+              data: standings.kostum,
+              getWinnerName: (t) => t?.school || '-',
+            },
+          ].map((cat) => {
+            const isSelected = activeCategory === cat.id;
+            return (
+              <div
+                key={cat.id}
+                onClick={() => setActiveCategory(cat.id)}
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: '12px',
+                  padding: '1.1rem 1.25rem',
+                  border: isSelected ? '2px solid var(--pub-teal)' : '1px solid var(--pub-line)',
+                  borderTop: isSelected ? '4px solid var(--pub-teal)' : '3px solid var(--pub-teal)',
+                  boxShadow: isSelected ? '0 4px 14px rgba(13, 92, 117, 0.16)' : 'var(--pub-shadow-card)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <span style={{ fontSize: '1.1rem' }}>{cat.icon}</span>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--pub-ink)' }}>{cat.title}</span>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: '0.6875rem',
+                      fontWeight: 700,
+                      color: 'var(--pub-navy)',
+                      backgroundColor: 'var(--pub-canvas)',
+                      border: '1px solid var(--pub-line)',
+                      padding: '0.15rem 0.45rem',
+                      borderRadius: '4px',
+                    }}
+                  >
+                    Maks {cat.max}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.775rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FEF3C7', padding: '0.35rem 0.5rem', borderRadius: '6px' }}>
+                    <span style={{ fontWeight: 800, color: '#92400E' }}>🥇 {cat.getWinnerName(cat.data[0])}</span>
+                    <span style={{ fontWeight: 800, color: '#B45309' }} className="tabular-nums">{cat.data[0]?.categoryScore} pts</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.2rem 0.5rem' }}>
+                    <span style={{ color: 'var(--slate-text)', fontWeight: 600 }}>🥈 {cat.getWinnerName(cat.data[1])}</span>
+                    <span style={{ fontWeight: 700, color: 'var(--pub-muted)' }} className="tabular-nums">{cat.data[1]?.categoryScore} pts</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.2rem 0.5rem' }}>
+                    <span style={{ color: 'var(--slate-text)', fontWeight: 600 }}>🥉 {cat.getWinnerName(cat.data[2])}</span>
+                    <span style={{ fontWeight: 700, color: 'var(--pub-muted)' }} className="tabular-nums">{cat.data[2]?.categoryScore} pts</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 3. TABEL HASIL AKHIR & KLASEMEN LENGKAP */}
       <div
         style={{
           backgroundColor: 'var(--pub-surface)',
@@ -865,7 +1015,7 @@ export default function AdminPanitiaResults() {
           overflow: 'hidden',
         }}
       >
-        {/* Search & Filter Header Bar */}
+        {/* Search & Header Bar */}
         <div
           style={{
             padding: '1.15rem 1.5rem',
@@ -879,7 +1029,11 @@ export default function AdminPanitiaResults() {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.05rem', fontWeight: 800, color: 'var(--pub-ink)', margin: 0 }}>
-              Tabel Rekapitulasi Nilai Akhir Pasukan
+              {activeCategory === 'overall' && 'Klasemen Juara Umum (Akumulasi Nilai)'}
+              {activeCategory === 'pbb' && 'Klasemen Juara Best PBB Murni'}
+              {activeCategory === 'variasi' && 'Klasemen Juara Best Variasi & Formasi'}
+              {activeCategory === 'danton' && 'Klasemen Juara Best Komandan Peleton (Danton)'}
+              {activeCategory === 'kostum' && 'Klasemen Juara Best Make Up & Kostum'}
             </h3>
             <span
               style={{
@@ -895,32 +1049,65 @@ export default function AdminPanitiaResults() {
             </span>
           </div>
 
-          {/* Search Input */}
-          <div style={{ position: 'relative', minWidth: '260px' }}>
-            <Search
-              size={15}
-              style={{
-                position: 'absolute',
-                left: '0.75rem',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: 'var(--pub-muted)',
-              }}
-            />
-            <input
-              type="text"
-              placeholder="Cari sekolah, peleton, no urut..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.45rem 0.75rem 0.45rem 2.2rem',
-                fontSize: '0.8125rem',
-                borderRadius: '8px',
-                border: '1px solid var(--pub-line)',
-                backgroundColor: 'var(--pub-canvas)',
-              }}
-            />
+          {/* Search & Filter Controls: Dropdown di samping kiri search bar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
+            {/* Dropdown Kategori Klasemen */}
+            <div style={{ position: 'relative' }}>
+              <select
+                value={activeCategory}
+                onChange={(e) => setActiveCategory(e.target.value)}
+                style={{
+                  padding: '0.45rem 2rem 0.45rem 0.85rem',
+                  fontSize: '0.8125rem',
+                  fontWeight: 700,
+                  borderRadius: '8px',
+                  border: '1px solid var(--pub-line)',
+                  backgroundColor: 'var(--pub-canvas)',
+                  color: 'var(--pub-ink)',
+                  cursor: 'pointer',
+                  outline: 'none',
+                  appearance: 'none',
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'right 0.65rem center',
+                }}
+                title="Pilih Kategori Klasemen"
+              >
+                <option value="overall">🏆 Juara Umum / Akumulasi</option>
+                <option value="pbb">🎖️ Best PBB Murni</option>
+                <option value="variasi">🎭 Best Variasi & Formasi</option>
+                <option value="danton">🗣️ Best Danton</option>
+                <option value="kostum">👔 Best Kostum</option>
+              </select>
+            </div>
+
+            {/* Search Input */}
+            <div style={{ position: 'relative', minWidth: '240px' }}>
+              <Search
+                size={15}
+                style={{
+                  position: 'absolute',
+                  left: '0.75rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--pub-muted)',
+                }}
+              />
+              <input
+                type="text"
+                placeholder="Cari sekolah, peleton, no urut, danton..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.45rem 0.75rem 0.45rem 2.2rem',
+                  fontSize: '0.8125rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--pub-line)',
+                  backgroundColor: 'var(--pub-canvas)',
+                }}
+              />
+            </div>
           </div>
         </div>
 
@@ -939,16 +1126,27 @@ export default function AdminPanitiaResults() {
                   fontWeight: 700,
                 }}
               >
-                <th style={{ padding: '0.85rem 1rem', width: '60px', textAlign: 'center' }}>No</th>
-                <th style={{ padding: '0.85rem 1rem' }}>Sekolah & Pasukan</th>
-                <th style={{ padding: '0.85rem 1rem', width: '180px' }}>Waktu Tampil</th>
-                <th style={{ padding: '0.85rem 1rem', width: '140px', textAlign: 'center' }}>Total Nilai</th>
-                <th style={{ padding: '0.85rem 1rem', width: '220px', textAlign: 'right' }}>Aksi / Cetak</th>
+                <th style={{ padding: '0.85rem 1rem', width: '60px', textAlign: 'center' }}>Rank</th>
+                <th style={{ padding: '0.85rem 1rem' }}>
+                  {activeCategory === 'danton' ? 'Komandan Peleton (Danton) & Sekolah' : 'Sekolah & Pasukan'}
+                </th>
+                <th style={{ padding: '0.85rem 1rem', width: '150px', textAlign: 'center' }}>
+                  {activeCategory === 'overall' ? 'Total Nilai' : `Nilai ${activeCategory.toUpperCase()}`}
+                </th>
+                <th style={{ padding: '0.85rem 1rem', width: '180px', textAlign: 'center' }}>
+                  Predikat / Gelar
+                </th>
+                {activeCategory !== 'overall' && (
+                  <th style={{ padding: '0.85rem 1rem', width: '130px', textAlign: 'center' }}>
+                    Total Umum
+                  </th>
+                )}
+                <th style={{ padding: '0.85rem 1rem', width: '200px', textAlign: 'right' }}>Aksi / Cetak</th>
               </tr>
             </thead>
             <tbody>
               {filteredResults.map((team, idx) => {
-                const isTop3 = team.rank <= 3;
+                const isTop3 = team.categoryRank <= 3;
                 return (
                   <tr
                     key={team.teamId}
@@ -958,7 +1156,7 @@ export default function AdminPanitiaResults() {
                       transition: 'background-color 0.15s ease',
                     }}
                   >
-                    {/* 1. NO (PERINGKAT JUARA) */}
+                    {/* 1. RANK / NO */}
                     <td style={{ padding: '1rem', textAlign: 'center' }}>
                       <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center' }}>
                         <span
@@ -969,21 +1167,15 @@ export default function AdminPanitiaResults() {
                             color: isTop3 ? 'var(--pub-coral)' : 'var(--pub-navy)',
                           }}
                         >
-                          {team.rank}
+                          {team.categoryRank}
                         </span>
-                        {team.rank === 1 && (
-                          <span style={{ fontSize: '0.625rem', fontWeight: 800, color: '#B45309' }}>🥇</span>
-                        )}
-                        {team.rank === 2 && (
-                          <span style={{ fontSize: '0.625rem', fontWeight: 800, color: '#475569' }}>🥈</span>
-                        )}
-                        {team.rank === 3 && (
-                          <span style={{ fontSize: '0.625rem', fontWeight: 800, color: '#C2410C' }}>🥉</span>
+                        {team.categoryMedal && (
+                          <span style={{ fontSize: '0.7rem' }}>{team.categoryMedal}</span>
                         )}
                       </div>
                     </td>
 
-                    {/* 2. SEKOLAH & PASUKAN */}
+                    {/* 2. SEKOLAH & PASUKAN / DANTON */}
                     <td style={{ padding: '1rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                         <span
@@ -1000,63 +1192,74 @@ export default function AdminPanitiaResults() {
                           NO. {team.orderNumber}
                         </span>
                         <span style={{ fontWeight: 800, fontSize: '0.925rem', color: 'var(--pub-ink)', fontFamily: 'var(--font-heading)' }}>
-                          {team.school}
+                          {activeCategory === 'danton' ? team.danton : team.school}
                         </span>
                         <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--pub-coral)' }}>
-                          ({team.teamName})
+                          {activeCategory === 'danton' ? `(${team.school})` : `(${team.teamName})`}
                         </span>
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginTop: '0.25rem', fontSize: '0.75rem', color: 'var(--pub-muted)', flexWrap: 'wrap' }}>
-                        <span>Danton: <strong style={{ color: 'var(--slate-text)' }}>{team.danton}</strong></span>
-                        <span>•</span>
-                        <span
-                          style={{
-                            fontWeight: 700,
-                            backgroundColor: team.badgeColor.bg,
-                            color: team.badgeColor.text,
-                            padding: '0.08rem 0.4rem',
-                            borderRadius: '4px',
-                            fontSize: '0.675rem',
-                          }}
-                        >
-                          {team.trophyTitle}
-                        </span>
+                        {activeCategory !== 'danton' && (
+                          <span>Danton: <strong style={{ color: 'var(--slate-text)' }}>{team.danton}</strong></span>
+                        )}
+                        <span>Durasi: <strong>{team.duration}</strong></span>
                       </div>
                     </td>
 
-                    {/* 3. WAKTU TAMPIL */}
-                    <td style={{ padding: '1rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--pub-ink)', fontWeight: 600, fontSize: '0.825rem' }}>
-                        <Clock size={13} style={{ color: 'var(--pub-coral)', flexShrink: 0 }} />
-                        <span>{team.performanceTime}</span>
-                      </div>
-                      <div style={{ fontSize: '0.725rem', color: 'var(--pub-muted)', marginTop: '0.15rem' }}>
-                        Durasi Panggung: <strong className="tabular-nums" style={{ color: 'var(--slate-text)' }}>{team.duration}</strong>
-                      </div>
-                    </td>
-
-                    {/* 4. TOTAL NILAI */}
+                    {/* 3. SKOR KATEGORI / TOTAL */}
                     <td style={{ padding: '1rem', textAlign: 'center' }}>
                       <div
                         className="tabular-nums"
                         style={{
-                          fontSize: '1.05rem',
+                          fontSize: '1.1rem',
                           fontWeight: 800,
                           color: 'var(--pub-navy)',
                         }}
                       >
-                        {team.totalScore}
+                        {team.categoryScore}
                       </div>
                       <div style={{ fontSize: '0.6875rem', color: 'var(--pub-muted)', marginTop: '0.1rem' }}>
-                        Rata-Rata: <strong className="tabular-nums">{team.averageScore}</strong>
+                        Maks. {team.maxScore} Poin
                       </div>
                     </td>
 
-                    {/* 5. AKSI: VIEW NILAI KESELURUHAN & TOMBOL CEPAT CETAK PDF */}
+                    {/* 4. PREDIKAT / GELAR */}
+                    <td style={{ padding: '1rem', textAlign: 'center' }}>
+                      <span
+                        style={{
+                          fontWeight: 800,
+                          fontSize: '0.75rem',
+                          backgroundColor: team.badgeColor?.bg || '#F1F5F9',
+                          color: team.badgeColor?.text || '#64748B',
+                          border: `1px solid ${team.badgeColor?.border || '#E2E8F0'}`,
+                          padding: '0.25rem 0.65rem',
+                          borderRadius: '6px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                        }}
+                      >
+                        {team.categoryMedal && <span>{team.categoryMedal}</span>}
+                        <span>{team.categoryTitle}</span>
+                      </span>
+                    </td>
+
+                    {/* 5. TOTAL UMUM (JIKA BUKAN TAB OVERALL) */}
+                    {activeCategory !== 'overall' && (
+                      <td style={{ padding: '1rem', textAlign: 'center' }}>
+                        <span className="tabular-nums" style={{ fontWeight: 700, color: 'var(--pub-ink)', fontSize: '0.9rem' }}>
+                          {team.totalScore}
+                        </span>
+                        <div style={{ fontSize: '0.6875rem', color: 'var(--pub-muted)' }}>
+                          Akumulasi #{team.rank}
+                        </div>
+                      </td>
+                    )}
+
+                    {/* 6. AKSI: VIEW & CETAK PDF */}
                     <td style={{ padding: '1rem', textAlign: 'right' }}>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
-                        {/* BUTTON VIEW (LIHAT NILAI KESELURUHAN SEPERTI DI SCREENSHOT) */}
                         <button
                           type="button"
                           onClick={() => setSelectedTeam(team)}
@@ -1075,7 +1278,6 @@ export default function AdminPanitiaResults() {
                           <span>View</span>
                         </button>
 
-                        {/* TOMBOL CEPAT CETAK PDF (HASIL AKHIR ASPEK SESUAI KEBUTUHAN) */}
                         <button
                           type="button"
                           onClick={() => handlePrintScorecard(team)}

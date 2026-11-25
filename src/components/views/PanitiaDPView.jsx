@@ -346,10 +346,17 @@ export default function PanitiaDPView({ activeTab = 'workstation' }) {
     return () => window.removeEventListener('kompas_participants_updated', fetchParticipants);
   }, [selectedEventId]);
 
-  // Reset status alert saat sengaja ganti pos
-  useEffect(() => {
-    setNotification(null);
-  }, [posIndex, selectedEventId]);
+  // Nama Event
+  const eventName =
+    selectedEventId === FORDA_EVENT_ID
+      ? 'FORDA Jawa Tengah 2026'
+      : 'LKBB Nasional 2026';
+
+  // Nama Operator
+  const operatorName =
+    user?.fullName ||
+    OPERATORS_MAP[selectedEventId]?.[posIndex] ||
+    'Ahmad Fauzi (Petugas Pos DP FORDA)';
 
   // Helper catat log transisi baru
   const addTransitionLog = (action, actionType, team) => {
@@ -368,18 +375,6 @@ export default function PanitiaDPView({ activeTab = 'workstation' }) {
     setTransitionLogs((prev) => [newLog, ...prev]);
   };
 
-  // Nama Event
-  const eventName =
-    selectedEventId === FORDA_EVENT_ID
-      ? 'FORDA Jawa Tengah 2026'
-      : 'LKBB Nasional 2026';
-
-  // Nama Operator
-  const operatorName =
-    user?.fullName ||
-    OPERATORS_MAP[selectedEventId]?.[posIndex] ||
-    'Ahmad Fauzi (Petugas Pos DP FORDA)';
-
   // Tim aktif di pos saat ini sesuai sinkronisasi alur
   const currentActiveTeam =
     posIndex === 1
@@ -389,6 +384,12 @@ export default function PanitiaDPView({ activeTab = 'workstation' }) {
       : posIndex === 3
       ? flowState.pos3
       : flowState.pos4;
+
+  // Reset status alert dan pulihkan dpStatus ke IN_PROGRESS saat ganti pos atau ada tim aktif baru
+  useEffect(() => {
+    setNotification(null);
+    setDpStatus('IN_PROGRESS');
+  }, [posIndex, selectedEventId, currentActiveTeam?.id]);
 
   // Tim antrean untuk Pos 2, 3, 4 (Memberikan visibilitas posisi setiap pasukan secara real-time)
   const queueTeams = participants.map((p) => {

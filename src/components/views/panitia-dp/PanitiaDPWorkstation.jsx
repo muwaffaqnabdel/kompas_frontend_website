@@ -877,13 +877,13 @@ export default function PanitiaDPWorkstation({
               <button
                 type="button"
                 onClick={onFinishDP}
-                disabled={dpStatus === 'COMPLETED'}
+                disabled={false}
                 className={dpStatus === 'BLOCKED' ? '' : 'pub-btn-coral'}
                 style={{
                   padding: '0.7rem 1.4rem',
                   fontSize: '0.925rem',
-                  opacity: dpStatus === 'COMPLETED' ? 0.6 : 1,
-                  cursor: dpStatus === 'COMPLETED' ? 'not-allowed' : 'pointer',
+                  opacity: 1,
+                  cursor: 'pointer',
                   fontWeight: 800,
                   display: 'inline-flex',
                   alignItems: 'center',

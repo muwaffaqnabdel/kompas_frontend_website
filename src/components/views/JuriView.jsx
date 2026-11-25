@@ -15,312 +15,14 @@ import {
   AlertTriangle,
   ChevronRight,
   ShieldAlert,
+  KeyRound,
+  LogOut,
+  Loader2,
+  Calendar,
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import JuriStepScoring from './juri/JuriStepScoring';
 import JuriVoiceNoteStep from './juri/JuriVoiceNoteStep';
-import { getStoredJudges } from './admin-panitia/AdminPanitiaJudgesConfig';
-
-// 5 Jenjang Resmi Perlombaan LKBB (Termasuk Event FORDA Jateng)
-export const JENJANG_OPTIONS = [
-  { id: 'FORDA', label: '🚩 Event FORDA Jateng 2026', schedule: 'Hari Ini (Live Lapangan Utama)' },
-  { id: 'SMA', label: 'Tingkat SMA / SMK / MA', schedule: 'Hari Sabtu (Sesi Siang & Sore)' },
-  { id: 'SMP', label: 'Tingkat SMP / MTs', schedule: 'Hari Sabtu (Sesi Pagi)' },
-  { id: 'SD', label: 'Tingkat SD / MI', schedule: 'Hari Jumat (Sesi Pagi & Siang)' },
-  { id: 'PURNA', label: 'Tingkat Purna / Umum', schedule: 'Hari Minggu (Sesi Puncak)' },
-];
-
-// Data Awal Peserta Lengkap untuk Jenjang Lomba & Event FORDA
-const INITIAL_PARTICIPANTS_BY_LEVEL = [
-  // 0. EVENT FORDA JAWA TENGAH 2026
-  {
-    id: 'part-forda-1',
-    level: 'FORDA',
-    orderNumber: '01',
-    school: 'SMAN 1 Semarang',
-    teamName: 'PASKIBRA GARUDA PANDANARAN',
-    danton: 'M. Rizky Pratama',
-    members: 16,
-    currentPos: 'POS 04',
-    posLabel: 'Pos 04 — Arena Tampil Utama',
-    isScored: false,
-    scoreData: null,
-    totalScore: null,
-  },
-  {
-    id: 'part-forda-2',
-    level: 'FORDA',
-    orderNumber: '02',
-    school: 'SMA Taruna Nusantara Magelang',
-    teamName: 'KARTIKA CANDRADIMUKA',
-    danton: 'Arya Bimasakti',
-    members: 16,
-    currentPos: 'POS 03',
-    posLabel: 'Pos 03 — Ruang Warm Up',
-    isScored: false,
-    scoreData: null,
-    totalScore: null,
-  },
-  {
-    id: 'part-forda-3',
-    level: 'FORDA',
-    orderNumber: '03',
-    school: 'SMAN 1 Surakarta',
-    teamName: 'SURYA KUSUMA',
-    danton: 'Bagas Wicaksono',
-    members: 16,
-    currentPos: 'POS 02',
-    posLabel: 'Pos 02 — Sesi Photoshoot',
-    isScored: false,
-    scoreData: null,
-    totalScore: null,
-  },
-  {
-    id: 'part-forda-4',
-    level: 'FORDA',
-    orderNumber: '04',
-    school: 'SMKN 2 Kudus',
-    teamName: 'LASKAR MENARA',
-    danton: 'Fajar Nugraha',
-    members: 16,
-    currentPos: 'POS 01',
-    posLabel: 'Pos 01 — Verifikasi Berkas',
-    isScored: false,
-    scoreData: null,
-    totalScore: null,
-  },
-
-  // 1. TINGKAT SD / MI (Jumat)
-  {
-    id: 'sd-01',
-    level: 'SD',
-    orderNumber: '01',
-    school: 'SDN Menteng 01 Jakarta',
-    teamName: 'Paskibra Cilik Nusantara',
-    danton: 'Bagas Pratama',
-    members: 16,
-    currentPos: 'POS 04',
-    posLabel: 'Pos 04 — Arena Tampil Utama',
-    isScored: false,
-    scoreData: null,
-    totalScore: null,
-  },
-  {
-    id: 'sd-02',
-    level: 'SD',
-    orderNumber: '02',
-    school: 'SDI Al-Azhar Kelapa Gading',
-    teamName: 'Pasukan Bintang Cilik',
-    danton: 'Rafka Arkananta',
-    members: 16,
-    currentPos: 'POS 03',
-    posLabel: 'Pos 03 — Ruang Warm Up',
-    isScored: false,
-    scoreData: null,
-    totalScore: null,
-  },
-  {
-    id: 'sd-03',
-    level: 'SD',
-    orderNumber: '03',
-    school: 'SDN Sukasari 1 Bogor',
-    teamName: 'Paskibra Tunas Bangsa',
-    danton: 'Alvaro Putra',
-    members: 16,
-    currentPos: 'POS 02',
-    posLabel: 'Pos 02 — Sesi Photoshoot',
-    isScored: false,
-    scoreData: null,
-    totalScore: null,
-  },
-  {
-    id: 'sd-04',
-    level: 'SD',
-    orderNumber: '04',
-    school: 'SDIT Nurul Fikri Depok',
-    teamName: 'Laskar Cilik Merah Putih',
-    danton: 'Zahra Amelia',
-    members: 16,
-    currentPos: 'POS 01',
-    posLabel: 'Pos 01 — Verifikasi Berkas',
-    isScored: false,
-    scoreData: null,
-    totalScore: null,
-  },
-
-  // 2. TINGKAT SMP / MTs (Sabtu Pagi)
-  {
-    id: 'smp-01',
-    level: 'SMP',
-    orderNumber: '01',
-    school: 'SMPN 1 Bogor',
-    teamName: 'Paskibra Satria Muda',
-    danton: 'Dimas Aditya',
-    members: 16,
-    currentPos: 'POS 04',
-    posLabel: 'Pos 04 — Arena Tampil Utama',
-    isScored: false,
-    scoreData: null,
-    totalScore: null,
-  },
-  {
-    id: 'smp-02',
-    level: 'SMP',
-    orderNumber: '02',
-    school: 'SMPN 115 Jakarta',
-    teamName: 'Brigade Ksatria 115',
-    danton: 'Gilang Ramadhan',
-    members: 16,
-    currentPos: 'POS 03',
-    posLabel: 'Pos 03 — Ruang Warm Up',
-    isScored: false,
-    scoreData: null,
-    totalScore: null,
-  },
-  {
-    id: 'smp-03',
-    level: 'SMP',
-    orderNumber: '03',
-    school: 'MTsN 1 Tangerang Selatan',
-    teamName: 'Pasukan Gema Islam',
-    danton: 'Faisal Akbar',
-    members: 16,
-    currentPos: 'POS 02',
-    posLabel: 'Pos 02 — Sesi Photoshoot',
-    isScored: false,
-    scoreData: null,
-    totalScore: null,
-  },
-  {
-    id: 'smp-04',
-    level: 'SMP',
-    orderNumber: '04',
-    school: 'SMP Labschool Rawamangun',
-    teamName: 'Paskibra Taruna Muda',
-    danton: 'Rizky Fadillah',
-    members: 16,
-    currentPos: 'POS 01',
-    posLabel: 'Pos 01 — Verifikasi Berkas',
-    isScored: false,
-    scoreData: null,
-    totalScore: null,
-  },
-
-  // 3. TINGKAT SMA / SMK / MA (Sabtu Siang - Demo Default Utama)
-  {
-    id: 'sma-01',
-    level: 'SMA',
-    orderNumber: '01',
-    school: 'SMAN 1 Jakarta',
-    teamName: 'PASKIBRA GARUDA SAKTI',
-    danton: 'Fakhri Pratama Yudha',
-    members: 16,
-    currentPos: 'POS 04',
-    posLabel: 'Pos 04 — Arena Tampil Utama',
-    isScored: false,
-    scoreData: null,
-    totalScore: null,
-  },
-  {
-    id: 'sma-02',
-    level: 'SMA',
-    orderNumber: '02',
-    school: 'SMAN 3 Bandung',
-    teamName: 'PASKIBRA DWI WARNA',
-    danton: 'Ahmad Faisal',
-    members: 16,
-    currentPos: 'POS 03',
-    posLabel: 'Pos 03 — Ruang Warm Up',
-    isScored: false,
-    scoreData: null,
-    totalScore: null,
-  },
-  {
-    id: 'sma-03',
-    level: 'SMA',
-    orderNumber: '03',
-    school: 'SMKN 2 Bogor',
-    teamName: 'PASKIBRA KSATRIA PANDAWA',
-    danton: 'M. Rizky Pratama',
-    members: 16,
-    currentPos: 'POS 02',
-    posLabel: 'Pos 02 — Sesi Photoshoot',
-    isScored: false,
-    scoreData: null,
-    totalScore: null,
-  },
-  {
-    id: 'sma-04',
-    level: 'SMA',
-    orderNumber: '04',
-    school: 'SMAN 5 Depok',
-    teamName: 'PASKIBRA SATYA BHAKTI',
-    danton: 'Bramantyo Wicaksono',
-    members: 16,
-    currentPos: 'POS 01',
-    posLabel: 'Pos 01 — Verifikasi Berkas',
-    isScored: false,
-    scoreData: null,
-    totalScore: null,
-  },
-  {
-    id: 'sma-05',
-    level: 'SMA',
-    orderNumber: '05',
-    school: 'SMAN 1 Slawi',
-    teamName: 'PASKIBRA WIJAYA KUSUMA',
-    danton: 'Arya Putra Dewa',
-    members: 16,
-    currentPos: 'POS 01',
-    posLabel: 'Pos 01 — Verifikasi Berkas',
-    isScored: false,
-    scoreData: null,
-    totalScore: null,
-  },
-
-  // 4. TINGKAT PURNA / UMUM (Minggu)
-  {
-    id: 'purna-01',
-    level: 'PURNA',
-    orderNumber: '01',
-    school: 'PPI Kota Bandung',
-    teamName: 'Purna Bhakti Kencana',
-    danton: 'Kapten Aris Budiman',
-    members: 16,
-    currentPos: 'POS 04',
-    posLabel: 'Pos 04 — Arena Tampil Utama',
-    isScored: false,
-    scoreData: null,
-    totalScore: null,
-  },
-  {
-    id: 'purna-02',
-    level: 'PURNA',
-    orderNumber: '02',
-    school: 'PPI Jakarta Pusat',
-    teamName: 'Satria Ganesha',
-    danton: 'Heru Kurniawan',
-    members: 16,
-    currentPos: 'POS 03',
-    posLabel: 'Pos 03 — Ruang Warm Up',
-    isScored: false,
-    scoreData: null,
-    totalScore: null,
-  },
-  {
-    id: 'purna-03',
-    level: 'PURNA',
-    orderNumber: '03',
-    school: 'Resimen Mahasiswa UI',
-    teamName: 'Garuda Mahardika',
-    danton: 'Dwi Cahyono',
-    members: 16,
-    currentPos: 'POS 02',
-    posLabel: 'Pos 02 — Sesi Photoshoot',
-    isScored: false,
-    scoreData: null,
-    totalScore: null,
-  },
-];
 
 // 10 Aba-Aba Baku Standar LKBB Paskibra dengan opsi nilai 8-22 (sesuai gambar user)
 export const DEFAULT_ABA_ABA_LIST = [
@@ -396,17 +98,191 @@ export const DEFAULT_ABA_ABA_LIST = [
   },
 ];
 
-const STORAGE_KEY_JURI_PARTICIPANTS = 'kompas_juri_participants_flow_v1';
-
 export default function JuriView() {
-  const judges = getStoredJudges();
-  const [activeJudgeId, setActiveJudgeId] = useState(() => judges[0]?.id || 'juri-1');
+  const { user, activeEvent, loading: authLoading, refreshSession } = useAuth();
 
-  const activeJudge = judges.find((j) => j.id === activeJudgeId) || judges[0] || {
-    id: 'juri-1',
-    name: 'Kolonel (Purn) Bambang S., M.Pd',
-    category: 'PBB Murni',
-    role: 'Ketua Dewan Juri',
+  // State Sesi & Otorisasi Dewan Juri (Integrasi #1: /api/juri/session + AuthContext)
+  const [selectedEventId, setSelectedEventId] = useState('');
+  const [juriSession, setJuriSession] = useState(null);
+  const [sessionState, setSessionState] = useState('LOADING'); // 'LOADING' | 'AUTHENTICATED' | 'UNAUTHENTICATED' | 'FORBIDDEN'
+  const [sessionError, setSessionError] = useState('');
+
+  // State Form Verifikasi PIN Tablet Juri
+  const [availableEvents, setAvailableEvents] = useState([]);
+  const [pinEventId, setPinEventId] = useState('evt-lkbb-2026');
+  const [pinInput, setPinInput] = useState('');
+  const [pinSubmitting, setPinSubmitting] = useState(false);
+  const [pinError, setPinError] = useState('');
+
+  const activeJudge = juriSession?.judge || null;
+  const activeJuriEvent = juriSession?.event || null;
+  const assignedJuriEvents = juriSession?.assignedEvents || [];
+
+  // Sinkronisasi sesi Dewan Juri dari backend (/api/juri/session)
+  useEffect(() => {
+    if (authLoading) return;
+
+    let cancelled = false;
+
+    const verifyJuriSession = async () => {
+      setSessionState('LOADING');
+      setSessionError('');
+
+      const userJuriEventId =
+        selectedEventId ||
+        (activeEvent?.role === 'JURI' ? activeEvent.eventId : null) ||
+        user?.assignedEvents?.find((e) => e.role === 'JURI')?.eventId ||
+        '';
+
+      const query = userJuriEventId
+        ? `?eventId=${encodeURIComponent(userJuriEventId)}`
+        : '';
+
+      try {
+        const res = await fetch(`/api/juri/session${query}`, {
+          credentials: 'include',
+        });
+        const data = await res.json();
+
+        if (cancelled) return;
+
+        if (res.ok && data.success && data.judge) {
+          setJuriSession({
+            judge: data.judge,
+            event: data.event,
+            assignedEvents: data.assignedEvents || [],
+            isSuperAdmin: Boolean(data.isSuperAdmin),
+          });
+          setSessionState('AUTHENTICATED');
+          setSessionError('');
+        } else if (res.status === 403) {
+          setJuriSession(null);
+          setSessionState('FORBIDDEN');
+          setSessionError(
+            data.message || 'Akun Anda belum memiliki penugasan aktif sebagai Dewan Juri.'
+          );
+        } else {
+          setJuriSession(null);
+          setSessionState('UNAUTHENTICATED');
+          setSessionError(
+            data.message || 'Silakan login sebagai Dewan Juri atau masukkan PIN Juri.'
+          );
+        }
+      } catch (err) {
+        if (cancelled) return;
+        console.error('Failed to verify juri session:', err);
+        setJuriSession(null);
+        setSessionState('UNAUTHENTICATED');
+        setSessionError('Gagal terhubung ke server untuk memverifikasi sesi Dewan Juri.');
+      }
+    };
+
+    verifyJuriSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, user?.id, activeEvent?.eventId, selectedEventId]);
+
+  // Muat daftar event lomba untuk pilihan verifikasi PIN saat belum terautentikasi
+  useEffect(() => {
+    if (sessionState !== 'UNAUTHENTICATED' && sessionState !== 'FORBIDDEN') return;
+
+    let cancelled = false;
+    const loadEvents = async () => {
+      try {
+        const res = await fetch('/api/events');
+        const data = await res.json();
+        if (!cancelled && data.success && Array.isArray(data.events) && data.events.length > 0) {
+          setAvailableEvents(data.events);
+          setPinEventId((prev) =>
+            data.events.some((ev) => ev.id === prev || ev.slug === prev)
+              ? prev
+              : data.events[0].id
+          );
+        }
+      } catch (err) {
+        console.warn('Failed to fetch events for PIN login:', err);
+      }
+    };
+
+    loadEvents();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionState]);
+
+  const handlePinLogin = async (e) => {
+    e.preventDefault();
+    setPinError('');
+
+    const cleanPin = pinInput.replace(/\D/g, '').trim();
+    if (!/^\d{4}$/.test(cleanPin)) {
+      setPinError('PIN Dewan Juri wajib terdiri dari tepat 4 digit angka.');
+      return;
+    }
+
+    setPinSubmitting(true);
+    try {
+      const res = await fetch('/api/juri/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          eventId: pinEventId || 'evt-lkbb-2026',
+          pin: cleanPin,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setPinError(data.message || 'PIN Dewan Juri tidak valid.');
+        return;
+      }
+
+      setJuriSession({
+        judge: data.judge,
+        event: data.event,
+        assignedEvents: [
+          {
+            eventId: data.event?.id || pinEventId,
+            eventName: data.event?.name || 'Event Lomba',
+            eventSlug: data.event?.slug || '',
+            eventStatus: data.event?.status || '',
+            role: 'JURI',
+          },
+        ],
+        isSuperAdmin: false,
+      });
+      setSelectedEventId(data.event?.id || pinEventId);
+      setSessionState('AUTHENTICATED');
+      setSessionError('');
+      setPinInput('');
+      showToast(`✓ Sesi Dewan Juri aktif: ${data.judge.name}`);
+
+      // Sinkronkan AuthContext agar Topbar & sesi global ikut terbarui
+      await refreshSession();
+    } catch (err) {
+      setPinError('Terjadi kesalahan saat memverifikasi PIN ke server.');
+    } finally {
+      setPinSubmitting(false);
+    }
+  };
+
+  const handleEndJuriSession = async () => {
+    try {
+      await fetch('/api/juri/session', {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+    } finally {
+      setJuriSession(null);
+      setSelectedEventId('');
+      setSessionState('UNAUTHENTICATED');
+      setViewStep('LIST');
+      setSelectedTeam(null);
+      await refreshSession();
+    }
   };
 
   // State Utama Alur Juri:
@@ -415,26 +291,96 @@ export default function JuriView() {
   // 'VOICE_FEEDBACK' (AI Voice Note Feedback & Submit Final)
   const [viewStep, setViewStep] = useState('LIST');
 
-  // Filter Kategori Jenjang (SD / SMP / SMA / PURNA)
-  const [selectedLevel, setSelectedLevel] = useState('SMA');
+  // Filter Kategori Jenjang (Dinamis dari data peserta event di backend)
+  const [selectedLevel, setSelectedLevel] = useState('ALL');
+  const [availableCategories, setAvailableCategories] = useState([]);
 
-  // Data Peserta (Disimpan di state & localStorage agar progres demo persisten)
-  const [participants, setParticipants] = useState(() => {
+  // Data Peserta riil dari Backend (Integrasi #2: GET /api/juri/participants)
+  const [participants, setParticipants] = useState([]);
+  const [participantsLoading, setParticipantsLoading] = useState(false);
+  const [participantsError, setParticipantsError] = useState('');
+
+  const fetchJuriParticipants = async (targetEventId, showRefreshToast = false) => {
+    if (!targetEventId) return;
+    setParticipantsLoading(true);
+    setParticipantsError('');
     try {
-      const saved = localStorage.getItem(STORAGE_KEY_JURI_PARTICIPANTS);
-      return saved ? JSON.parse(saved) : INITIAL_PARTICIPANTS_BY_LEVEL;
-    } catch {
-      return INITIAL_PARTICIPANTS_BY_LEVEL;
+      const res = await fetch(
+        `/api/juri/participants?eventId=${encodeURIComponent(targetEventId)}`,
+        { credentials: 'include' }
+      );
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setParticipants([]);
+        setAvailableCategories([]);
+        setParticipantsError(data.message || 'Gagal memuat daftar peserta event.');
+        return;
+      }
+
+      setParticipants(Array.isArray(data.participants) ? data.participants : []);
+      setAvailableCategories(Array.isArray(data.categories) ? data.categories : []);
+      if (showRefreshToast) {
+        showToast(`✓ Daftar peserta diperbarui (${data.total ?? 0} pasukan terdaftar).`);
+      }
+    } catch (err) {
+      console.error('Failed to fetch juri participants:', err);
+      setParticipants([]);
+      setAvailableCategories([]);
+      setParticipantsError('Gagal terhubung ke server saat memuat daftar peserta.');
+    } finally {
+      setParticipantsLoading(false);
     }
-  });
+  };
+
+  // Data Kriteria / Aba-Aba Penilaian Dinamis sesuai Kategori Juri (Integrasi #3: GET /api/juri/criteria)
+  const [juriCriteria, setJuriCriteria] = useState([]);
+  const [assignedCategories, setAssignedCategories] = useState([]);
+  const [isRubricLocked, setIsRubricLocked] = useState(false);
+  const [criteriaLoading, setCriteriaLoading] = useState(false);
+  const [criteriaError, setCriteriaError] = useState('');
+
+  const fetchJuriCriteria = async (targetEventId) => {
+    if (!targetEventId) return;
+    setCriteriaLoading(true);
+    setCriteriaError('');
+    try {
+      const res = await fetch(
+        `/api/juri/criteria?eventId=${encodeURIComponent(targetEventId)}`,
+        { credentials: 'include' }
+      );
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setJuriCriteria([]);
+        setCriteriaError(data.message || 'Gagal memuat kriteria penilaian Dewan Juri.');
+        return;
+      }
+
+      setJuriCriteria(Array.isArray(data.criteria) ? data.criteria : []);
+      setAssignedCategories(Array.isArray(data.assignedCategories) ? data.assignedCategories : []);
+      setIsRubricLocked(Boolean(data.scoringLocked));
+    } catch (err) {
+      console.error('Failed to fetch juri criteria:', err);
+      setJuriCriteria([]);
+      setCriteriaError('Gagal terhubung ke server saat memuat rubrik penilaian.');
+    } finally {
+      setCriteriaLoading(false);
+    }
+  };
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY_JURI_PARTICIPANTS, JSON.stringify(participants));
-    } catch (e) {
-      console.warn('Failed to save juri participants:', e);
+    if (sessionState !== 'AUTHENTICATED' || !activeJuriEvent?.id) {
+      setParticipants([]);
+      setAvailableCategories([]);
+      setJuriCriteria([]);
+      setAssignedCategories([]);
+      return;
     }
-  }, [participants]);
+    setSelectedLevel('ALL');
+    fetchJuriParticipants(activeJuriEvent.id);
+    fetchJuriCriteria(activeJuriEvent.id);
+  }, [sessionState, activeJuriEvent?.id, activeJudge?.userId]);
 
   // Pasukan yang sedang aktif dinilai saat ini
   const [selectedTeam, setSelectedTeam] = useState(null);
@@ -485,11 +431,11 @@ export default function JuriView() {
     }, 4000);
   };
 
-  // Sinkronisasi posisi peserta FORDA dengan alur real-time Pos DP
+  // Sinkronisasi posisi peserta dengan alur Pos DP lokal (akan dimigrasikan ke realtime backend di Nomor 4)
   const resolvedParticipants = participants.map((p) => {
-    if (p.level === 'FORDA') {
+    if (activeJuriEvent?.id) {
       try {
-        const saved = localStorage.getItem('kompas_dp_flow_state_0b85acba-5fc6-4861-b0ce-e35a3bf4cc19');
+        const saved = localStorage.getItem(`kompas_dp_flow_state_${activeJuriEvent.id}`);
         if (saved) {
           const fs = JSON.parse(saved);
           if (fs.pos4?.id === p.id) {
@@ -502,8 +448,6 @@ export default function JuriView() {
             return { ...p, currentPos: 'POS 01', posLabel: 'Pos 01 — Verifikasi Berkas' };
           } else if (fs.completedTeamIds?.includes(p.id)) {
             return { ...p, currentPos: 'SELESAI', posLabel: 'Selesai Tampil di Arena' };
-          } else {
-            return { ...p, currentPos: 'AREA TUNGGU', posLabel: 'Menunggu Panggilan di DP 1' };
           }
         }
       } catch (e) {}
@@ -511,9 +455,14 @@ export default function JuriView() {
     return p;
   });
 
-  // Filter peserta berdasarkan Jenjang yang dipilih di Dropdown
-  const filteredParticipants = resolvedParticipants.filter((p) => p.level === selectedLevel);
-  const currentSchedule = JENJANG_OPTIONS.find((j) => j.id === selectedLevel)?.schedule || '';
+  // Filter peserta berdasarkan Kategori / Jenjang yang dipilih di Dropdown
+  const filteredParticipants =
+    selectedLevel === 'ALL'
+      ? resolvedParticipants
+      : resolvedParticipants.filter((p) => (p.category || p.level) === selectedLevel);
+  const currentEventSubtitle = activeJuriEvent?.name
+    ? `${activeJuriEvent.name} (${activeJuriEvent.status || 'AKTIF'})`
+    : 'Event Penugasan Aktif';
 
   // 1. KLIK TOMBOL "MULAI PENILAIAN" (HANYA BISA DIKLIK JIKA DI POS 04 DAN DIBUKA OLEH DP 4)
   const handleStartScoring = (team) => {
@@ -524,6 +473,14 @@ export default function JuriView() {
     const isOpened = localStorage.getItem('kompas_dp4_scoring_opened') === 'true';
     if (!isOpened) {
       showToast(`⚠️ Penilaian Juri belum dibuka oleh Petugas Pos 04 Lapangan! Silakan tunggu petugas DP 04 membuka penilaian.`);
+      return;
+    }
+    if (criteriaLoading) {
+      showToast('⏳ Sedang memuat daftar aba-aba penilaian Anda. Mohon tunggu sebentar...');
+      return;
+    }
+    if (juriCriteria.length === 0) {
+      showToast(`⚠️ Belum ada butir aba-aba penilaian untuk kategori (${assignedCategories.join(', ') || activeJudge?.category || 'Anda'}) pada event ini.`);
       return;
     }
     setSelectedTeam(team);
@@ -592,11 +549,224 @@ export default function JuriView() {
     showToast(`⚡ Pasukan ${targetTeam?.school || ''} telah didorong masuk ke POS 04 (Arena Lapangan)! Status Penilaian Terbuka.`);
   };
 
-  // Reset demo data jika panitia ingin refresh ulang
-  const handleResetData = () => {
-    setParticipants(INITIAL_PARTICIPANTS_BY_LEVEL);
-    showToast('Data demo juri telah direset ke kondisi awal.');
+  // Muat ulang data peserta & kriteria terbaru dari server
+  const handleRefreshParticipants = () => {
+    if (activeJuriEvent?.id) {
+      fetchJuriParticipants(activeJuriEvent.id, true);
+      fetchJuriCriteria(activeJuriEvent.id);
+    }
   };
+
+  // ==========================================
+  // GERBANG AUTENTIKASI & OTORISASI DEWAN JURI
+  // ==========================================
+  if (sessionState === 'LOADING') {
+    return (
+      <div
+        style={{
+          maxWidth: '560px',
+          margin: '3rem auto',
+          backgroundColor: 'var(--pub-surface)',
+          borderRadius: '16px',
+          padding: '2.5rem 2rem',
+          border: '1px solid var(--pub-line)',
+          boxShadow: 'var(--pub-shadow-card)',
+          textAlign: 'center',
+          fontFamily: 'var(--font-sans)',
+        }}
+      >
+        <Loader2
+          size={32}
+          style={{
+            color: 'var(--pub-coral)',
+            margin: '0 auto 0.85rem',
+            animation: 'spin 1s linear infinite',
+          }}
+        />
+        <h3 style={{ margin: '0 0 0.35rem 0', fontSize: '1.1rem', fontWeight: 800, color: 'var(--pub-ink)' }}>
+          Memverifikasi Sesi Dewan Juri...
+        </h3>
+        <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--pub-muted)' }}>
+          Memeriksa hak akses dan penugasan event aktif Anda.
+        </p>
+      </div>
+    );
+  }
+
+  if (sessionState !== 'AUTHENTICATED' || !activeJudge) {
+    return (
+      <div
+        style={{
+          maxWidth: '540px',
+          margin: '2rem auto',
+          backgroundColor: 'var(--pub-surface)',
+          borderRadius: '18px',
+          padding: '2rem',
+          border: '1px solid var(--pub-line)',
+          borderTop: '4px solid var(--pub-coral)',
+          boxShadow: 'var(--pub-shadow-card)',
+          fontFamily: 'var(--font-sans)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1.25rem',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div
+            style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '12px',
+              backgroundColor: sessionState === 'FORBIDDEN' ? '#FEF2F2' : '#FFF1F2',
+              color: 'var(--pub-coral)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            {sessionState === 'FORBIDDEN' ? <ShieldAlert size={22} /> : <KeyRound size={22} />}
+          </div>
+          <div>
+            <div style={{ fontSize: '0.725rem', fontWeight: 800, color: 'var(--pub-coral)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Otorisasi Tablet Dewan Juri
+            </div>
+            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', fontWeight: 800, color: 'var(--pub-ink)', margin: '0.15rem 0 0 0' }}>
+              {sessionState === 'FORBIDDEN' ? 'Penugasan Juri Tidak Ditemukan' : 'Verifikasi Sesi Dewan Juri'}
+            </h2>
+          </div>
+        </div>
+
+        {sessionError && (
+          <div
+            style={{
+              padding: '0.85rem 1rem',
+              borderRadius: '10px',
+              backgroundColor: sessionState === 'FORBIDDEN' ? '#FEF2F2' : '#F8FAFC',
+              border: sessionState === 'FORBIDDEN' ? '1px solid #FECACA' : '1px solid #E2E8F0',
+              color: sessionState === 'FORBIDDEN' ? '#991B1B' : '#334155',
+              fontSize: '0.825rem',
+              lineHeight: 1.5,
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '0.5rem',
+            }}
+          >
+            <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '2px', color: sessionState === 'FORBIDDEN' ? '#DC2626' : '#64748B' }} />
+            <span>{sessionError}</span>
+          </div>
+        )}
+
+        <form onSubmit={handlePinLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--pub-ink)' }}>
+              Pilih Event Penugasan
+            </label>
+            <select
+              value={pinEventId}
+              onChange={(e) => setPinEventId(e.target.value)}
+              style={{
+                padding: '0.65rem 0.85rem',
+                borderRadius: '10px',
+                border: '1px solid var(--pub-line)',
+                backgroundColor: 'var(--pub-canvas)',
+                color: 'var(--pub-ink)',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                outline: 'none',
+              }}
+            >
+              {availableEvents.length > 0 ? (
+                availableEvents.map((ev) => (
+                  <option key={ev.id} value={ev.id}>
+                    {ev.name}
+                  </option>
+                ))
+              ) : (
+                <option value="evt-lkbb-2026">LKBB Nasional Paskibra 2026</option>
+              )}
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--pub-ink)' }}>
+              PIN Akses Dewan Juri (4 Digit)
+            </label>
+            <input
+              type="password"
+              inputMode="numeric"
+              pattern="\d{4}"
+              minLength={4}
+              maxLength={4}
+              required
+              placeholder="Masukkan 4 digit PIN (contoh: 8821)"
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              style={{
+                padding: '0.75rem 1rem',
+                borderRadius: '10px',
+                border: '1.5px solid var(--pub-line)',
+                backgroundColor: '#FFFFFF',
+                color: 'var(--pub-ink)',
+                fontSize: '1rem',
+                fontWeight: 700,
+                letterSpacing: '0.15em',
+                outline: 'none',
+              }}
+            />
+          </div>
+
+          {pinError && (
+            <div
+              style={{
+                padding: '0.65rem 0.85rem',
+                borderRadius: '8px',
+                backgroundColor: '#FEF2F2',
+                border: '1px solid #FECACA',
+                color: '#B91C1C',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+              }}
+            >
+              {pinError}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={pinSubmitting}
+            className="pub-btn-coral"
+            style={{
+              width: '100%',
+              padding: '0.8rem 1.25rem',
+              fontSize: '0.9rem',
+              fontWeight: 800,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              opacity: pinSubmitting ? 0.7 : 1,
+            }}
+          >
+            <KeyRound size={17} />
+            <span>{pinSubmitting ? 'Memverifikasi PIN...' : 'Verifikasi PIN & Masuk Tablet Juri'}</span>
+          </button>
+        </form>
+
+        <div
+          style={{
+            paddingTop: '0.85rem',
+            borderTop: '1px solid var(--pub-line)',
+            fontSize: '0.775rem',
+            color: 'var(--pub-muted)',
+            lineHeight: 1.5,
+          }}
+        >
+          Atau login menggunakan akun email & kata sandi Dewan Juri (misal <code style={{ fontWeight: 700 }}>juri1@kompas.id</code>) melalui tombol <strong>Masuk</strong> di bilah atas.
+        </div>
+      </div>
+    );
+  }
 
   // ==========================================
   // JIKA SEDANG DI STEP 2: PENILAIAN PER ABA-ABA
@@ -606,7 +776,7 @@ export default function JuriView() {
       <JuriStepScoring
         team={selectedTeam}
         judge={activeJudge}
-        abaAbaList={DEFAULT_ABA_ABA_LIST}
+        abaAbaList={juriCriteria}
         initialScores={currentScores}
         onSubmitScores={handleAbaAbaScoresSubmitted}
         onCancel={() => setViewStep('LIST')}
@@ -623,7 +793,7 @@ export default function JuriView() {
         team={selectedTeam}
         judge={activeJudge}
         scores={currentScores}
-        abaAbaList={DEFAULT_ABA_ABA_LIST}
+        abaAbaList={juriCriteria}
         onBackToScoring={() => setViewStep('SCORING')}
         onFinishFeedback={handleVoiceFeedbackFinished}
       />
@@ -658,72 +828,159 @@ export default function JuriView() {
         </div>
       )}
 
-      {/* 1. Header Toolbar Tablet Juri: Profil Juri & Kategori */}
+      {/* 1. Header Toolbar Tablet Juri: Identitas Juri Terautentikasi & Event Penugasan */}
       <div
         style={{
           backgroundColor: 'var(--pub-surface)',
           borderRadius: '14px',
-          padding: '0.9rem 1.25rem',
+          padding: '0.95rem 1.25rem',
           border: '1px solid var(--pub-line)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: '0.75rem',
+          gap: '0.85rem',
           boxShadow: 'var(--pub-shadow-card)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-          <UserCheck size={18} style={{ color: 'var(--pub-coral)' }} />
-          <span style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--pub-muted)' }}>
-            Tablet Dewan Juri:
-          </span>
-          <select
-            value={activeJudgeId}
-            onChange={(e) => setActiveJudgeId(e.target.value)}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div
             style={{
-              padding: '0.4rem 0.75rem',
-              fontSize: '0.825rem',
-              fontWeight: 700,
-              borderRadius: '8px',
-              border: '1px solid var(--pub-line)',
-              backgroundColor: 'var(--pub-canvas)',
-              color: 'var(--pub-ink)',
-              cursor: 'pointer',
-              outline: 'none',
+              width: '38px',
+              height: '38px',
+              borderRadius: '10px',
+              backgroundColor: '#FFF1F2',
+              color: 'var(--pub-coral)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
             }}
           >
-            {judges.map((j, idx) => (
-              <option key={j.id} value={j.id}>
-                Juri {idx + 1}: {j.name} ({j.category})
-              </option>
-            ))}
-          </select>
+            <UserCheck size={19} />
+          </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.925rem', fontWeight: 800, color: 'var(--pub-ink)' }}>
+                {activeJudge.name}
+              </span>
+              <span
+                style={{
+                  backgroundColor: '#ECFDF5',
+                  color: '#047857',
+                  border: '1px solid #A7F3D0',
+                  padding: '0.12rem 0.5rem',
+                  borderRadius: '9999px',
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                }}
+              >
+                {activeJudge.role || 'Dewan Juri'}
+              </span>
+            </div>
+            <div style={{ fontSize: '0.775rem', color: 'var(--pub-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.15rem' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontWeight: 600, color: 'var(--pub-ink)' }}>
+                <Calendar size={12} style={{ color: 'var(--pub-coral)' }} />
+                {assignedJuriEvents.length > 1 ? (
+                  <select
+                    value={activeJuriEvent?.id || selectedEventId}
+                    onChange={(e) => setSelectedEventId(e.target.value)}
+                    style={{
+                      padding: '0.15rem 0.45rem',
+                      fontSize: '0.775rem',
+                      fontWeight: 700,
+                      borderRadius: '6px',
+                      border: '1px solid var(--pub-line)',
+                      backgroundColor: 'var(--pub-canvas)',
+                      color: 'var(--pub-ink)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {assignedJuriEvents.map((ev) => (
+                      <option key={ev.eventId} value={ev.eventId}>
+                        {ev.eventName}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span>{activeJuriEvent?.name || 'Event Penugasan Aktif'}</span>
+                )}
+              </span>
+              {activeJudge.institution && (
+                <>
+                  <span>•</span>
+                  <span>{activeJudge.institution}</span>
+                </>
+              )}
+            </div>
+          </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {(assignedCategories.length > 0 ? assignedCategories : [activeJudge.category || 'PBB']).map((cat) => (
+            <span
+              key={cat}
+              style={{
+                backgroundColor: '#E0F2FE',
+                color: '#0369A1',
+                padding: '0.28rem 0.65rem',
+                borderRadius: '6px',
+                fontSize: '0.75rem',
+                fontWeight: 800,
+                border: '1px solid #BAE6FD',
+              }}
+            >
+              {cat}
+            </span>
+          ))}
           <span
             style={{
-              backgroundColor: '#E0F2FE',
-              color: '#0369A1',
-              padding: '0.25rem 0.65rem',
+              backgroundColor: isRubricLocked ? '#ECFDF5' : '#FEF3C7',
+              color: isRubricLocked ? '#047857' : '#B45309',
+              padding: '0.28rem 0.6rem',
               borderRadius: '6px',
-              fontSize: '0.75rem',
-              fontWeight: 800,
-              border: '1px solid #BAE6FD',
+              fontSize: '0.725rem',
+              fontWeight: 700,
+              border: isRubricLocked ? '1px solid #A7F3D0' : '1px solid #FDE68A',
             }}
+            title={
+              isRubricLocked
+                ? 'Rubrik penilaian resmi telah dikunci oleh Admin Panitia'
+                : 'Rubrik penilaian masih berstatus draft di Admin Panitia'
+            }
           >
-            {activeJudge.category}
+            {criteriaLoading
+              ? 'Memuat Aba-Aba...'
+              : `${juriCriteria.length} Aba-Aba • ${isRubricLocked ? 'Terkunci ✓' : 'Draft'}`}
           </span>
           <button
             type="button"
-            onClick={handleResetData}
+            onClick={handleRefreshParticipants}
+            disabled={participantsLoading}
             className="pub-btn-outline"
-            style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-            title="Reset ulang status penilaian dummy"
+            style={{ fontSize: '0.75rem', padding: '0.28rem 0.6rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+            title="Muat ulang daftar peserta dari server"
           >
             <RotateCcw size={12} />
-            <span>Reset Demo</span>
+            <span>{participantsLoading ? 'Memuat...' : 'Muat Ulang'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleEndJuriSession}
+            className="pub-btn-outline"
+            style={{
+              fontSize: '0.75rem',
+              padding: '0.28rem 0.65rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              color: '#B91C1C',
+              borderColor: '#FECACA',
+            }}
+            title="Akhiri sesi Juri pada tablet ini"
+          >
+            <LogOut size={12} />
+            <span>Keluar Sesi</span>
           </button>
         </div>
       </div>
@@ -762,14 +1019,14 @@ export default function JuriView() {
               Daftar Pasukan & Status Penilaian Lapangan
             </h2>
             <p style={{ fontSize: '0.825rem', color: 'var(--pub-muted)', margin: 0 }}>
-              Jadwal pelaksanaan: <strong style={{ color: 'var(--pub-ink)' }}>{currentSchedule}</strong>
+              Event penugasan: <strong style={{ color: 'var(--pub-ink)' }}>{currentEventSubtitle}</strong>
             </p>
           </div>
 
-          {/* Large Dropdown Selector Jenjang */}
+          {/* Large Dropdown Selector Kategori / Jenjang Dinamis */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--pub-ink)' }}>
-              Jenjang:
+              Kategori:
             </span>
             <select
               value={selectedLevel}
@@ -787,9 +1044,12 @@ export default function JuriView() {
                 boxShadow: '0 2px 8px rgba(201, 75, 60, 0.15)',
               }}
             >
-              {JENJANG_OPTIONS.map((opt) => (
-                <option key={opt.id} value={opt.id}>
-                  {opt.label} — {opt.schedule.split('(')[0]}
+              <option value="ALL">
+                Semua Kategori ({participants.length} Pasukan)
+              </option>
+              {availableCategories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
                 </option>
               ))}
             </select>
@@ -849,7 +1109,44 @@ export default function JuriView() {
               </tr>
             </thead>
             <tbody>
-              {filteredParticipants.map((p) => {
+              {participantsLoading ? (
+                <tr>
+                  <td colSpan={6} style={{ padding: '2.5rem 1rem', textAlign: 'center', color: 'var(--pub-muted)' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                      <Loader2 size={18} style={{ color: 'var(--pub-coral)', animation: 'spin 1s linear infinite' }} />
+                      <span>Memuat daftar peserta dari server...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : participantsError ? (
+                <tr>
+                  <td colSpan={6} style={{ padding: '2rem 1rem', textAlign: 'center' }}>
+                    <div style={{ color: '#B91C1C', fontWeight: 700, marginBottom: '0.5rem' }}>
+                      {participantsError}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRefreshParticipants}
+                      className="pub-btn-outline"
+                      style={{ fontSize: '0.8rem', padding: '0.4rem 0.9rem' }}
+                    >
+                      Coba Muat Ulang
+                    </button>
+                  </td>
+                </tr>
+              ) : filteredParticipants.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ padding: '2.5rem 1rem', textAlign: 'center', color: 'var(--pub-muted)' }}>
+                    <div style={{ fontWeight: 700, color: 'var(--pub-ink)', marginBottom: '0.25rem' }}>
+                      Belum ada peserta terdaftar pada kategori ini
+                    </div>
+                    <div style={{ fontSize: '0.8rem' }}>
+                      Pastikan Admin Panitia telah memvalidasi peserta pada event {activeJuriEvent?.name || 'ini'}.
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredParticipants.map((p) => {
                 const isAtPos4 = p.currentPos === 'POS 04';
                 const isFinished = p.isScored;
 
@@ -1096,7 +1393,7 @@ export default function JuriView() {
                     </td>
                   </tr>
                 );
-              })}
+              }))}
             </tbody>
           </table>
         </div>

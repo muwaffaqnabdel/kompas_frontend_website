@@ -62,6 +62,34 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const loginWithJudgePin = async (eventId, pin) => {
+    setError(null);
+    try {
+      const cleanPin = String(pin || '').replace(/\D/g, '').trim();
+      if (!/^\d{4}$/.test(cleanPin)) {
+        throw new Error('PIN Dewan Juri wajib terdiri dari tepat 4 digit angka.');
+      }
+
+      const res = await fetch('/api/juri/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ eventId, pin: cleanPin }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Verifikasi PIN Dewan Juri gagal.');
+      }
+
+      await checkSession();
+      return data;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  };
+
   const register = async (formData) => {
     setError(null);
     try {
@@ -105,6 +133,7 @@ export function AuthProvider({ children }) {
         loading,
         error,
         login,
+        loginWithJudgePin,
         register,
         logout,
         refreshSession: checkSession,

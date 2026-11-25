@@ -111,8 +111,8 @@ export default function JuriStepScoring({
           </div>
         </div>
 
-        <div style={{ width: '80px', textAlign: 'right', fontSize: '0.8rem', fontWeight: 700, color: '#DC2626' }}>
-          {judge?.category || 'PBB Murni'}
+        <div style={{ minWidth: '100px', textAlign: 'right', fontSize: '0.78rem', fontWeight: 800, color: '#DC2626' }}>
+          {currentAbaAba.category || judge?.category || 'PBB'}
         </div>
       </div>
 
@@ -131,6 +131,25 @@ export default function JuriStepScoring({
           padding: '1rem 0',
         }}
       >
+        {currentAbaAba.category && (
+          <span
+            style={{
+              backgroundColor: '#FFF1F2',
+              color: '#BE123C',
+              border: '1px solid #FECDD3',
+              padding: '0.25rem 0.75rem',
+              borderRadius: '9999px',
+              fontSize: '0.75rem',
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+              marginBottom: '0.75rem',
+            }}
+          >
+            Kategori: {currentAbaAba.category}
+          </span>
+        )}
+
         {/* Nama Aba-Aba */}
         <h1
           style={{
@@ -138,18 +157,35 @@ export default function JuriStepScoring({
             fontSize: '2rem',
             fontWeight: 800,
             color: '#0F172A',
-            margin: '0 0 2.5rem 0',
+            margin: '0 0 0.75rem 0',
             lineHeight: 1.25,
           }}
         >
           {currentAbaAba.name}
         </h1>
 
-        {/* Baris Kotak Opsi Nilai Sesuai Gambar User:
-            - Tablet/Desktop: 1 baris menyamping kesamping (8 kotak)
-            - Mobile: 2 baris x 4 kolom */}
-        <div style={{ width: '100%', maxWidth: '780px' }}>
-          <div className="juri-fullscreen-score-grid">
+        {(currentAbaAba.desc || currentAbaAba.description) && (
+          <p
+            style={{
+              fontSize: '0.9rem',
+              color: '#64748B',
+              margin: '0 0 2rem 0',
+              maxWidth: '640px',
+              lineHeight: 1.5,
+            }}
+          >
+            {currentAbaAba.desc || currentAbaAba.description}
+          </p>
+        )}
+
+        {/* Baris Kotak Opsi Nilai Dinamis sesuai konfigurasi Admin Panitia */}
+        <div style={{ width: '100%', maxWidth: '820px' }}>
+          <div
+            className="juri-fullscreen-score-grid"
+            style={{
+              gridTemplateColumns: `repeat(${Math.min(Math.max(options.length, 4), 8)}, 1fr)`,
+            }}
+          >
             {options.map((val) => {
               const isSelected = currentScore === val;
               return (

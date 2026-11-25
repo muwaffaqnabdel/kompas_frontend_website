@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import Topbar from '../../components/Topbar';
 import Sidebar from '../../components/Sidebar';
@@ -14,6 +14,13 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [demoRole, setDemoRole] = useState(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+
+  // Reset demoRole otomatis saat akun login berganti (misal login via Email atau PIN Juri)
+  useEffect(() => {
+    if (user?.id) {
+      setDemoRole(null);
+    }
+  }, [user?.id]);
 
   // Peran efektif: Jika ada user login, pakai peran user. Jika tidak/untuk demo, pakai demoRole
   const currentRole = demoRole || (user?.globalRole === 'SUPER_ADMIN' ? 'SUPER_ADMIN' : user?.assignedEvents?.[0]?.role) || 'ADMIN_PANITIA';

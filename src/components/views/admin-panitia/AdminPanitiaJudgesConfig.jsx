@@ -15,7 +15,35 @@ import {
   Layers,
   Info,
 } from 'lucide-react';
-import { STORAGE_KEY_CRITERIA } from './AdminPanitiaCriteriaConfig';
+import {
+  STORAGE_KEY_CRITERIA,
+  CATEGORY_OPTIONS,
+  normalizeCategory,
+  getCategoryBadgeStyle,
+} from './AdminPanitiaCriteriaConfig';
+
+const JUDGE_CATEGORY_CHOICES = [
+  { id: 'PBB', label: 'PBB Murni', desc: 'Gerakan dasar & berjalan' },
+  { id: 'DANTON', label: 'Danton', desc: 'Komandan peleton & vokal' },
+  { id: 'VARIASI & FORMASI', label: 'Variasi & Formasi', desc: 'Koreografi & estetika' },
+  { id: 'MAKE UP / KOSTUM', label: 'Make Up / Kostum', desc: 'Seragam & kerapihan' },
+];
+
+const getJudgeSpecialties = (judge) => {
+  if (Array.isArray(judge?.specialties) && judge.specialties.length > 0) {
+    return Array.from(new Set(judge.specialties.map((s) => normalizeCategory(s))));
+  }
+  if (judge?.category) {
+    const parts = String(judge.category)
+      .split(/[&,+]/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+    if (parts.length > 0) {
+      return Array.from(new Set(parts.map((p) => normalizeCategory(p))));
+    }
+  }
+  return ['PBB'];
+};
 
 export const STORAGE_KEY_JUDGES = 'kompas_event_judges';
 
@@ -105,7 +133,8 @@ export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria, current
   const [formData, setFormData] = useState({
     name: '',
     role: 'Anggota Dewan Juri',
-    category: 'PBB Murni',
+    category: 'PBB',
+    specialties: ['PBB'],
     institution: '',
     pin: '',
     status: 'AKTIF',
@@ -114,33 +143,59 @@ export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria, current
   // 4. Feedback Alert State
   const [feedback, setFeedback] = useState(null);
 
-  // Ambil daftar dewan juri dari backend saat halaman dimuat
+  // Ambil daftar dewan juri & kriteria event dari backend saat halaman dimuat
   useEffect(() => {
     const fetchJudgesData = async () => {
       try {
         const res = await fetch(`/api/panitia/judges?eventId=${eventId}`, { credentials: 'include' });
         const data = await res.json();
         if (data.success && Array.isArray(data.judges) && data.judges.length > 0) {
-          setJudges(data.judges);
-          localStorage.setItem(`${STORAGE_KEY_JUDGES}_${eventId}`, JSON.stringify(data.judges));
-          localStorage.setItem(STORAGE_KEY_JUDGES, JSON.stringify(data.judges));
+          const normalizedJudges = data.judges.map((j) => {
+            const specs = getJudgeSpecialties(j);
+            return { ...j, specialties: specs, category: specs.join(' & ') };
+          });
+          setJudges(normalizedJudges);
+          localStorage.setItem(`${STORAGE_KEY_JUDGES}_${eventId}`, JSON.stringify(normalizedJudges));
+          localStorage.setItem(STORAGE_KEY_JUDGES, JSON.stringify(normalizedJudges));
         }
       } catch (err) {
         console.warn('Backend judges API offline, menggunakan penyimpanan lokal:', err);
       }
     };
 
+    const fetchCriteriaData = async () => {
+      try {
+        const res = await fetch(`/api/panitia/criteria?eventId=${eventId}`, { credentials: 'include' });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.criteria) && data.criteria.length > 0) {
+          setCriteria(data.criteria);
+          localStorage.setItem(`${STORAGE_KEY_CRITERIA}_${eventId}`, JSON.stringify(data.criteria));
+          localStorage.setItem(STORAGE_KEY_CRITERIA, JSON.stringify(data.criteria));
+        }
+      } catch (err) {
+        console.warn('Backend criteria API offline, menggunakan penyimpanan lokal:', err);
+      }
+    };
+
     fetchJudgesData();
+    fetchCriteriaData();
   }, [eventId]);
 
   useEffect(() => {
+    const handleCriteriaUpdated = (e) => {
+      if (Array.isArray(e.detail)) setCriteria(e.detail);
+    };
     try {
-      const saved = localStorage.getItem(STORAGE_KEY_CRITERIA);
+      const saved =
+        localStorage.getItem(`${STORAGE_KEY_CRITERIA}_${eventId}`) ||
+        localStorage.getItem(STORAGE_KEY_CRITERIA);
       if (saved) setCriteria(JSON.parse(saved));
     } catch {
       // ignore
     }
-  }, []);
+    window.addEventListener('kompas_criteria_updated', handleCriteriaUpdated);
+    return () => window.removeEventListener('kompas_criteria_updated', handleCriteriaUpdated);
+  }, [eventId]);
 
   const saveJudgesToStorage = (updated) => {
     setJudges(updated);
@@ -160,6 +215,22 @@ export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria, current
       return;
     }
 
+    const cleanPin = String(formData.pin || '').replace(/\D/g, '').trim();
+    if (!/^\d{4}$/.test(cleanPin)) {
+      alert('PIN Akses Tablet wajib terdiri dari tepat 4 digit angka (contoh: 4412).');
+      return;
+    }
+
+    const selectedSpecialties =
+      Array.isArray(formData.specialties) && formData.specialties.length > 0
+        ? Array.from(new Set(formData.specialties.map((s) => normalizeCategory(s))))
+        : [];
+    if (selectedSpecialties.length === 0) {
+      alert('Pilih minimal 1 kategori penilaian yang menjadi tugas Dewan Juri.');
+      return;
+    }
+    const displayCategory = selectedSpecialties.join(' & ');
+
     if (editingId) {
       const updated = judges.map((j) =>
         j.id === editingId
@@ -167,6 +238,9 @@ export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria, current
               ...j,
               ...formData,
               name: formData.name.trim(),
+              category: displayCategory,
+              specialties: selectedSpecialties,
+              pin: cleanPin,
             }
           : j
       );
@@ -184,6 +258,9 @@ export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria, current
             eventId,
             ...formData,
             name: formData.name.trim(),
+            category: displayCategory,
+            specialties: selectedSpecialties,
+            pin: cleanPin,
           }),
         });
       } catch (err) {
@@ -191,12 +268,13 @@ export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria, current
       }
     } else {
       const nextNum = judges.length + 1;
-      const cleanPin = formData.pin || String(Math.floor(1000 + Math.random() * 9000));
       const newJudge = {
         id: `juri-${Date.now()}`,
         ...formData,
         name: formData.name.trim(),
         role: formData.role || `Anggota Dewan Juri (Juri ${nextNum})`,
+        category: displayCategory,
+        specialties: selectedSpecialties,
         pin: cleanPin,
       };
       const updated = [...judges, newJudge];
@@ -214,6 +292,7 @@ export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria, current
             name: newJudge.name,
             role: newJudge.role,
             category: newJudge.category,
+            specialties: newJudge.specialties,
             institution: newJudge.institution,
             pin: newJudge.pin,
             status: newJudge.status,
@@ -222,7 +301,9 @@ export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria, current
         const data = await res.json();
         if (data.success && data.judge) {
           // Ganti ID lokal sementara dengan ID dari database jika ada
-          const synced = updated.map((j) => (j.id === newJudge.id ? { ...j, id: data.judge.id } : j));
+          const synced = updated.map((j) =>
+            j.id === newJudge.id ? { ...j, ...data.judge, id: data.judge.id } : j
+          );
           saveJudgesToStorage(synced);
         }
       } catch (err) {
@@ -233,7 +314,8 @@ export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria, current
     setFormData({
       name: '',
       role: 'Anggota Dewan Juri',
-      category: 'PBB Murni',
+      category: 'PBB',
+      specialties: ['PBB'],
       institution: '',
       pin: '',
       status: 'AKTIF',
@@ -241,14 +323,31 @@ export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria, current
     setTimeout(() => setFeedback(null), 3500);
   };
 
+  const handleToggleSpecialty = (categoryId) => {
+    setFormData((prev) => {
+      const current = Array.isArray(prev.specialties) ? prev.specialties : [];
+      const exists = current.includes(categoryId);
+      const next = exists
+        ? current.filter((c) => c !== categoryId)
+        : [...current, categoryId];
+      return {
+        ...prev,
+        specialties: next,
+        category: next.join(' & '),
+      };
+    });
+  };
+
   const handleStartEdit = (judge) => {
+    const specs = getJudgeSpecialties(judge);
     setEditingId(judge.id);
     setFormData({
       name: judge.name,
       role: judge.role,
-      category: judge.category || 'PBB Murni',
+      category: specs.join(' & '),
+      specialties: specs,
       institution: judge.institution || '',
-      pin: judge.pin || '1234',
+      pin: String(judge.pin || '').replace(/\D/g, '').slice(0, 4),
       status: judge.status || 'AKTIF',
     });
     window.scrollTo({ top: 180, behavior: 'smooth' });
@@ -259,7 +358,8 @@ export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria, current
     setFormData({
       name: '',
       role: 'Anggota Dewan Juri',
-      category: 'PBB Murni',
+      category: 'PBB',
+      specialties: ['PBB'],
       institution: '',
       pin: '',
       status: 'AKTIF',
@@ -315,13 +415,18 @@ export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria, current
     }
   };
 
-  // Helper to count how many criteria are assigned to each judge
-  const getAssignedCriteriaForJudge = (judgeId) => {
-    return criteria.filter((c) => c.assignedJudges && c.assignedJudges.includes(judgeId));
+  // Helper untuk menghitung kriteria yang menjadi tugas masing-masing Juri berdasarkan kategori yang dicentang
+  const getAssignedCriteriaForJudge = (judge) => {
+    const judgeCats = getJudgeSpecialties(judge);
+    return criteria.filter((c) => {
+      const critCat = normalizeCategory(c.category);
+      if (judgeCats.includes(critCat)) return true;
+      return Array.isArray(c.assignedJudges) && c.assignedJudges.includes(judge.id);
+    });
   };
 
-  const pbbCount = judges.filter((j) => j.category === 'PBB Murni').length;
-  const variasiCount = judges.filter((j) => j.category === 'Formasi & Variasi').length;
+  const pbbCount = judges.filter((j) => getJudgeSpecialties(j).includes('PBB')).length;
+  const variasiCount = judges.filter((j) => getJudgeSpecialties(j).includes('VARIASI & FORMASI')).length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', fontFamily: 'var(--font-sans)' }}>
@@ -474,27 +579,56 @@ export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria, current
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--slate-text)', marginBottom: '0.35rem' }}>
-                Peran Penjurian (Jobdesk Utama)
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--slate-text)', marginBottom: '0.45rem' }}>
+                Kategori Penilaian yang Ditugaskan <span style={{ color: 'var(--crimson)' }}>*</span>
               </label>
-              <select
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '0.55rem 0.75rem',
-                  fontSize: '0.85rem',
-                  borderRadius: '8px',
-                  border: '1px solid var(--pub-line)',
-                  backgroundColor: '#FFFFFF',
-                  color: 'var(--pub-ink)',
-                }}
-              >
-                <option value="PBB Murni">PBB Murni (Gerakan Dasar & Berjalan)</option>
-                <option value="Formasi & Variasi">Formasi & Variasi (Estetika & Kekompakan)</option>
-                <option value="Komandan Peleton">Komandan Peleton / Danton</option>
-                <option value="Kerapihan & Kostum">Kerapihan & Kostum Pasukan</option>
-              </select>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                {JUDGE_CATEGORY_CHOICES.map((choice) => {
+                  const isChecked = (formData.specialties || []).includes(choice.id);
+                  const badgeStyle = getCategoryBadgeStyle(choice.id);
+                  return (
+                    <label
+                      key={choice.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '0.5rem',
+                        padding: '0.55rem 0.65rem',
+                        borderRadius: '8px',
+                        border: isChecked ? '1.5px solid var(--pub-coral)' : '1px solid var(--pub-line)',
+                        backgroundColor: isChecked ? '#FFF7ED' : '#FFFFFF',
+                        cursor: 'pointer',
+                        transition: 'all 0.12s ease',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => handleToggleSpecialty(choice.id)}
+                        style={{ marginTop: '2px', accentColor: 'var(--pub-coral)', cursor: 'pointer' }}
+                      />
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontSize: '0.775rem',
+                            fontWeight: 700,
+                            color: isChecked ? badgeStyle.color : 'var(--pub-ink)',
+                            lineHeight: 1.2,
+                          }}
+                        >
+                          {choice.label}
+                        </div>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--pub-muted)', marginTop: '0.1rem' }}>
+                          {choice.desc}
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+              <span style={{ fontSize: '0.72rem', color: 'var(--pub-muted)', display: 'block', marginTop: '0.3rem' }}>
+                Bisa pilih lebih dari 1 kategori (mis. PBB + Danton). Tablet juri otomatis hanya menampilkan aba-aba dari kategori yang dicentang.
+              </span>
             </div>
 
             <div>
@@ -541,14 +675,21 @@ export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria, current
 
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--slate-text)', marginBottom: '0.35rem' }}>
-                PIN Akses Tablet (4 Digit)
+                PIN Akses Tablet (Wajib 4 Digit Angka) <span style={{ color: 'var(--crimson)' }}>*</span>
               </label>
               <input
                 type="text"
-                placeholder="Contoh: 4412"
+                inputMode="numeric"
+                pattern="\d{4}"
+                minLength={4}
                 maxLength={4}
+                required
+                placeholder="Contoh: 4412"
                 value={formData.pin}
-                onChange={(e) => setFormData({ ...formData, pin: e.target.value })}
+                onChange={(e) => {
+                  const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 4);
+                  setFormData({ ...formData, pin: digitsOnly });
+                }}
                 style={{
                   width: '100%',
                   padding: '0.55rem 0.75rem',
@@ -562,7 +703,7 @@ export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria, current
                 }}
               />
               <span style={{ fontSize: '0.725rem', color: 'var(--pub-muted)', display: 'block', marginTop: '0.2rem' }}>
-                Digunakan dewan juri untuk otorisasi login cepat pada tablet lapangan.
+                Wajib tepat 4 digit angka (0–9). Digunakan dewan juri untuk login cepat pada tablet lapangan.
               </span>
             </div>
 
@@ -625,8 +766,9 @@ export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria, current
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
             {judges.map((judge, idx) => {
-              const assignedCrits = getAssignedCriteriaForJudge(judge.id);
-              const isPbb = judge.category === 'PBB Murni';
+              const judgeSpecs = getJudgeSpecialties(judge);
+              const assignedCrits = getAssignedCriteriaForJudge(judge);
+              const isPbb = judgeSpecs.includes('PBB');
 
               return (
                 <div
@@ -663,22 +805,27 @@ export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria, current
                       </div>
 
                       <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                           <span style={{ fontWeight: 700, fontSize: '0.925rem', color: 'var(--pub-ink)' }}>
                             {judge.name}
                           </span>
-                          <span
-                            style={{
-                              fontSize: '0.675rem',
-                              fontWeight: 600,
-                              backgroundColor: isPbb ? '#E0F2FE' : '#FEF3C7',
-                              color: isPbb ? '#0369A1' : '#B45309',
-                              padding: '0.15rem 0.5rem',
-                              borderRadius: '4px',
-                            }}
-                          >
-                            {judge.category}
-                          </span>
+                          {judgeSpecs.map((spec) => {
+                            const badgeStyle = getCategoryBadgeStyle(spec);
+                            return (
+                              <span
+                                key={spec}
+                                style={{
+                                  fontSize: '0.675rem',
+                                  fontWeight: 700,
+                                  ...badgeStyle,
+                                  padding: '0.15rem 0.5rem',
+                                  borderRadius: '4px',
+                                }}
+                              >
+                                {spec}
+                              </span>
+                            );
+                          })}
                         </div>
                         <div style={{ fontSize: '0.775rem', color: 'var(--slate-text)', marginTop: '0.15rem' }}>
                           {judge.role} {judge.institution ? `• ${judge.institution}` : ''}
@@ -721,18 +868,22 @@ export default function AdminPanitiaJudgesConfig({ onNavigateToCriteria, current
                       gap: '0.5rem',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: 'var(--muted-slate)' }}>
-                      <Award size={13} style={{ color: 'var(--pub-coral)' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: 'var(--muted-slate)', flexWrap: 'wrap' }}>
+                      <Award size={13} style={{ color: 'var(--pub-coral)', flexShrink: 0 }} />
                       <span>
-                        Menilai <strong>{assignedCrits.length}</strong> Kriteria Penilaian:
+                        Menilai <strong>{assignedCrits.length}</strong> Aba-Aba ({judgeSpecs.join(', ')}):
                       </span>
                       {assignedCrits.length > 0 ? (
                         <span style={{ color: 'var(--pub-ink)', fontWeight: 600 }}>
-                          {assignedCrits.map((c) => c.name.split('.')[1] || c.name).join(', ')}
+                          {assignedCrits
+                            .slice(0, 4)
+                            .map((c) => c.name.replace(/^\d+\.\s*/, ''))
+                            .join(', ')}
+                          {assignedCrits.length > 4 ? ` (+${assignedCrits.length - 4} lainnya)` : ''}
                         </span>
                       ) : (
                         <span style={{ color: 'var(--pub-amber)', fontStyle: 'italic' }}>
-                          (Belum dicentang di Kriteria & Nilai)
+                          (Belum ada butir aba-aba pada kategori {judgeSpecs.join(', ')} di menu Kriteria & Nilai)
                         </span>
                       )}
                     </div>

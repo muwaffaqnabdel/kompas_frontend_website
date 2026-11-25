@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { X, Shield, Lock, Mail, User, Building, Phone } from 'lucide-react';
+import { X, Shield, Lock, Mail, User, Building, Phone, KeyRound } from 'lucide-react';
 
 export default function AuthModal({ isOpen, onClose }) {
-  const { login, register, error } = useAuth();
+  const { login, loginWithJudgePin, register, error } = useAuth();
   const [isRegister, setIsRegister] = useState(false);
+  const [loginMode, setLoginMode] = useState('email'); // 'email' | 'juri_pin'
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -12,8 +13,36 @@ export default function AuthModal({ isOpen, onClose }) {
     phone: '',
     schoolName: '',
   });
+  const [availableEvents, setAvailableEvents] = useState([]);
+  const [pinEventId, setPinEventId] = useState('evt-lkbb-2026');
+  const [judgePin, setJudgePin] = useState('');
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState('');
+
+  useEffect(() => {
+    if (!isOpen || loginMode !== 'juri_pin' || availableEvents.length > 0) return;
+    let cancelled = false;
+    const loadEvents = async () => {
+      try {
+        const res = await fetch('/api/events');
+        const data = await res.json();
+        if (!cancelled && data.success && Array.isArray(data.events) && data.events.length > 0) {
+          setAvailableEvents(data.events);
+          setPinEventId((prev) =>
+            data.events.some((ev) => ev.id === prev || ev.slug === prev)
+              ? prev
+              : data.events[0].id
+          );
+        }
+      } catch (err) {
+        console.warn('Failed loading events for judge PIN login:', err);
+      }
+    };
+    loadEvents();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, loginMode, availableEvents.length]);
 
   if (!isOpen) return null;
 
@@ -23,7 +52,10 @@ export default function AuthModal({ isOpen, onClose }) {
     setLoading(true);
 
     try {
-      if (isRegister) {
+      if (!isRegister && loginMode === 'juri_pin') {
+        await loginWithJudgePin(pinEventId, judgePin);
+        setJudgePin('');
+      } else if (isRegister) {
         await register(formData);
       } else {
         await login(formData.email, formData.password);
@@ -129,72 +161,188 @@ export default function AuthModal({ isOpen, onClose }) {
           </div>
         )}
 
+        {/* Mode Switcher: Akun Email vs PIN Juri */}
+        {!isRegister && (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '0.35rem',
+              padding: '0.25rem',
+              backgroundColor: '#F1F5F9',
+              borderRadius: '8px',
+              marginBottom: '1rem',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setLoginMode('email');
+                setLocalError('');
+              }}
+              style={{
+                padding: '0.45rem 0.6rem',
+                borderRadius: '6px',
+                border: 'none',
+                backgroundColor: loginMode === 'email' ? '#FFFFFF' : 'transparent',
+                color: loginMode === 'email' ? 'var(--deep-slate)' : 'var(--muted-slate)',
+                fontWeight: 700,
+                fontSize: '0.78rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.35rem',
+                boxShadow: loginMode === 'email' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
+              }}
+            >
+              <Mail size={13} />
+              <span>Akun Email</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLoginMode('juri_pin');
+                setLocalError('');
+              }}
+              style={{
+                padding: '0.45rem 0.6rem',
+                borderRadius: '6px',
+                border: 'none',
+                backgroundColor: loginMode === 'juri_pin' ? '#FFFFFF' : 'transparent',
+                color: loginMode === 'juri_pin' ? 'var(--crimson)' : 'var(--muted-slate)',
+                fontWeight: 700,
+                fontSize: '0.78rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.35rem',
+                boxShadow: loginMode === 'juri_pin' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
+              }}
+            >
+              <KeyRound size={13} />
+              <span>Masuk via PIN Juri</span>
+            </button>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
-          {isRegister && (
+          {!isRegister && loginMode === 'juri_pin' ? (
             <>
               <div className="form-group">
-                <label className="form-label">Nama Lengkap / Perwakilan Tim</label>
+                <label className="form-label">Pilih Event Penugasan</label>
+                <select
+                  value={pinEventId}
+                  onChange={(e) => setPinEventId(e.target.value)}
+                  className="form-input"
+                  style={{ width: '100%', fontWeight: 600 }}
+                >
+                  {availableEvents.length > 0 ? (
+                    availableEvents.map((ev) => (
+                      <option key={ev.id} value={ev.id}>
+                        {ev.name}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="evt-lkbb-2026">LKBB Nasional Paskibra 2026</option>
+                  )}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">PIN Akses Tablet Dewan Juri (4 Digit)</label>
                 <input
-                  type="text"
+                  type="password"
+                  inputMode="numeric"
+                  pattern="\d{4}"
+                  minLength={4}
+                  maxLength={4}
                   required
                   className="form-input"
-                  placeholder="Contoh: Siti Rahmawati"
-                  value={formData.fullName}
-                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  placeholder="Contoh: 8821"
+                  value={judgePin}
+                  onChange={(e) => setJudgePin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  style={{ fontFamily: 'monospace', letterSpacing: '0.2em', fontWeight: 700 }}
+                />
+                <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted-slate)', marginTop: '0.25rem' }}>
+                  Masukkan tepat 4 digit angka PIN dari Admin Panitia event.
+                </span>
+              </div>
+
+              <button type="submit" disabled={loading} className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem' }}>
+                {loading ? 'Memverifikasi PIN...' : 'Verifikasi PIN & Masuk Juri'}
+              </button>
+            </>
+          ) : (
+            <>
+              {isRegister && (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">Nama Lengkap / Perwakilan Tim</label>
+                    <input
+                      type="text"
+                      required
+                      className="form-input"
+                      placeholder="Contoh: Siti Rahmawati"
+                      value={formData.fullName}
+                      onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Asal Sekolah / Kontingen</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Contoh: SMAN 1 Jakarta"
+                      value={formData.schoolName}
+                      onChange={(e) => setFormData({ ...formData, schoolName: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Nomor WhatsApp Aktif</label>
+                    <input
+                      type="tel"
+                      className="form-input"
+                      placeholder="081234567890"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    />
+                  </div>
+                </>
+              )}
+
+              <div className="form-group">
+                <label className="form-label">Alamat Email</label>
+                <input
+                  type="email"
+                  required
+                  className="form-input"
+                  placeholder="nama@email.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label">Asal Sekolah / Kontingen</label>
+                <label className="form-label">Kata Sandi</label>
                 <input
-                  type="text"
+                  type="password"
+                  required
                   className="form-input"
-                  placeholder="Contoh: SMAN 1 Jakarta"
-                  value={formData.schoolName}
-                  onChange={(e) => setFormData({ ...formData, schoolName: e.target.value })}
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 />
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Nomor WhatsApp Aktif</label>
-                <input
-                  type="tel"
-                  className="form-input"
-                  placeholder="081234567890"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                />
-              </div>
+              <button type="submit" disabled={loading} className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem' }}>
+                {loading ? 'Memproses...' : isRegister ? 'Daftar Akun Baru' : 'Masuk Sekarang'}
+              </button>
             </>
           )}
-
-          <div className="form-group">
-            <label className="form-label">Alamat Email</label>
-            <input
-              type="email"
-              required
-              className="form-input"
-              placeholder="nama@email.com"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Kata Sandi</label>
-            <input
-              type="password"
-              required
-              className="form-input"
-              placeholder="••••••••"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            />
-          </div>
-
-          <button type="submit" disabled={loading} className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem' }}>
-            {loading ? 'Memproses...' : isRegister ? 'Daftar Akun Baru' : 'Masuk Sekarang'}
-          </button>
         </form>
 
         {/* Quick Demo Preset Credentials */}

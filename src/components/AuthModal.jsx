@@ -36,8 +36,18 @@ export default function AuthModal({ isOpen, onClose }) {
     }
   };
 
-  const handleQuickLogin = (email, password = 'password123') => {
-    setFormData({ ...formData, email, password });
+  const handleQuickLogin = async (email, password = 'password123') => {
+    setLocalError('');
+    setFormData((prev) => ({ ...prev, email, password }));
+    setLoading(true);
+    try {
+      await login(email, password);
+      onClose();
+    } catch (err) {
+      setLocalError(err.message || 'Terjadi kesalahan autentikasi.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -190,15 +200,102 @@ export default function AuthModal({ isOpen, onClose }) {
         {/* Quick Demo Preset Credentials */}
         {!isRegister && (
           <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
-            <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--muted-slate)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>
-              Isi Otomatis Akun Demo (Password: password123)
+            <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--muted-slate)', textTransform: 'uppercase', marginBottom: '0.45rem' }}>
+              Isi Cepat Akun Role Pos DP (Password: password123)
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.35rem' }}>
+
+            {/* Sub-kategori: Pos DP LKBB */}
+            <div style={{ marginBottom: '0.45rem' }}>
+              <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--crimson)', marginBottom: '0.25rem' }}>
+                Event LKBB Nasional:
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.35rem' }}>
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('dp1@kompas.id')}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.685rem', padding: '0.25rem 0.35rem', textAlign: 'left' }}
+                >
+                  📄 Pos 1: Dokumen
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('dp2@kompas.id')}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.685rem', padding: '0.25rem 0.35rem', textAlign: 'left' }}
+                >
+                  📸 Pos 2: Photoshoot
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('dp3@kompas.id')}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.685rem', padding: '0.25rem 0.35rem', textAlign: 'left' }}
+                >
+                  ⏱️ Pos 3: Persiapan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('dp4@kompas.id')}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.685rem', padding: '0.25rem 0.35rem', textAlign: 'left' }}
+                >
+                  🏟️ Pos 4: Panggung
+                </button>
+              </div>
+            </div>
+
+            {/* Sub-kategori: Pos DP FORDA */}
+            <div style={{ marginBottom: '0.55rem' }}>
+              <div style={{ fontSize: '0.65rem', fontWeight: 600, color: '#0284c7', marginBottom: '0.25rem' }}>
+                Event FORDA Jateng:
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.35rem' }}>
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('dp1.forda@kompas.id')}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.685rem', padding: '0.25rem 0.35rem', textAlign: 'left', borderColor: '#bae6fd' }}
+                >
+                  📄 DP 1 Dokumen FORDA
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('dp2.forda@kompas.id')}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.685rem', padding: '0.25rem 0.35rem', textAlign: 'left', borderColor: '#bae6fd' }}
+                >
+                  📸 DP 2 Photoshoot FORDA
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('dp3.forda@kompas.id')}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.685rem', padding: '0.25rem 0.35rem', textAlign: 'left', borderColor: '#bae6fd' }}
+                >
+                  ⏱️ DP 3 Persiapan FORDA
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('dp4.forda@kompas.id')}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.685rem', padding: '0.25rem 0.35rem', textAlign: 'left', borderColor: '#bae6fd' }}
+                >
+                  🏟️ DP 4 Panggung FORDA
+                </button>
+              </div>
+            </div>
+
+            {/* Role Lainnya */}
+            <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--muted-slate)', marginBottom: '0.25rem' }}>
+              Role Lain:
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.35rem' }}>
               <button
                 type="button"
                 onClick={() => handleQuickLogin('admin@kompas.id')}
                 className="btn btn-secondary"
-                style={{ fontSize: '0.7rem', padding: '0.25rem 0.4rem' }}
+                style={{ fontSize: '0.675rem', padding: '0.25rem 0.35rem' }}
               >
                 👑 Super Admin
               </button>
@@ -206,23 +303,15 @@ export default function AuthModal({ isOpen, onClose }) {
                 type="button"
                 onClick={() => handleQuickLogin('panitia@kompas.id')}
                 className="btn btn-secondary"
-                style={{ fontSize: '0.7rem', padding: '0.25rem 0.4rem' }}
+                style={{ fontSize: '0.675rem', padding: '0.25rem 0.35rem' }}
               >
-                📋 Admin Panitia
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('dp1@kompas.id')}
-                className="btn btn-secondary"
-                style={{ fontSize: '0.7rem', padding: '0.25rem 0.4rem' }}
-              >
-                🚩 Panitia DP 1
+                📋 Panitia
               </button>
               <button
                 type="button"
                 onClick={() => handleQuickLogin('juri1@kompas.id')}
                 className="btn btn-secondary"
-                style={{ fontSize: '0.7rem', padding: '0.25rem 0.4rem' }}
+                style={{ fontSize: '0.675rem', padding: '0.25rem 0.35rem' }}
               >
                 ⚖️ Juri 1
               </button>
@@ -230,7 +319,7 @@ export default function AuthModal({ isOpen, onClose }) {
                 type="button"
                 onClick={() => handleQuickLogin('peserta@kompas.id')}
                 className="btn btn-secondary"
-                style={{ fontSize: '0.7rem', padding: '0.25rem 0.4rem', gridColumn: 'span 2' }}
+                style={{ fontSize: '0.675rem', padding: '0.25rem 0.35rem', gridColumn: 'span 3' }}
               >
                 🎖️ Akun Peserta Tim (SMAN 1 Jakarta)
               </button>

@@ -35,8 +35,18 @@ export default function LoginPage() {
     }
   };
 
-  const handleQuickLogin = (email, password = 'password123') => {
-    setFormData({ ...formData, email, password });
+  const handleQuickLogin = async (email, password = 'password123') => {
+    setLocalError('');
+    setFormData((prev) => ({ ...prev, email, password }));
+    setLoading(true);
+    try {
+      await login(email, password);
+      navigate('/dashboard');
+    } catch (err) {
+      setLocalError(err.message || 'Gagal autentikasi.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -178,9 +188,96 @@ export default function LoginPage() {
         {!isRegister && (
           <div style={{ marginTop: '1.75rem', paddingTop: '1.25rem', borderTop: '1px solid var(--pub-line)' }}>
             <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--pub-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
-              Isi Cepat Akun Demo (Password: password123)
+              Isi Cepat Akun Role Pos DP (Password: password123)
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
+
+            {/* Sub-kategori: Pos DP LKBB */}
+            <div style={{ marginBottom: '0.5rem' }}>
+              <div style={{ fontSize: '0.675rem', fontWeight: 700, color: 'var(--pub-coral)', marginBottom: '0.25rem' }}>
+                Event LKBB Nasional:
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('dp1@kompas.id')}
+                  className="pub-btn-outline"
+                  style={{ fontSize: '0.725rem', padding: '0.35rem 0.5rem', borderRadius: '6px', textAlign: 'left' }}
+                >
+                  📄 Pos 1: Dokumen
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('dp2@kompas.id')}
+                  className="pub-btn-outline"
+                  style={{ fontSize: '0.725rem', padding: '0.35rem 0.5rem', borderRadius: '6px', textAlign: 'left' }}
+                >
+                  📸 Pos 2: Photoshoot
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('dp3@kompas.id')}
+                  className="pub-btn-outline"
+                  style={{ fontSize: '0.725rem', padding: '0.35rem 0.5rem', borderRadius: '6px', textAlign: 'left' }}
+                >
+                  ⏱️ Pos 3: Persiapan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('dp4@kompas.id')}
+                  className="pub-btn-outline"
+                  style={{ fontSize: '0.725rem', padding: '0.35rem 0.5rem', borderRadius: '6px', textAlign: 'left' }}
+                >
+                  🏟️ Pos 4: Panggung
+                </button>
+              </div>
+            </div>
+
+            {/* Sub-kategori: Pos DP FORDA */}
+            <div style={{ marginBottom: '0.65rem' }}>
+              <div style={{ fontSize: '0.675rem', fontWeight: 700, color: '#0284c7', marginBottom: '0.25rem' }}>
+                Event FORDA Jateng:
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('dp1.forda@kompas.id')}
+                  className="pub-btn-outline"
+                  style={{ fontSize: '0.725rem', padding: '0.35rem 0.5rem', borderRadius: '6px', textAlign: 'left', borderColor: '#bae6fd' }}
+                >
+                  📄 DP 1 Dokumen FORDA
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('dp2.forda@kompas.id')}
+                  className="pub-btn-outline"
+                  style={{ fontSize: '0.725rem', padding: '0.35rem 0.5rem', borderRadius: '6px', textAlign: 'left', borderColor: '#bae6fd' }}
+                >
+                  📸 DP 2 Photoshoot FORDA
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('dp3.forda@kompas.id')}
+                  className="pub-btn-outline"
+                  style={{ fontSize: '0.725rem', padding: '0.35rem 0.5rem', borderRadius: '6px', textAlign: 'left', borderColor: '#bae6fd' }}
+                >
+                  ⏱️ DP 3 Persiapan FORDA
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('dp4.forda@kompas.id')}
+                  className="pub-btn-outline"
+                  style={{ fontSize: '0.725rem', padding: '0.35rem 0.5rem', borderRadius: '6px', textAlign: 'left', borderColor: '#bae6fd' }}
+                >
+                  🏟️ DP 4 Panggung FORDA
+                </button>
+              </div>
+            </div>
+
+            {/* Role Lain */}
+            <div style={{ fontSize: '0.675rem', fontWeight: 700, color: 'var(--pub-muted)', marginBottom: '0.25rem' }}>
+              Role Lain:
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem' }}>
               <button
                 type="button"
                 onClick={() => handleQuickLogin('admin@kompas.id')}
@@ -195,15 +292,7 @@ export default function LoginPage() {
                 className="pub-btn-outline"
                 style={{ fontSize: '0.725rem', padding: '0.35rem 0.5rem', borderRadius: '6px' }}
               >
-                📋 Admin Panitia
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('dp1@kompas.id')}
-                className="pub-btn-outline"
-                style={{ fontSize: '0.725rem', padding: '0.35rem 0.5rem', borderRadius: '6px' }}
-              >
-                🚩 Pos DP 1
+                📋 Panitia
               </button>
               <button
                 type="button"
@@ -217,7 +306,7 @@ export default function LoginPage() {
                 type="button"
                 onClick={() => handleQuickLogin('peserta@kompas.id')}
                 className="pub-btn-outline"
-                style={{ fontSize: '0.725rem', padding: '0.35rem 0.5rem', gridColumn: 'span 2', borderRadius: '6px' }}
+                style={{ fontSize: '0.725rem', padding: '0.35rem 0.5rem', gridColumn: 'span 3', borderRadius: '6px' }}
               >
                 🎖️ Peserta (SMAN 1 Jakarta)
               </button>

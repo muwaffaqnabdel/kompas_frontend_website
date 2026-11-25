@@ -20,16 +20,75 @@ import JuriStepScoring from './juri/JuriStepScoring';
 import JuriVoiceNoteStep from './juri/JuriVoiceNoteStep';
 import { getStoredJudges } from './admin-panitia/AdminPanitiaJudgesConfig';
 
-// 4 Jenjang Resmi Perlombaan LKBB (SD, SMP, SMA, PURNA)
+// 5 Jenjang Resmi Perlombaan LKBB (Termasuk Event FORDA Jateng)
 export const JENJANG_OPTIONS = [
-  { id: 'SD', label: 'Tingkat SD / MI', schedule: 'Hari Jumat (Sesi Pagi & Siang)' },
-  { id: 'SMP', label: 'Tingkat SMP / MTs', schedule: 'Hari Sabtu (Sesi Pagi)' },
+  { id: 'FORDA', label: '🚩 Event FORDA Jateng 2026', schedule: 'Hari Ini (Live Lapangan Utama)' },
   { id: 'SMA', label: 'Tingkat SMA / SMK / MA', schedule: 'Hari Sabtu (Sesi Siang & Sore)' },
+  { id: 'SMP', label: 'Tingkat SMP / MTs', schedule: 'Hari Sabtu (Sesi Pagi)' },
+  { id: 'SD', label: 'Tingkat SD / MI', schedule: 'Hari Jumat (Sesi Pagi & Siang)' },
   { id: 'PURNA', label: 'Tingkat Purna / Umum', schedule: 'Hari Minggu (Sesi Puncak)' },
 ];
 
-// Data Awal Peserta Lengkap untuk 4 Jenjang
+// Data Awal Peserta Lengkap untuk Jenjang Lomba & Event FORDA
 const INITIAL_PARTICIPANTS_BY_LEVEL = [
+  // 0. EVENT FORDA JAWA TENGAH 2026
+  {
+    id: 'part-forda-1',
+    level: 'FORDA',
+    orderNumber: '01',
+    school: 'SMAN 1 Semarang',
+    teamName: 'PASKIBRA GARUDA PANDANARAN',
+    danton: 'M. Rizky Pratama',
+    members: 16,
+    currentPos: 'POS 04',
+    posLabel: 'Pos 04 — Arena Tampil Utama',
+    isScored: false,
+    scoreData: null,
+    totalScore: null,
+  },
+  {
+    id: 'part-forda-2',
+    level: 'FORDA',
+    orderNumber: '02',
+    school: 'SMA Taruna Nusantara Magelang',
+    teamName: 'KARTIKA CANDRADIMUKA',
+    danton: 'Arya Bimasakti',
+    members: 16,
+    currentPos: 'POS 03',
+    posLabel: 'Pos 03 — Ruang Warm Up',
+    isScored: false,
+    scoreData: null,
+    totalScore: null,
+  },
+  {
+    id: 'part-forda-3',
+    level: 'FORDA',
+    orderNumber: '03',
+    school: 'SMAN 1 Surakarta',
+    teamName: 'SURYA KUSUMA',
+    danton: 'Bagas Wicaksono',
+    members: 16,
+    currentPos: 'POS 02',
+    posLabel: 'Pos 02 — Sesi Photoshoot',
+    isScored: false,
+    scoreData: null,
+    totalScore: null,
+  },
+  {
+    id: 'part-forda-4',
+    level: 'FORDA',
+    orderNumber: '04',
+    school: 'SMKN 2 Kudus',
+    teamName: 'LASKAR MENARA',
+    danton: 'Fajar Nugraha',
+    members: 16,
+    currentPos: 'POS 01',
+    posLabel: 'Pos 01 — Verifikasi Berkas',
+    isScored: false,
+    scoreData: null,
+    totalScore: null,
+  },
+
   // 1. TINGKAT SD / MI (Jumat)
   {
     id: 'sd-01',
@@ -389,6 +448,36 @@ export default function JuriView() {
   // Toast pemberitahuan ringkas
   const [toastMessage, setToastMessage] = useState('');
 
+  // Status Kunci Penilaian dari Pos DP 04 (Arena Utama)
+  const [isDp4ScoringOpen, setIsDp4ScoringOpen] = useState(() => {
+    try {
+      return localStorage.getItem('kompas_dp4_scoring_opened') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    const handleScoringChange = () => {
+      try {
+        setIsDp4ScoringOpen(localStorage.getItem('kompas_dp4_scoring_opened') === 'true');
+      } catch {
+        setIsDp4ScoringOpen(false);
+      }
+      setTick((t) => t + 1);
+    };
+    window.addEventListener('kompas_dp4_scoring_changed', handleScoringChange);
+    window.addEventListener('kompas_dp_flow_updated', handleScoringChange);
+    window.addEventListener('storage', handleScoringChange);
+    return () => {
+      window.removeEventListener('kompas_dp4_scoring_changed', handleScoringChange);
+      window.removeEventListener('kompas_dp_flow_updated', handleScoringChange);
+      window.removeEventListener('storage', handleScoringChange);
+    };
+  }, []);
+
   const showToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => {
@@ -396,14 +485,45 @@ export default function JuriView() {
     }, 4000);
   };
 
+  // Sinkronisasi posisi peserta FORDA dengan alur real-time Pos DP
+  const resolvedParticipants = participants.map((p) => {
+    if (p.level === 'FORDA') {
+      try {
+        const saved = localStorage.getItem('kompas_dp_flow_state_0b85acba-5fc6-4861-b0ce-e35a3bf4cc19');
+        if (saved) {
+          const fs = JSON.parse(saved);
+          if (fs.pos4?.id === p.id) {
+            return { ...p, currentPos: 'POS 04', posLabel: 'Pos 04 — Arena Tampil Utama' };
+          } else if (fs.pos3?.id === p.id) {
+            return { ...p, currentPos: 'POS 03', posLabel: 'Pos 03 — Ruang Warm Up' };
+          } else if (fs.pos2?.id === p.id) {
+            return { ...p, currentPos: 'POS 02', posLabel: 'Pos 02 — Sesi Photoshoot' };
+          } else if (fs.pos1?.id === p.id) {
+            return { ...p, currentPos: 'POS 01', posLabel: 'Pos 01 — Verifikasi Berkas' };
+          } else if (fs.completedTeamIds?.includes(p.id)) {
+            return { ...p, currentPos: 'SELESAI', posLabel: 'Selesai Tampil di Arena' };
+          } else {
+            return { ...p, currentPos: 'AREA TUNGGU', posLabel: 'Menunggu Panggilan di DP 1' };
+          }
+        }
+      } catch (e) {}
+    }
+    return p;
+  });
+
   // Filter peserta berdasarkan Jenjang yang dipilih di Dropdown
-  const filteredParticipants = participants.filter((p) => p.level === selectedLevel);
+  const filteredParticipants = resolvedParticipants.filter((p) => p.level === selectedLevel);
   const currentSchedule = JENJANG_OPTIONS.find((j) => j.id === selectedLevel)?.schedule || '';
 
-  // 1. KLIK TOMBOL "MULAI PENILAIAN" (HANYA BISA DIKLIK JIKA DI POS 04)
+  // 1. KLIK TOMBOL "MULAI PENILAIAN" (HANYA BISA DIKLIK JIKA DI POS 04 DAN DIBUKA OLEH DP 4)
   const handleStartScoring = (team) => {
     if (team.currentPos !== 'POS 04') {
       showToast(`⚠️ Pasukan ${team.school} belum masuk ke Arena Lapangan (Masih di ${team.posLabel})!`);
+      return;
+    }
+    const isOpened = localStorage.getItem('kompas_dp4_scoring_opened') === 'true';
+    if (!isOpened) {
+      showToast(`⚠️ Penilaian Juri belum dibuka oleh Petugas Pos 04 Lapangan! Silakan tunggu petugas DP 04 membuka penilaian.`);
       return;
     }
     setSelectedTeam(team);
@@ -464,6 +584,10 @@ export default function JuriView() {
         return p;
       })
     );
+    try {
+      localStorage.setItem('kompas_dp4_scoring_opened', 'true');
+      window.dispatchEvent(new Event('kompas_dp4_scoring_changed'));
+    } catch (e) {}
     const targetTeam = participants.find((p) => p.id === teamId);
     showToast(`⚡ Pasukan ${targetTeam?.school || ''} telah didorong masuk ke POS 04 (Arena Lapangan)! Status Penilaian Terbuka.`);
   };
@@ -691,7 +815,7 @@ export default function JuriView() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Lock size={15} color="var(--pub-coral)" />
             <span>
-              <strong>Aturan Locking Flow Penjurian:</strong> Tombol <strong>"Mulai Penilaian"</strong> hanya akan aktif otomatis saat pasukan telah berada di <strong>POS 04 (Arena Lapangan)</strong>.
+              <strong>Aturan Locking Flow Penjurian:</strong> Penilaian dewan juri hanya dapat dimulai saat pasukan telah berada di <strong>POS 04 (Arena Lapangan)</strong> dan petugas DP 04 telah mengklik tombol <strong>"Buka Penilaian Juri"</strong>.
             </span>
           </div>
           <span style={{ fontSize: '0.75rem', color: 'var(--pub-muted)', fontWeight: 600 }}>
@@ -827,32 +951,52 @@ export default function JuriView() {
                           </span>
                         </div>
                       ) : isAtPos4 ? (
-                        <span
-                          style={{
-                            backgroundColor: '#FEF2F2',
-                            color: '#DC2626',
-                            border: '1.5px solid #FECACA',
-                            padding: '0.35rem 0.75rem',
-                            borderRadius: '9999px',
-                            fontSize: '0.775rem',
-                            fontWeight: 800,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.4rem',
-                            boxShadow: '0 2px 6px rgba(220, 38, 38, 0.15)',
-                          }}
-                        >
+                        isDp4ScoringOpen ? (
                           <span
                             style={{
-                              width: '8px',
-                              height: '8px',
-                              borderRadius: '50%',
-                              backgroundColor: '#DC2626',
-                              animation: 'pulse 1s infinite',
+                              backgroundColor: '#FEF2F2',
+                              color: '#DC2626',
+                              border: '1.5px solid #FECACA',
+                              padding: '0.35rem 0.75rem',
+                              borderRadius: '9999px',
+                              fontSize: '0.775rem',
+                              fontWeight: 800,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.4rem',
+                              boxShadow: '0 2px 6px rgba(220, 38, 38, 0.15)',
                             }}
-                          />
-                          <span>MULAI PENILAIAN</span>
-                        </span>
+                          >
+                            <span
+                              style={{
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                backgroundColor: '#DC2626',
+                                animation: 'pulse 1s infinite',
+                              }}
+                            />
+                            <span>MULAI PENILAIAN</span>
+                          </span>
+                        ) : (
+                          <span
+                            style={{
+                              backgroundColor: '#FEF3C7',
+                              color: '#B45309',
+                              border: '1.5px solid #FDE68A',
+                              padding: '0.35rem 0.75rem',
+                              borderRadius: '9999px',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.4rem',
+                            }}
+                          >
+                            <Lock size={12} />
+                            <span>Menunggu Buka DP 04</span>
+                          </span>
+                        )
                       ) : (
                         <span
                           style={{
@@ -886,23 +1030,47 @@ export default function JuriView() {
                           <span>Lihat / Revisi Nilai</span>
                         </button>
                       ) : isAtPos4 ? (
-                        <button
-                          type="button"
-                          onClick={() => handleStartScoring(p)}
-                          className="pub-btn-coral"
-                          style={{
-                            fontSize: '0.825rem',
-                            padding: '0.55rem 1.15rem',
-                            fontWeight: 800,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.45rem',
-                            boxShadow: '0 4px 12px rgba(201, 75, 60, 0.3)',
-                          }}
-                        >
-                          <span>Mulai Penilaian</span>
-                          <ChevronRight size={15} />
-                        </button>
+                        isDp4ScoringOpen ? (
+                          <button
+                            type="button"
+                            onClick={() => handleStartScoring(p)}
+                            className="pub-btn-coral"
+                            style={{
+                              fontSize: '0.825rem',
+                              padding: '0.55rem 1.15rem',
+                              fontWeight: 800,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.45rem',
+                              boxShadow: '0 4px 12px rgba(201, 75, 60, 0.3)',
+                            }}
+                          >
+                            <span>Mulai Penilaian</span>
+                            <ChevronRight size={15} />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleStartScoring(p)}
+                            style={{
+                              fontSize: '0.8rem',
+                              padding: '0.5rem 0.95rem',
+                              fontWeight: 700,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              backgroundColor: '#FEF3C7',
+                              color: '#B45309',
+                              border: '1px solid #F59E0B',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                            }}
+                            title="Menunggu Petugas Pos 04 Lapangan mengklik tombol Buka Penilaian Juri"
+                          >
+                            <Lock size={13} />
+                            <span>Menunggu Buka DP 04</span>
+                          </button>
+                        )
                       ) : (
                         <button
                           type="button"

@@ -13,9 +13,18 @@ import {
   AlertCircle,
   FileCheck,
   Users,
+  Camera,
+  Clock,
+  Award,
+  Unlock,
+  Lock,
+  ArrowRight,
+  Sparkles,
+  Shield,
+  Volume2,
 } from 'lucide-react';
 
-// Helper generator pratinjau dokumen untuk Operator DP Dokumen
+// Helper generator pratinjau dokumen untuk Operator DP 1 Dokumen
 function renderDocHtml(docTitle, teamName, schoolName) {
   if (docTitle.toLowerCase().includes('surat') || docTitle.toLowerCase().includes('rekomendasi')) {
     return `
@@ -29,7 +38,7 @@ function renderDocHtml(docTitle, teamName, schoolName) {
         <div style="font-size: 11px; font-family: monospace; font-weight: 700; color: #334155;">No: 421.3 / 184 / SMAN1 / TGS-PASKIBRA / 2026</div>
       </div>
       <p style="font-size: 12.5px; line-height: 1.6; color: #1E293B;">
-        Kepala Sekolah dengan ini menugaskan kontingen <strong>${teamName}</strong> beranggotakan 16 Personel Pasukan Utama untuk berkompetisi sportif pada LKBB Nasional 2026.
+        Kepala Sekolah dengan ini menugaskan kontingen <strong>${teamName}</strong> beranggotakan 16 Personel Pasukan Utama untuk berkompetisi sportif pada gelaran LKBB Resmi.
       </p>
       <div style="margin-top: 24px; display: flex; justify-content: flex-end; text-align: center;">
         <div style="width: 220px;">
@@ -49,90 +58,45 @@ function renderDocHtml(docTitle, teamName, schoolName) {
     <div style="padding: 16px; background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 12px; line-height: 1.6;">
       <div style="font-weight: 800; color: #0F172A; margin-bottom: 8px;">VERIFIKASI BERKAS RESMI DI POS DP 1</div>
       <div>• Status Berkas: <strong>TERVERIFIKASI SAH</strong></div>
-      <div>• Tanggal Unggah: 26 Oktober 2026</div>
-      <div>• Pemeriksaan Fisik: Sesuai juknis dan format pendaftaran resmi.</div>
+      <div>• Pemeriksaan Fisik: Sesuai petunjuk teknis pendaftaran resmi.</div>
     </div>
   `;
 }
 
 export default function PanitiaDPWorkstation({
+  posIndex = 1,
   notification,
   dpStatus,
   onFinishDP,
-  teamName = 'PASKIBRA GARUDA SAKTI',
-  school = 'SMAN 1 Jakarta',
-  orderNumber = '01',
+  teamName,
+  school,
+  orderNumber,
   members = 16,
   entryTime = '08:15 WIB',
-  isDocCheckPos = true, // Khusus Pos Pengecekan Dokumen
   allParticipants = [],
+  isJuriScoringOpen = false,
+  onOpenJuriScoring,
 }) {
+  // State untuk Pos 1 Dokumen
   const [doc1Checked, setDoc1Checked] = useState(true);
   const [doc2Checked, setDoc2Checked] = useState(true);
   const [doc3Checked, setDoc3Checked] = useState(true);
-
-  // State Modal Preview Dokumen
+  const [docVerificationNote, setDocVerificationNote] = useState('Berkas fisik lengkap dan sesuai stempel basah kepala sekolah.');
   const [previewDoc, setPreviewDoc] = useState(null);
   const [previewZoom, setPreviewZoom] = useState(1);
-
-  // State Modal Semua Dokumen Peserta Event
   const [showAllDocsModal, setShowAllDocsModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Default sample data jika allParticipants kosong
-  const participantsList =
-    allParticipants.length > 0
-      ? allParticipants
-      : [
-          {
-            id: 'part-1',
-            queueNumber: '01',
-            teamName: 'PASKIBRA GARUDA SAKTI',
-            schoolName: 'SMAN 1 Jakarta',
-            status: 'VALIDATED',
-            docsCount: '3/3 Lengkap',
-            documents: [
-              { id: 'd1', title: 'File Surat Rekomendasi / Pengantar Sekolah', fileName: 'Surat_Rekomendasi_Kepsek_SMAN1.pdf', status: 'VERIFIED', size: '1.2 MB' },
-              { id: 'd2', title: 'File Kartu Pelajar (Kolektif Anggota)', fileName: 'Kartu_Pelajar_16_Anggota.pdf', status: 'VERIFIED', size: '3.4 MB' },
-              { id: 'd3', title: 'Formulir Pendaftaran & Pakta Integritas', fileName: 'Formulir_Pakta_Integritas_2026.docx', status: 'VERIFIED', size: '840 KB' },
-            ],
-          },
-          {
-            id: 'part-2',
-            queueNumber: '02',
-            teamName: 'PASKIBRA WIJAYA KUSUMA',
-            schoolName: 'SMAN 28 Jakarta',
-            status: 'VALIDATED',
-            docsCount: '3/3 Lengkap',
-            documents: [
-              { id: 'd1', title: 'File Surat Rekomendasi / Pengantar Sekolah', fileName: 'Surat_Tugas_SMAN28.pdf', status: 'VERIFIED', size: '1.1 MB' },
-              { id: 'd2', title: 'File Kartu Pelajar (Kolektif Anggota)', fileName: 'Kartu_Pelajar_SMAN28.pdf', status: 'VERIFIED', size: '2.8 MB' },
-              { id: 'd3', title: 'Formulir Pendaftaran & Pakta Integritas', fileName: 'Pakta_Integritas_SMAN28.pdf', status: 'VERIFIED', size: '920 KB' },
-            ],
-          },
-          {
-            id: 'part-3',
-            queueNumber: '03',
-            teamName: 'PASKIBRA PATRIOT 70',
-            schoolName: 'SMAN 70 Jakarta',
-            status: 'REVISION_REQUIRED',
-            docsCount: '2/3 Lengkap (1 Revisi)',
-            documents: [
-              { id: 'd1', title: 'File Surat Rekomendasi / Pengantar Sekolah', fileName: 'Surat_Tugas_SMAN70.pdf', status: 'VERIFIED', size: '1.4 MB' },
-              { id: 'd2', title: 'File Kartu Pelajar (Kolektif Anggota)', fileName: 'Kartu_Pelajar_Scan.pdf', status: 'REVISION', size: '2.1 MB', note: 'Scan kartu pelajar buram' },
-              { id: 'd3', title: 'Formulir Pendaftaran & Pakta Integritas', fileName: 'Pakta_Integritas_SMAN70.pdf', status: 'VERIFIED', size: '880 KB' },
-            ],
-          },
-        ];
+  const isDocCheckPos = posIndex === 1;
 
-  const filteredParticipants = participantsList.filter(
+  // Filter participants untuk modal dokumen
+  const filteredParticipants = allParticipants.filter(
     (p) =>
       p.teamName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.schoolName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       String(p.queueNumber).includes(searchQuery)
   );
 
-  // Helper buka di tab baru
   const openInNewTab = (title, tName, sName) => {
     const win = window.open('', '_blank');
     if (!win) return;
@@ -160,6 +124,46 @@ export default function PanitiaDPWorkstation({
     win.document.close();
   };
 
+  // Cek apakah pos ini memiliki tim aktif
+  const hasActiveTeam = !!teamName;
+
+  const getEmptyPosInfo = () => {
+    switch (posIndex) {
+      case 2:
+        return {
+          icon: Camera,
+          color: '#0284c7',
+          title: 'Pos 02 (Photoshoot) Siap & Steril',
+          desc: 'Belum ada pasukan aktif di studio foto. Pasukan akan otomatis masuk ke Pos 02 setelah diverifikasi sah dan dialirkan dari Pos 01 (Dokumen).',
+        };
+      case 3:
+        return {
+          icon: Clock,
+          color: '#d97706',
+          title: 'Pos 03 (Daerah Persiapan & Pemanasan) Siap & Steril',
+          desc: 'Belum ada pasukan di ruang pemanasan. Pasukan akan otomatis masuk ke Pos 03 setelah sesi foto di Pos 02 selesai dan dialirkan.',
+        };
+      case 4:
+        return {
+          icon: Award,
+          color: '#dc2626',
+          title: 'Pos 04 (Arena Panggung Utama) Siap & Steril',
+          desc: 'Belum ada pasukan yang tampil di lapangan utama. Pasukan akan otomatis masuk ke arena Pos 04 setelah persiapan di Pos 03 tuntas.',
+        };
+      case 1:
+      default:
+        return {
+          icon: FileCheck,
+          color: 'var(--pub-teal)',
+          title: 'Pos 01 Siap — Belum Ada Pasukan di Ruang Pemeriksaan',
+          desc: 'Seluruh peserta sedang berada di sekitar area lomba. Silakan klik tombol "📢 Panggil Masuk DP 1" pada daftar antrean di bawah untuk memanggil pasukan masuk ke verifikasi berkas.',
+        };
+    }
+  };
+
+  const emptyInfo = getEmptyPosInfo();
+  const EmptyIcon = emptyInfo.icon;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', fontFamily: 'var(--font-sans)' }}>
       {/* Notification Banner */}
@@ -180,452 +184,740 @@ export default function PanitiaDPWorkstation({
         </div>
       )}
 
-      {/* Active Team Workstation Card */}
+      {/* Main Workstation Card */}
       <div
         style={{
           backgroundColor: 'var(--pub-surface)',
           borderRadius: 'var(--pub-radius-card)',
           padding: '1.75rem',
           border: '1px solid var(--pub-line)',
-          borderTop: '5px solid var(--pub-coral)',
+          borderTop:
+            posIndex === 1
+              ? '5px solid var(--pub-teal)'
+              : posIndex === 2
+              ? '5px solid #0284c7'
+              : posIndex === 3
+              ? '5px solid #d97706'
+              : '5px solid #dc2626',
           boxShadow: 'var(--pub-shadow-card)',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--pub-coral)', letterSpacing: '0.08em' }}>
-                TIM SEDANG DI POS INI
-              </span>
-              {isDocCheckPos && (
-                <span
-                  style={{
-                    backgroundColor: 'var(--pub-teal-light)',
-                    color: 'var(--pub-teal)',
-                    fontSize: '0.7rem',
-                    fontWeight: 800,
-                    padding: '0.15rem 0.55rem',
-                    borderRadius: 'var(--pub-radius-pill)',
-                  }}
-                >
-                  POS DOKUMEN & BERKAS
-                </span>
-              )}
-            </div>
-
-            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.45rem', fontWeight: 800, color: 'var(--pub-ink)', margin: '0.2rem 0' }}>
-              {teamName}
-            </h2>
-            <div style={{ fontSize: '0.875rem', color: 'var(--pub-muted)' }}>
-              {school} · Nomor Urut Tampil: <strong className="tabular-nums" style={{ color: 'var(--pub-ink)' }}>{orderNumber}</strong> · {members} Anggota
-            </div>
-          </div>
-
-          <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.45rem' }}>
-            <span
-              style={{
-                backgroundColor: dpStatus === 'COMPLETED' ? 'var(--pub-teal-light)' : dpStatus === 'BLOCKED' ? 'var(--pub-coral-pale)' : '#FEF3C7',
-                color: dpStatus === 'COMPLETED' ? 'var(--pub-teal)' : dpStatus === 'BLOCKED' ? 'var(--pub-coral)' : '#B45309',
-                padding: '0.3rem 0.75rem',
-                borderRadius: 'var(--pub-radius-pill)',
-                fontSize: '0.75rem',
-                fontWeight: 800,
-              }}
-            >
-              STATUS: {dpStatus}
-            </span>
-            <div style={{ fontSize: '0.75rem', color: 'var(--pub-muted)' }}>
-              Waktu Masuk Pos: <strong style={{ color: 'var(--pub-ink)' }}>{entryTime}</strong>
-            </div>
-
-            {/* Tombol Akses Khusus Petugas Pos Dokumen: Buka Semua Berkas Peserta Event */}
-            {isDocCheckPos && (
-              <button
-                type="button"
-                onClick={() => setShowAllDocsModal(true)}
-                className="pub-btn-outline"
-                style={{
-                  fontSize: '0.75rem',
-                  padding: '0.35rem 0.75rem',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  fontWeight: 700,
-                  color: 'var(--pub-teal)',
-                  borderColor: 'var(--pub-teal)',
-                  marginTop: '0.25rem',
-                  cursor: 'pointer',
-                }}
-              >
-                <Users size={13} />
-                <span>Lihat Seluruh Dokumen Peserta Event</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* ============================================================== */}
-        {/* KHUSUS POS DOKUMEN: DAFTAR BERKAS TIM AKTIF                    */}
-        {/* ============================================================== */}
-        {isDocCheckPos && (
+        {/* Placeholder jika Pos belum ada tim aktif */}
+        {!hasActiveTeam ? (
           <div
             style={{
+              padding: '2.5rem 1.5rem',
+              textAlign: 'center',
               backgroundColor: 'var(--pub-canvas)',
-              border: '1.5px solid var(--pub-teal)',
               borderRadius: '12px',
-              padding: '1.25rem',
-              marginBottom: '1.25rem',
+              border: '2px dashed var(--pub-line)',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                <FileCheck size={18} color="var(--pub-teal)" />
-                <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--pub-ink)', margin: 0 }}>
-                  Pemeriksaan Berkas Fisik Kontingen ({teamName})
-                </h3>
-              </div>
-              <span style={{ fontSize: '0.725rem', color: 'var(--pub-teal)', fontWeight: 700 }}>
-                ✓ Wajib divalidasi sebelum transisi ke DP 2
-              </span>
+            <div
+              style={{
+                width: '52px',
+                height: '52px',
+                borderRadius: '50%',
+                backgroundColor: 'var(--pub-surface)',
+                color: emptyInfo.color,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '0.85rem',
+                border: '1px solid var(--pub-line)',
+                boxShadow: 'var(--pub-shadow-card)',
+              }}
+            >
+              <EmptyIcon size={26} />
             </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-              {/* Berkas 1: Surat Tugas */}
-              <div
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: '8px',
-                  padding: '0.75rem 1rem',
-                  border: '1px solid var(--pub-line)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '0.5rem',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                  <input
-                    type="checkbox"
-                    id="doc1Check"
-                    checked={doc1Checked}
-                    onChange={(e) => setDoc1Checked(e.target.checked)}
-                    style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--pub-teal)' }}
-                  />
-                  <div>
-                    <label htmlFor="doc1Check" style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--pub-ink)', cursor: 'pointer' }}>
-                      Surat Tugas & Rekomendasi Kepala Sekolah
-                    </label>
-                    <div style={{ fontSize: '0.725rem', color: 'var(--pub-muted)', marginTop: '0.1rem' }}>
-                      📄 Surat_Rekomendasi_Kepsek_SMAN1_Jakarta.pdf · 1.2 MB
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                  <span
-                    style={{
-                      backgroundColor: 'var(--pub-teal-light)',
-                      color: 'var(--pub-teal)',
-                      padding: '0.2rem 0.55rem',
-                      borderRadius: 'var(--pub-radius-pill)',
-                      fontSize: '0.7rem',
-                      fontWeight: 800,
-                    }}
-                  >
-                    TERVERIFIKASI
-                  </span>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPreviewZoom(1);
-                      setPreviewDoc({
-                        title: 'Surat Tugas & Rekomendasi Kepala Sekolah',
-                        teamName,
-                        school,
-                      });
-                    }}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.3rem',
-                      padding: '0.3rem 0.6rem',
-                      borderRadius: '6px',
-                      border: '1px solid var(--pub-coral)',
-                      backgroundColor: '#FFFFFF',
-                      color: 'var(--pub-coral)',
-                      fontSize: '0.725rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Eye size={12} />
-                    <span>Lihat</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => openInNewTab('Surat Tugas & Rekomendasi Kepala Sekolah', teamName, school)}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.3rem',
-                      padding: '0.3rem 0.6rem',
-                      borderRadius: '6px',
-                      border: '1px solid var(--pub-line)',
-                      backgroundColor: 'var(--pub-canvas)',
-                      color: 'var(--pub-ink)',
-                      fontSize: '0.725rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <ExternalLink size={12} />
-                    <span>Tab Baru</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Berkas 2: Kartu Pelajar Kolektif */}
-              <div
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: '8px',
-                  padding: '0.75rem 1rem',
-                  border: '1px solid var(--pub-line)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '0.5rem',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                  <input
-                    type="checkbox"
-                    id="doc2Check"
-                    checked={doc2Checked}
-                    onChange={(e) => setDoc2Checked(e.target.checked)}
-                    style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--pub-teal)' }}
-                  />
-                  <div>
-                    <label htmlFor="doc2Check" style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--pub-ink)', cursor: 'pointer' }}>
-                      Scan Kartu Pelajar Kolektif (16 Anggota)
-                    </label>
-                    <div style={{ fontSize: '0.725rem', color: 'var(--pub-muted)', marginTop: '0.1rem' }}>
-                      📄 Kartu_Pelajar_Kolektif_SMAN1_16Anggota.pdf · 3.4 MB
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                  <span
-                    style={{
-                      backgroundColor: 'var(--pub-teal-light)',
-                      color: 'var(--pub-teal)',
-                      padding: '0.2rem 0.55rem',
-                      borderRadius: 'var(--pub-radius-pill)',
-                      fontSize: '0.7rem',
-                      fontWeight: 800,
-                    }}
-                  >
-                    TERVERIFIKASI
-                  </span>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPreviewZoom(1);
-                      setPreviewDoc({
-                        title: 'Scan Kartu Pelajar Kolektif 16 Anggota',
-                        teamName,
-                        school,
-                      });
-                    }}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.3rem',
-                      padding: '0.3rem 0.6rem',
-                      borderRadius: '6px',
-                      border: '1px solid var(--pub-coral)',
-                      backgroundColor: '#FFFFFF',
-                      color: 'var(--pub-coral)',
-                      fontSize: '0.725rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Eye size={12} />
-                    <span>Lihat</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => openInNewTab('Scan Kartu Pelajar Kolektif 16 Anggota', teamName, school)}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.3rem',
-                      padding: '0.3rem 0.6rem',
-                      borderRadius: '6px',
-                      border: '1px solid var(--pub-line)',
-                      backgroundColor: 'var(--pub-canvas)',
-                      color: 'var(--pub-ink)',
-                      fontSize: '0.725rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <ExternalLink size={12} />
-                    <span>Tab Baru</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Berkas 3: Formulir & Pakta Integritas */}
-              <div
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: '8px',
-                  padding: '0.75rem 1rem',
-                  border: '1px solid var(--pub-line)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '0.5rem',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                  <input
-                    type="checkbox"
-                    id="doc3Check"
-                    checked={doc3Checked}
-                    onChange={(e) => setDoc3Checked(e.target.checked)}
-                    style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--pub-teal)' }}
-                  />
-                  <div>
-                    <label htmlFor="doc3Check" style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--pub-ink)', cursor: 'pointer' }}>
-                      Formulir Pendaftaran & Pakta Integritas Kontingen
-                    </label>
-                    <div style={{ fontSize: '0.725rem', color: 'var(--pub-muted)', marginTop: '0.1rem' }}>
-                      📄 Formulir_Pendaftaran_Kontingen_Paskibra_2026.docx · 840 KB
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                  <span
-                    style={{
-                      backgroundColor: 'var(--pub-teal-light)',
-                      color: 'var(--pub-teal)',
-                      padding: '0.2rem 0.55rem',
-                      borderRadius: 'var(--pub-radius-pill)',
-                      fontSize: '0.7rem',
-                      fontWeight: 800,
-                    }}
-                  >
-                    TERVERIFIKASI
-                  </span>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPreviewZoom(1);
-                      setPreviewDoc({
-                        title: 'Formulir Pendaftaran & Pakta Integritas Bermeterai',
-                        teamName,
-                        school,
-                      });
-                    }}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.3rem',
-                      padding: '0.3rem 0.6rem',
-                      borderRadius: '6px',
-                      border: '1px solid var(--pub-coral)',
-                      backgroundColor: '#FFFFFF',
-                      color: 'var(--pub-coral)',
-                      fontSize: '0.725rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Eye size={12} />
-                    <span>Lihat</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => openInNewTab('Formulir Pendaftaran & Pakta Integritas Bermeterai', teamName, school)}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.3rem',
-                      padding: '0.3rem 0.6rem',
-                      borderRadius: '6px',
-                      border: '1px solid var(--pub-line)',
-                      backgroundColor: 'var(--pub-canvas)',
-                      color: 'var(--pub-ink)',
-                      fontSize: '0.725rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <ExternalLink size={12} />
-                    <span>Tab Baru</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Action Controls for Operator DP */}
-        <div
-          style={{
-            backgroundColor: 'var(--pub-canvas)',
-            border: '1px solid var(--pub-line)',
-            borderRadius: '12px',
-            padding: '1.25rem 1.5rem',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '1rem',
-          }}
-        >
-          <div>
-            <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--pub-ink)' }}>
-              Pemeriksaan Berkas Fisik & Kehadiran Anggota Selesai?
-            </div>
-            <p style={{ fontSize: '0.8125rem', color: 'var(--pub-muted)', margin: '0.2rem 0 0 0' }}>
-              {isDocCheckPos
-                ? 'Pastikan berkas telah dicek fisik sebelum memindahkan pasukan ke Pos 02 (Photoshoot Pasukan).'
-                : 'Sistem akan memvalidasi ketersediaan pos DP tujuan secara atomik (1 tim per pos).'}
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--pub-ink)', margin: '0 0 0.45rem 0' }}>
+              {emptyInfo.title}
+            </h3>
+            <p style={{ fontSize: '0.875rem', color: 'var(--pub-muted)', maxWidth: '560px', margin: '0 auto', lineHeight: 1.6 }}>
+              {emptyInfo.desc}
             </p>
           </div>
+        ) : (
+          <>
+            {/* Top Header Tim Aktif */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                  <span
+                    style={{
+                      fontSize: '0.725rem',
+                      fontWeight: 800,
+                      textTransform: 'uppercase',
+                      color:
+                        posIndex === 1
+                          ? 'var(--pub-teal)'
+                          : posIndex === 2
+                          ? '#0284c7'
+                          : posIndex === 3
+                          ? '#d97706'
+                          : '#dc2626',
+                      letterSpacing: '0.06em',
+                    }}
+                  >
+                    {posIndex === 4 ? 'PASUKAN SEDANG TAMPIL DI ARENA' : 'PASUKAN AKTIF DI POS INI'}
+                  </span>
+                  <span
+                    style={{
+                      backgroundColor:
+                        posIndex === 1
+                          ? 'var(--pub-teal-light)'
+                          : posIndex === 2
+                          ? '#e0f2fe'
+                          : posIndex === 3
+                          ? '#fef3c7'
+                          : '#fee2e2',
+                      color:
+                        posIndex === 1
+                          ? 'var(--pub-teal)'
+                          : posIndex === 2
+                          ? '#0369a1'
+                          : posIndex === 3
+                          ? '#b45309'
+                          : '#dc2626',
+                      fontSize: '0.7rem',
+                      fontWeight: 800,
+                      padding: '0.15rem 0.55rem',
+                      borderRadius: 'var(--pub-radius-pill)',
+                    }}
+                  >
+                    {posIndex === 1
+                      ? 'VERIFIKASI BERKAS RESMI'
+                      : posIndex === 2
+                      ? 'SESI PHOTOSHOOT STUDIO'
+                      : posIndex === 3
+                      ? 'ZONA STERIL & PEMANASAN'
+                      : 'ARENA UTAMA (LIVE)'}
+                  </span>
+                </div>
 
-          <button
-            type="button"
-            onClick={onFinishDP}
-            disabled={dpStatus === 'COMPLETED'}
-            className="pub-btn-coral"
-            style={{
-              padding: '0.7rem 1.4rem',
-              fontSize: '0.925rem',
-              opacity: dpStatus === 'COMPLETED' ? 0.6 : 1,
-              cursor: dpStatus === 'COMPLETED' ? 'not-allowed' : 'pointer',
-              fontWeight: 800,
-            }}
-          >
-            <CheckCircle2 size={18} />
-            <span>Selesai DP & Cek Tujuan</span>
-          </button>
-        </div>
+                <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.45rem', fontWeight: 800, color: 'var(--pub-ink)', margin: '0.2rem 0' }}>
+                  {teamName}
+                </h2>
+                <div style={{ fontSize: '0.875rem', color: 'var(--pub-muted)' }}>
+                  {school} · Nomor Urut: <strong className="tabular-nums" style={{ color: 'var(--pub-ink)' }}>{orderNumber}</strong> · {members} Personel
+                </div>
+              </div>
+
+              <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.35rem' }}>
+                <span
+                  style={{
+                    backgroundColor:
+                      dpStatus === 'COMPLETED'
+                        ? 'var(--pub-teal-light)'
+                        : dpStatus === 'BLOCKED'
+                        ? 'var(--pub-coral-pale)'
+                        : '#FEF3C7',
+                    color:
+                      dpStatus === 'COMPLETED'
+                        ? 'var(--pub-teal)'
+                        : dpStatus === 'BLOCKED'
+                        ? 'var(--pub-coral)'
+                        : '#B45309',
+                    padding: '0.25rem 0.7rem',
+                    borderRadius: 'var(--pub-radius-pill)',
+                    fontSize: '0.75rem',
+                    fontWeight: 800,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                  }}
+                >
+                  {dpStatus === 'BLOCKED' ? (
+                    <>
+                      <Lock size={12} />
+                      <span>TERTAHAN ATOMIC LOCK</span>
+                    </>
+                  ) : dpStatus === 'COMPLETED' ? (
+                    <>
+                      <CheckCircle2 size={12} />
+                      <span>SELESAI DIALIRKAN</span>
+                    </>
+                  ) : (
+                    <span>SEDANG BERLANGSUNG</span>
+                  )}
+                </span>
+                <div style={{ fontSize: '0.75rem', color: 'var(--pub-muted)' }}>
+                  Waktu Masuk: <strong style={{ color: 'var(--pub-ink)' }}>{entryTime}</strong>
+                </div>
+
+                {isDocCheckPos && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllDocsModal(true)}
+                    className="pub-btn-outline"
+                    style={{
+                      fontSize: '0.725rem',
+                      padding: '0.3rem 0.65rem',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      fontWeight: 700,
+                      color: 'var(--pub-teal)',
+                      borderColor: 'var(--pub-teal)',
+                      marginTop: '0.2rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Users size={12} />
+                    <span>Lihat Seluruh Berkas Peserta</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* ============================================================== */}
+            {/* VARIANT 1: POS 1 - PENGECEKAN DOKUMEN & BERKAS                 */}
+            {/* ============================================================== */}
+            {posIndex === 1 && (
+              <div
+                style={{
+                  backgroundColor: 'var(--pub-canvas)',
+                  border: '1.5px solid var(--pub-teal)',
+                  borderRadius: '12px',
+                  padding: '1.25rem',
+                  marginBottom: '1.25rem',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <FileCheck size={18} color="var(--pub-teal)" />
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--pub-ink)', margin: 0 }}>
+                      Pemeriksaan Berkas yang Diunggah Kontingen ({teamName})
+                    </h3>
+                  </div>
+                  <span style={{ fontSize: '0.725rem', color: 'var(--pub-teal)', fontWeight: 700 }}>
+                    ✓ Wajib divalidasi sebelum tim dialirkan ke Pos 02
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                  {/* Berkas 1: Surat Tugas */}
+                  <div
+                    style={{
+                      backgroundColor: '#FFFFFF',
+                      borderRadius: '8px',
+                      padding: '0.75rem 1rem',
+                      border: '1px solid var(--pub-line)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '0.5rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                      <input
+                        type="checkbox"
+                        id="doc1Check"
+                        checked={doc1Checked}
+                        onChange={(e) => setDoc1Checked(e.target.checked)}
+                        style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--pub-teal)' }}
+                      />
+                      <div>
+                        <label htmlFor="doc1Check" style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--pub-ink)', cursor: 'pointer' }}>
+                          Surat Tugas & Rekomendasi Kepala Sekolah
+                        </label>
+                        <div style={{ fontSize: '0.725rem', color: 'var(--pub-muted)', marginTop: '0.1rem' }}>
+                          📄 Surat_Rekomendasi_Kepsek.pdf · 1.2 MB · Stempel Basah Sah
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                      <span style={{ backgroundColor: 'var(--pub-teal-light)', color: 'var(--pub-teal)', padding: '0.2rem 0.55rem', borderRadius: 'var(--pub-radius-pill)', fontSize: '0.7rem', fontWeight: 800 }}>
+                        TERVERIFIKASI
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPreviewZoom(1);
+                          setPreviewDoc({ title: 'Surat Tugas & Rekomendasi Kepala Sekolah', teamName, school });
+                        }}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid var(--pub-coral)', backgroundColor: '#FFFFFF', color: 'var(--pub-coral)', fontSize: '0.725rem', fontWeight: 700, cursor: 'pointer' }}
+                      >
+                        <Eye size={12} />
+                        <span>Lihat</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openInNewTab('Surat Tugas & Rekomendasi Kepala Sekolah', teamName, school)}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid var(--pub-line)', backgroundColor: 'var(--pub-canvas)', color: 'var(--pub-ink)', fontSize: '0.725rem', fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        <ExternalLink size={12} />
+                        <span>Tab Baru</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Berkas 2: Kartu Pelajar Kolektif */}
+                  <div
+                    style={{
+                      backgroundColor: '#FFFFFF',
+                      borderRadius: '8px',
+                      padding: '0.75rem 1rem',
+                      border: '1px solid var(--pub-line)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '0.5rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                      <input
+                        type="checkbox"
+                        id="doc2Check"
+                        checked={doc2Checked}
+                        onChange={(e) => setDoc2Checked(e.target.checked)}
+                        style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--pub-teal)' }}
+                      />
+                      <div>
+                        <label htmlFor="doc2Check" style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--pub-ink)', cursor: 'pointer' }}>
+                          Scan Kartu Pelajar Kolektif (16 Anggota)
+                        </label>
+                        <div style={{ fontSize: '0.725rem', color: 'var(--pub-muted)', marginTop: '0.1rem' }}>
+                          📄 Kartu_Pelajar_Kolektif_16Anggota.pdf · 3.4 MB · NISN Aktif
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                      <span style={{ backgroundColor: 'var(--pub-teal-light)', color: 'var(--pub-teal)', padding: '0.2rem 0.55rem', borderRadius: 'var(--pub-radius-pill)', fontSize: '0.7rem', fontWeight: 800 }}>
+                        TERVERIFIKASI
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPreviewZoom(1);
+                          setPreviewDoc({ title: 'Scan Kartu Pelajar Kolektif 16 Anggota', teamName, school });
+                        }}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid var(--pub-coral)', backgroundColor: '#FFFFFF', color: 'var(--pub-coral)', fontSize: '0.725rem', fontWeight: 700, cursor: 'pointer' }}
+                      >
+                        <Eye size={12} />
+                        <span>Lihat</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openInNewTab('Scan Kartu Pelajar Kolektif 16 Anggota', teamName, school)}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid var(--pub-line)', backgroundColor: 'var(--pub-canvas)', color: 'var(--pub-ink)', fontSize: '0.725rem', fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        <ExternalLink size={12} />
+                        <span>Tab Baru</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Berkas 3: Formulir Pendaftaran */}
+                  <div
+                    style={{
+                      backgroundColor: '#FFFFFF',
+                      borderRadius: '8px',
+                      padding: '0.75rem 1rem',
+                      border: '1px solid var(--pub-line)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '0.5rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                      <input
+                        type="checkbox"
+                        id="doc3Check"
+                        checked={doc3Checked}
+                        onChange={(e) => setDoc3Checked(e.target.checked)}
+                        style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--pub-teal)' }}
+                      />
+                      <div>
+                        <label htmlFor="doc3Check" style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--pub-ink)', cursor: 'pointer' }}>
+                          Formulir Pendaftaran & Pakta Integritas Kontingen
+                        </label>
+                        <div style={{ fontSize: '0.725rem', color: 'var(--pub-muted)', marginTop: '0.1rem' }}>
+                          📄 Formulir_Pakta_Integritas_Meterai.pdf · 840 KB
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                      <span style={{ backgroundColor: 'var(--pub-teal-light)', color: 'var(--pub-teal)', padding: '0.2rem 0.55rem', borderRadius: 'var(--pub-radius-pill)', fontSize: '0.7rem', fontWeight: 800 }}>
+                        TERVERIFIKASI
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPreviewZoom(1);
+                          setPreviewDoc({ title: 'Formulir Pendaftaran & Pakta Integritas Bermeterai', teamName, school });
+                        }}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid var(--pub-coral)', backgroundColor: '#FFFFFF', color: 'var(--pub-coral)', fontSize: '0.725rem', fontWeight: 700, cursor: 'pointer' }}
+                      >
+                        <Eye size={12} />
+                        <span>Lihat</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openInNewTab('Formulir Pendaftaran & Pakta Integritas Bermeterai', teamName, school)}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid var(--pub-line)', backgroundColor: 'var(--pub-canvas)', color: 'var(--pub-ink)', fontSize: '0.725rem', fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        <ExternalLink size={12} />
+                        <span>Tab Baru</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Catatan Verifikator */}
+                <div style={{ marginTop: '0.85rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--pub-ink)', marginBottom: '0.25rem' }}>
+                    Catatan Petugas Dokumen:
+                  </label>
+                  <input
+                    type="text"
+                    value={docVerificationNote}
+                    onChange={(e) => setDocVerificationNote(e.target.value)}
+                    className="form-input"
+                    style={{ width: '100%', fontSize: '0.8125rem' }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* ============================================================== */}
+            {/* VARIANT 2: POS 2 - PHOTOSHOOT (SIMPEL: 3 KOTAK ALUR PER POS) */}
+            {/* ============================================================== */}
+            {posIndex === 2 && (
+              <div
+                style={{
+                  backgroundColor: 'var(--pub-canvas)',
+                  border: '1.5px solid #0284c7',
+                  borderRadius: '12px',
+                  padding: '1.25rem',
+                  marginBottom: '1.25rem',
+                }}
+              >
+                {/* 3 Kotak Alur Per Pos Sederhana */}
+                <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#0369a1', textTransform: 'uppercase', marginBottom: '0.75rem', letterSpacing: '0.05em' }}>
+                  ALUR PERGERAKAN PER POS:
+                </div>
+
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gap: '0.85rem',
+                    marginBottom: '1rem',
+                  }}
+                >
+                  {/* Pos Sebelumnya */}
+                  <div style={{ backgroundColor: '#FFFFFF', padding: '1rem', borderRadius: '10px', border: '1px solid var(--pub-line)' }}>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--pub-teal)', textTransform: 'uppercase' }}>
+                      POS SEBELUMNYA:
+                    </div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--pub-ink)', marginTop: '0.2rem' }}>
+                      Pos 01 — Dokumen
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--pub-teal)', marginTop: '0.35rem', fontWeight: 700 }}>
+                      ✓ Berkas Fisik Sah & Lolos
+                    </div>
+                  </div>
+
+                  {/* Pos Sekarang */}
+                  <div style={{ backgroundColor: '#e0f2fe', padding: '1rem', borderRadius: '10px', border: '2px solid #0284c7', boxShadow: '0 2px 8px rgba(2, 132, 199, 0.15)' }}>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#0284c7', textTransform: 'uppercase' }}>
+                      POS SEKARANG (AKTIF):
+                    </div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0369a1', marginTop: '0.2rem' }}>
+                      Pos 02 — Photoshoot
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#0284c7', marginTop: '0.35rem', fontWeight: 700 }}>
+                      📸 Sedang Sesi Pemotretan Studio
+                    </div>
+                  </div>
+
+                  {/* Pos Tujuan */}
+                  <div style={{ backgroundColor: '#FFFFFF', padding: '1rem', borderRadius: '10px', border: '1px solid var(--pub-line)' }}>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--pub-muted)', textTransform: 'uppercase' }}>
+                      POS TUJUAN:
+                    </div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--pub-ink)', marginTop: '0.2rem' }}>
+                      Pos 03 — Persiapan
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--pub-muted)', marginTop: '0.35rem' }}>
+                      Zona Isolasi & Pemanasan
+                    </div>
+                  </div>
+                </div>
+
+                {/* Deskripsi Pengawasan Sederhana */}
+                <div style={{ backgroundColor: '#FFFFFF', padding: '0.85rem 1rem', borderRadius: '8px', border: '1px solid var(--pub-line)', fontSize: '0.825rem', color: 'var(--pub-ink)' }}>
+                  Petugas mengawasi jalannya sesi pemotretan kontingen <strong>{teamName}</strong> (foto pasukan lengkap & foto danton) di studio foto sebelum diberangkatkan ke Pos 03.
+                </div>
+              </div>
+            )}
+
+            {/* ============================================================== */}
+            {/* VARIANT 3: POS 3 - PERSIAPAN (SIMPEL: 3 KOTAK ALUR PER POS)    */}
+            {/* ============================================================== */}
+            {posIndex === 3 && (
+              <div
+                style={{
+                  backgroundColor: 'var(--pub-canvas)',
+                  border: '1.5px solid #d97706',
+                  borderRadius: '12px',
+                  padding: '1.25rem',
+                  marginBottom: '1.25rem',
+                }}
+              >
+                {/* 3 Kotak Alur Per Pos Sederhana */}
+                <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#b45309', textTransform: 'uppercase', marginBottom: '0.75rem', letterSpacing: '0.05em' }}>
+                  ALUR PERGERAKAN PER POS:
+                </div>
+
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gap: '0.85rem',
+                    marginBottom: '1rem',
+                  }}
+                >
+                  {/* Pos Sebelumnya */}
+                  <div style={{ backgroundColor: '#FFFFFF', padding: '1rem', borderRadius: '10px', border: '1px solid var(--pub-line)' }}>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#0284c7', textTransform: 'uppercase' }}>
+                      POS SEBELUMNYA:
+                    </div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--pub-ink)', marginTop: '0.2rem' }}>
+                      Pos 02 — Photoshoot
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#0284c7', marginTop: '0.35rem', fontWeight: 700 }}>
+                      ✓ Sesi Foto Studio Selesai
+                    </div>
+                  </div>
+
+                  {/* Pos Sekarang */}
+                  <div style={{ backgroundColor: '#fef3c7', padding: '1rem', borderRadius: '10px', border: '2px solid #d97706', boxShadow: '0 2px 8px rgba(217, 119, 6, 0.15)' }}>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#d97706', textTransform: 'uppercase' }}>
+                      POS SEKARANG (AKTIF):
+                    </div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#b45309', marginTop: '0.2rem' }}>
+                      Pos 03 — Daerah Persiapan
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#b45309', marginTop: '0.35rem', fontWeight: 700 }}>
+                      ⏱️ Pasukan Siap di Holding Bay
+                    </div>
+                  </div>
+
+                  {/* Pos Tujuan */}
+                  <div style={{ backgroundColor: '#FFFFFF', padding: '1rem', borderRadius: '10px', border: '1px solid var(--pub-line)' }}>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--pub-muted)', textTransform: 'uppercase' }}>
+                      POS TUJUAN:
+                    </div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--pub-ink)', marginTop: '0.2rem' }}>
+                      Pos 04 — Panggung Utama
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--pub-muted)', marginTop: '0.35rem' }}>
+                      Arena Tampil & Live Scoring
+                    </div>
+                  </div>
+                </div>
+
+                {/* Deskripsi Pengawasan Sederhana */}
+                <div style={{ backgroundColor: '#FFFFFF', padding: '0.85rem 1rem', borderRadius: '8px', border: '1px solid var(--pub-line)', fontSize: '0.825rem', color: 'var(--pub-ink)' }}>
+                  Petugas mengawasi zona isolasi steril & persiapan pasukan <strong>{teamName}</strong> sebelum dipanggil memasuki lorong panggung lapangan utama.
+                </div>
+              </div>
+            )}
+
+            {/* ============================================================== */}
+            {/* VARIANT 4: POS 4 - PANGGUNG UTAMA & KONTROL PENILAIAN JURI      */}
+            {/* ============================================================== */}
+            {posIndex === 4 && (
+              <div
+                style={{
+                  backgroundColor: 'var(--pub-canvas)',
+                  border: '1.5px solid #dc2626',
+                  borderRadius: '12px',
+                  padding: '1.25rem',
+                  marginBottom: '1.25rem',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Award size={22} color="#dc2626" />
+                    <div>
+                      <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--pub-ink)', margin: 0 }}>
+                        Monitoring Arena Lapangan & Kontrol Penilaian Dewan Juri
+                      </h3>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--pub-muted)' }}>
+                        Pasukan sedang tampil di panggung utama. Penilaian juri dikontrol langsung oleh Petugas Pos 04.
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tombol Utama: Buka Penilaian Juri */}
+                  <div>
+                    {!isJuriScoringOpen ? (
+                      <button
+                        type="button"
+                        onClick={onOpenJuriScoring}
+                        className="pub-btn-coral"
+                        style={{
+                          backgroundColor: '#059669',
+                          borderColor: '#059669',
+                          color: '#FFFFFF',
+                          padding: '0.55rem 1.15rem',
+                          fontSize: '0.825rem',
+                          fontWeight: 800,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.45rem',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 12px rgba(5, 150, 105, 0.3)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <Unlock size={16} />
+                        <span>🔓 Buka Penilaian Juri</span>
+                      </button>
+                    ) : (
+                      <div
+                        style={{
+                          backgroundColor: '#ECFDF5',
+                          color: '#059669',
+                          border: '1.5px solid #059669',
+                          padding: '0.5rem 1rem',
+                          borderRadius: '8px',
+                          fontSize: '0.8rem',
+                          fontWeight: 800,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.45rem',
+                        }}
+                      >
+                        <CheckCircle2 size={16} color="#059669" />
+                        <span>✓ Penilaian Juri Telah Terbuka</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Status Box Penilaian Juri */}
+                <div
+                  style={{
+                    backgroundColor: isJuriScoringOpen ? '#ECFDF5' : '#FFFBEB',
+                    border: isJuriScoringOpen ? '1px solid #A7F3D0' : '1px solid #FDE68A',
+                    borderRadius: '8px',
+                    padding: '0.85rem 1.15rem',
+                    marginBottom: '1rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.65rem',
+                  }}
+                >
+                  {isJuriScoringOpen ? (
+                    <ShieldCheck size={20} color="#059669" />
+                  ) : (
+                    <Lock size={20} color="#D97706" />
+                  )}
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '0.85rem', color: isJuriScoringOpen ? '#047857' : '#B45309' }}>
+                      {isJuriScoringOpen
+                        ? '🟢 Penilaian Dewan Juri Resmi Aktif'
+                        : '🔒 Penilaian Dewan Juri Masih Terkunci'}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: isJuriScoringOpen ? '#065F46' : '#92400E', marginTop: '0.1rem' }}>
+                      {isJuriScoringOpen
+                        ? 'Seluruh Dewan Juri saat ini dapat mengisi lembar nilai secara langsung di perangkat mereka.'
+                        : 'Lembar penilaian juri terkunci otomatis dan tidak dapat diisi sampai Petugas Pos 04 mengklik "Buka Penilaian Juri".'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Posisi Pasukan Tetap di Pos 4 */}
+                <div style={{ backgroundColor: '#FFFFFF', padding: '0.85rem 1rem', borderRadius: '8px', border: '1px solid var(--pub-line)', fontSize: '0.825rem', color: 'var(--pub-ink)' }}>
+                  Kontingen <strong>{teamName}</strong> sedang berada di tengah gelanggang arena utama. Pasukan tetap berada di Pos 04 sampai seluruh aba-aba peragaan selesai ditampilkan.
+                </div>
+              </div>
+            )}
+
+            {/* Action Controls for Operator */}
+            <div
+              style={{
+                backgroundColor: 'var(--pub-canvas)',
+                border: '1px solid var(--pub-line)',
+                borderRadius: '12px',
+                padding: '1.25rem 1.5rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '1rem',
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--pub-ink)' }}>
+                  {posIndex === 1 && 'Pemeriksaan Berkas Fisik & Kehadiran Anggota Selesai?'}
+                  {posIndex === 2 && 'Sesi Pemotretan Kontingen & Danton Selesai?'}
+                  {posIndex === 3 && 'Persiapan Pasukan Tuntas & Siap Masuk Panggung?'}
+                  {posIndex === 4 && 'Penampilan di Lapangan Selesai?'}
+                </div>
+                <p style={{ fontSize: '0.8125rem', color: 'var(--pub-muted)', margin: '0.2rem 0 0 0' }}>
+                  {posIndex === 1 && 'Pastikan berkas telah dicek fisik sebelum memindahkan pasukan ke Pos 02 (Photoshoot).'}
+                  {posIndex === 2 && 'Petugas memastikan sesi foto selesai sebelum mengalirkan kontingen ke Pos 03 (Persiapan).'}
+                  {posIndex === 3 && 'Petugas mengalirkan pasukan dari Pos 03 menuju Pos 04 (Panggung Utama).'}
+                  {posIndex === 4 && 'Klik "Pasukan Selesai Tampil" untuk menyelesaikan sesi dan membubarkan pasukan keluar arena.'}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={onFinishDP}
+                disabled={dpStatus === 'COMPLETED'}
+                className={dpStatus === 'BLOCKED' ? '' : 'pub-btn-coral'}
+                style={{
+                  padding: '0.7rem 1.4rem',
+                  fontSize: '0.925rem',
+                  opacity: dpStatus === 'COMPLETED' ? 0.6 : 1,
+                  cursor: dpStatus === 'COMPLETED' ? 'not-allowed' : 'pointer',
+                  fontWeight: 800,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  backgroundColor: dpStatus === 'BLOCKED' ? '#FEF2F2' : undefined,
+                  color: dpStatus === 'BLOCKED' ? '#DC2626' : undefined,
+                  border: dpStatus === 'BLOCKED' ? '2px solid #EF4444' : undefined,
+                  borderRadius: '10px',
+                  boxShadow: dpStatus === 'BLOCKED' ? '0 2px 8px rgba(239, 68, 68, 0.2)' : undefined,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {dpStatus === 'BLOCKED' ? <Lock size={18} /> : <CheckCircle2 size={18} />}
+                <span>
+                  {dpStatus === 'BLOCKED'
+                    ? posIndex === 1
+                      ? '🔒 Tertahan (Pos 02 Sedang Penuh)'
+                      : posIndex === 2
+                      ? '🔒 Tertahan (Pos 03 Sedang Penuh)'
+                      : posIndex === 3
+                      ? '🔒 Tertahan (Pos 04 Masih Tampil)'
+                      : '🔒 Tertahan'
+                    : posIndex === 1
+                    ? 'Selesai Verifikasi & Alirkan ke Pos DP 2'
+                    : posIndex === 2
+                    ? 'Selesai di Pos 2 & Alirkan ke Pos 03 (Persiapan) ->'
+                    : posIndex === 3
+                    ? 'Selesai di Pos 3 & Alirkan ke Pos 04 (Panggung) ->'
+                    : 'Pasukan Selesai Tampil'}
+                </span>
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* ============================================================== */}
@@ -649,95 +941,88 @@ export default function PanitiaDPWorkstation({
           <div
             style={{
               backgroundColor: '#FFFFFF',
-              borderRadius: '16px',
-              maxWidth: '820px',
               width: '100%',
+              maxWidth: '820px',
               maxHeight: '92vh',
+              borderRadius: '12px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               display: 'flex',
               flexDirection: 'column',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)',
-              border: '1px solid var(--pub-line)',
               overflow: 'hidden',
+              border: '1px solid var(--pub-line)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Top Toolbar */}
+            {/* Header Modal */}
             <div
               style={{
-                backgroundColor: '#0F172A',
-                color: '#F8FAFC',
-                padding: '0.85rem 1.25rem',
+                padding: '1rem 1.5rem',
+                borderBottom: '1px solid var(--pub-line)',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
+                backgroundColor: 'var(--pub-surface)',
               }}
             >
               <div>
-                <div style={{ fontSize: '0.725rem', color: '#94A3B8', fontWeight: 600 }}>
-                  Pratinjau Berkas Fisik Kontingen
+                <div style={{ fontSize: '0.725rem', color: 'var(--pub-coral)', fontWeight: 800, textTransform: 'uppercase' }}>
+                  Pratinjau Berkas Resmi · Pos DP 1
                 </div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#F8FAFC' }}>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--pub-ink)', margin: '0.15rem 0 0 0' }}>
                   {previewDoc.title}
+                </h3>
+                <div style={{ fontSize: '0.75rem', color: 'var(--pub-muted)' }}>
+                  Kontingen: {previewDoc.teamName} ({previewDoc.school})
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {/* Controls Toolbar */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
                 <button
                   type="button"
-                  onClick={() => setPreviewZoom((z) => Math.max(0.7, z - 0.1))}
-                  style={{ background: '#334155', border: 'none', color: '#FFF', padding: '0.35rem 0.6rem', borderRadius: '4px', cursor: 'pointer' }}
-                  title="Zoom Out"
-                >
-                  <ZoomOut size={14} />
-                </button>
-                <span style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: '#CBD5E1' }}>
-                  {Math.round(previewZoom * 100)}%
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setPreviewZoom((z) => Math.min(1.4, z + 0.1))}
-                  style={{ background: '#334155', border: 'none', color: '#FFF', padding: '0.35rem 0.6rem', borderRadius: '4px', cursor: 'pointer' }}
-                  title="Zoom In"
+                  onClick={() => setPreviewZoom((z) => Math.min(z + 0.15, 1.6))}
+                  title="Perbesar"
+                  style={{ padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--pub-line)', backgroundColor: '#FFFFFF', cursor: 'pointer' }}
                 >
                   <ZoomIn size={14} />
                 </button>
                 <button
                   type="button"
-                  onClick={() => openInNewTab(previewDoc.title, previewDoc.teamName, previewDoc.school)}
-                  style={{ background: '#059669', border: 'none', color: '#FFF', padding: '0.35rem 0.75rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}
+                  onClick={() => setPreviewZoom((z) => Math.max(z - 0.15, 0.7))}
+                  title="Perkecil"
+                  style={{ padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--pub-line)', backgroundColor: '#FFFFFF', cursor: 'pointer' }}
                 >
-                  Tab Baru
+                  <ZoomOut size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openInNewTab(previewDoc.title, previewDoc.teamName, previewDoc.school)}
+                  title="Buka Lembar Penuh & Cetak"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.35rem 0.65rem', borderRadius: '6px', border: '1px solid var(--pub-line)', backgroundColor: 'var(--pub-canvas)', color: 'var(--pub-ink)', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  <Printer size={13} />
+                  <span>Cetak / PDF</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setPreviewDoc(null)}
-                  style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: '0.35rem' }}
+                  style={{ background: 'none', border: 'none', color: 'var(--pub-muted)', cursor: 'pointer', padding: '0.35rem', marginLeft: '0.5rem' }}
                 >
                   <X size={18} />
                 </button>
               </div>
             </div>
 
-            {/* Document Paper Sheet */}
-            <div
-              style={{
-                flex: 1,
-                overflowY: 'auto',
-                padding: '2rem',
-                backgroundColor: '#F1F5F9',
-                display: 'flex',
-                justifyContent: 'center',
-              }}
-            >
+            {/* Content Preview */}
+            <div style={{ padding: '2rem', overflowY: 'auto', backgroundColor: '#0F172A', display: 'flex', justifyContent: 'center' }}>
               <div
                 style={{
                   backgroundColor: '#FFFFFF',
                   width: '100%',
-                  maxWidth: '720px',
-                  minHeight: '600px',
+                  maxWidth: '680px',
                   padding: '2.5rem',
-                  borderRadius: '4px',
-                  boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+                  borderRadius: '6px',
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.4)',
                   transform: `scale(${previewZoom})`,
                   transformOrigin: 'top center',
                   transition: 'transform 0.15s ease',
@@ -752,7 +1037,7 @@ export default function PanitiaDPWorkstation({
       )}
 
       {/* ============================================================== */}
-      {/* MODAL 2: SEMUA DOKUMEN PESERTA EVENT (KHUSUS OPERATOR DP 1)    */}
+      {/* MODAL 2: SEMUA DOKUMEN PESERTA EVENT (VERIFIKASI POS DOKUMEN) */}
       {/* ============================================================== */}
       {showAllDocsModal && (
         <div
@@ -765,26 +1050,26 @@ export default function PanitiaDPWorkstation({
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 99999,
-            padding: '1rem',
+            padding: '1.5rem',
           }}
           onClick={() => setShowAllDocsModal(false)}
         >
           <div
             style={{
               backgroundColor: '#FFFFFF',
-              borderRadius: '16px',
-              maxWidth: '960px',
               width: '100%',
+              maxWidth: '960px',
               maxHeight: '90vh',
+              borderRadius: '12px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               display: 'flex',
               flexDirection: 'column',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
-              border: '1px solid var(--pub-line)',
               overflow: 'hidden',
+              border: '1px solid var(--pub-line)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header Modal */}
+            {/* Modal Header */}
             <div
               style={{
                 padding: '1.25rem 1.75rem',
@@ -796,83 +1081,62 @@ export default function PanitiaDPWorkstation({
               }}
             >
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.2rem' }}>
-                  <span
-                    style={{
-                      backgroundColor: 'var(--pub-teal-light)',
-                      color: 'var(--pub-teal)',
-                      fontSize: '0.7rem',
-                      fontWeight: 800,
-                      padding: '0.15rem 0.55rem',
-                      borderRadius: 'var(--pub-radius-pill)',
-                    }}
-                  >
-                    HAK AKSES OPERATOR POS DOKUMEN
-                  </span>
+                <div style={{ fontSize: '0.725rem', color: 'var(--pub-teal)', fontWeight: 800, textTransform: 'uppercase' }}>
+                  Akses Khusus Operator Dokumen · Pos DP 1
                 </div>
-                <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', fontWeight: 800, color: 'var(--pub-ink)', margin: 0 }}>
-                  Database Seluruh Dokumen Peserta Event
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--pub-ink)', margin: '0.2rem 0 0 0' }}>
+                  Seluruh Berkas Pendaftaran Peserta Lomba
                 </h3>
-                <p style={{ fontSize: '0.775rem', color: 'var(--pub-muted)', margin: '0.15rem 0 0 0' }}>
-                  Petugas Pos Pengecekan Dokumen dapat melihat dan memeriksa kelengkapan berkas seluruh kontingen pendaftar.
+                <p style={{ fontSize: '0.8rem', color: 'var(--pub-muted)', margin: '0.2rem 0 0 0' }}>
+                  Verifikasi silang berkas administratif seluruh kontingen peserta.
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={() => setShowAllDocsModal(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--pub-muted)' }}
+                style={{ background: 'none', border: 'none', color: 'var(--pub-muted)', cursor: 'pointer', padding: '0.5rem' }}
               >
                 <X size={20} />
               </button>
             </div>
 
             {/* Search Bar */}
-            <div style={{ padding: '1rem 1.75rem', borderBottom: '1px solid var(--pub-line)', backgroundColor: 'var(--pub-canvas)' }}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: '8px',
-                  padding: '0.55rem 0.85rem',
-                  border: '1px solid var(--pub-line)',
-                }}
-              >
-                <Search size={16} color="var(--pub-muted)" />
+            <div style={{ padding: '0.85rem 1.75rem', backgroundColor: 'var(--pub-canvas)', borderBottom: '1px solid var(--pub-line)' }}>
+              <div style={{ position: 'relative' }}>
+                <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--pub-muted)' }} />
                 <input
                   type="text"
+                  placeholder="Cari berdasarkan nama tim, sekolah, atau nomor urut..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Cari berdasarkan nama kontingen, asal sekolah, atau nomor urut..."
-                  style={{ width: '100%', border: 'none', outline: 'none', fontSize: '0.825rem' }}
+                  className="form-input"
+                  style={{ width: '100%', paddingLeft: '2.25rem', fontSize: '0.825rem' }}
                 />
               </div>
             </div>
 
-            {/* Table of Participants */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '1rem 1.75rem' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.825rem', textAlign: 'left' }}>
+            {/* Table of All Participants' Documents */}
+            <div style={{ padding: '1.25rem 1.75rem', overflowY: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.825rem' }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid var(--pub-line)', color: 'var(--pub-muted)', textTransform: 'uppercase', fontSize: '0.725rem' }}>
-                    <th style={{ padding: '0.65rem 0.75rem', width: '70px' }}>No. Urut</th>
-                    <th style={{ padding: '0.65rem 0.75rem' }}>Kontingen & Sekolah</th>
-                    <th style={{ padding: '0.65rem 0.75rem' }}>Status Berkas</th>
-                    <th style={{ padding: '0.65rem 0.75rem', textAlign: 'right' }}>Aksi Periksa</th>
+                  <tr style={{ borderBottom: '2px solid var(--pub-line)', textAlign: 'left' }}>
+                    <th style={{ padding: '0.65rem 0.75rem', color: 'var(--pub-muted)', fontWeight: 700 }}>NO</th>
+                    <th style={{ padding: '0.65rem 0.75rem', color: 'var(--pub-muted)', fontWeight: 700 }}>KONTINGEN & SEKOLAH</th>
+                    <th style={{ padding: '0.65rem 0.75rem', color: 'var(--pub-muted)', fontWeight: 700 }}>STATUS BERKAS</th>
+                    <th style={{ padding: '0.65rem 0.75rem', color: 'var(--pub-muted)', fontWeight: 700 }}>DAFTAR DOKUMEN</th>
+                    <th style={{ padding: '0.65rem 0.75rem', color: 'var(--pub-muted)', fontWeight: 700, textAlign: 'center' }}>AKSI</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredParticipants.map((p) => (
-                    <tr key={p.id} style={{ borderBottom: '1px solid var(--pub-line)' }}>
-                      <td style={{ padding: '0.85rem 0.75rem', fontWeight: 800, fontFamily: 'monospace' }}>
-                        {p.queueNumber}
-                      </td>
-                      <td style={{ padding: '0.85rem 0.75rem' }}>
+                  {filteredParticipants.map((p, idx) => (
+                    <tr key={p.id || idx} style={{ borderBottom: '1px solid var(--pub-line)' }}>
+                      <td style={{ padding: '0.75rem', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{p.queueNumber || `0${idx + 1}`}</td>
+                      <td style={{ padding: '0.75rem' }}>
                         <div style={{ fontWeight: 800, color: 'var(--pub-ink)' }}>{p.teamName}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--pub-muted)' }}>{p.schoolName}</div>
+                        <div style={{ fontSize: '0.725rem', color: 'var(--pub-muted)' }}>{p.schoolName}</div>
                       </td>
-                      <td style={{ padding: '0.85rem 0.75rem' }}>
+                      <td style={{ padding: '0.75rem' }}>
                         <span
                           style={{
                             backgroundColor: p.status === 'VALIDATED' ? 'var(--pub-teal-light)' : '#FEF3C7',
@@ -883,51 +1147,38 @@ export default function PanitiaDPWorkstation({
                             fontWeight: 800,
                           }}
                         >
-                          {p.docsCount || (p.status === 'VALIDATED' ? '3/3 Lengkap' : 'Perlu Revisi')}
+                          {p.status === 'VALIDATED' ? 'LENGKAP & SAH' : 'PERLU REVISI'}
                         </span>
                       </td>
-                      <td style={{ padding: '0.85rem 0.75rem', textAlign: 'right' }}>
+                      <td style={{ padding: '0.75rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                          <span style={{ fontSize: '0.725rem', color: 'var(--pub-ink)' }}>✓ Surat Rekomendasi Kepsek</span>
+                          <span style={{ fontSize: '0.725rem', color: 'var(--pub-ink)' }}>✓ Scan Kartu Pelajar 16 Anggota</span>
+                          <span style={{ fontSize: '0.725rem', color: 'var(--pub-ink)' }}>✓ Formulir & Pakta Integritas</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '0.75rem', textAlign: 'center' }}>
                         <button
                           type="button"
                           onClick={() => {
+                            setShowAllDocsModal(false);
                             setPreviewZoom(1);
                             setPreviewDoc({
-                              title: 'Surat Tugas & Rekomendasi Kepala Sekolah',
+                              title: 'Surat Tugas & Berkas Pendaftaran',
                               teamName: p.teamName,
                               school: p.schoolName,
                             });
                           }}
                           className="pub-btn-outline"
-                          style={{
-                            padding: '0.35rem 0.75rem',
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.3rem',
-                            cursor: 'pointer',
-                          }}
+                          style={{ fontSize: '0.725rem', padding: '0.3rem 0.6rem', fontWeight: 700 }}
                         >
-                          <Eye size={12} />
-                          <span>Periksa Berkas</span>
+                          Buka Berkas
                         </button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-
-            {/* Modal Footer */}
-            <div style={{ padding: '1rem 1.75rem', borderTop: '1px solid var(--pub-line)', textAlign: 'right', backgroundColor: 'var(--pub-surface)' }}>
-              <button
-                type="button"
-                onClick={() => setShowAllDocsModal(false)}
-                className="pub-btn-coral"
-                style={{ padding: '0.5rem 1.25rem', fontSize: '0.825rem', fontWeight: 800, cursor: 'pointer' }}
-              >
-                Tutup
-              </button>
             </div>
           </div>
         </div>

@@ -43,8 +43,7 @@ export default function Sidebar({ currentRole, activeTab, onSelectTab, onSwitchR
         ];
       case 'PANITIA_DP':
         return [
-          { id: 'workstation', label: 'Workstation Pos DP', icon: GitCommit },
-          { id: 'queue', label: 'Antrean Pasukan', icon: Users },
+          { id: 'workstation', label: 'Antrean Pasukan', icon: Users },
           { id: 'logs', label: 'Riwayat Transisi', icon: Clock },
         ];
       case 'JURI':

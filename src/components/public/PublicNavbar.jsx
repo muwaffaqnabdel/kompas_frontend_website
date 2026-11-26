@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Shield, Menu, X, ArrowRight, LayoutDashboard } from 'lucide-react';
+import { Menu, X, ArrowRight } from 'lucide-react';
+import kompasLogo from '../../assets/kompas-logo.png';
 
 export default function PublicNavbar({ onOpenAuth }) {
   const [scrolled, setScrolled] = useState(false);
@@ -41,115 +42,106 @@ export default function PublicNavbar({ onOpenAuth }) {
     >
       <div className="pub-container" style={{ height: '76px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         {/* Brand Logo */}
-        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', textDecoration: 'none' }}>
-          <div
+          <Link
+            to="/"
+            style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', border: 'none', outline: 'none' }}
+            aria-label="KOMPAS Beranda"
+          >
+            <img
+              src={kompasLogo}
+              alt="KOMPAS"
+              style={{
+                height: '38px',
+                width: 'auto',
+                display: 'block',
+                objectFit: 'contain',
+                border: 'none',
+                outline: 'none',
+                boxShadow: 'none',
+              }}
+            />
+          </Link>
+
+          {/* Desktop Navigation Links */}
+          <nav style={{ display: 'none', alignItems: 'center', gap: '1.75rem' }} className="pub-desktop-nav">
+            {navLinks.map((item) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: '0.925rem',
+                    fontWeight: isActive ? 600 : 500,
+                    color: isActive ? 'var(--pub-coral)' : 'var(--pub-ink-soft)',
+                    textDecoration: 'none',
+                    transition: 'color 0.15s ease',
+                    position: 'relative',
+                    padding: '0.25rem 0',
+                  }}
+                >
+                  {item.label}
+                  {isActive && (
+                    <span
+                      style={{
+                        position: 'absolute',
+                        bottom: '-2px',
+                        left: 0,
+                        right: 0,
+                        height: '2px',
+                        backgroundColor: 'var(--pub-coral)',
+                        borderRadius: '2px',
+                      }}
+                    />
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Right CTA Actions */}
+          <div style={{ display: 'none', alignItems: 'center', gap: '0.85rem' }} className="pub-desktop-cta">
+            <Link
+              to="/login"
+              style={{
+                fontFamily: 'var(--font-heading)',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                color: 'var(--pub-ink)',
+                textDecoration: 'none',
+                padding: '0.55rem 1rem',
+                borderRadius: 'var(--pub-radius-pill)',
+                transition: 'background-color 0.15s ease',
+              }}
+            >
+              Masuk
+            </Link>
+
+            <Link to="/event" className="pub-btn-coral" style={{ fontSize: '0.875rem', padding: '0.55rem 1.25rem' }}>
+              <span>Lihat Event</span>
+              <ArrowRight size={15} />
+            </Link>
+          </div>
+
+          {/* Mobile Hamburger Toggle */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="pub-mobile-toggle"
             style={{
-              width: '34px',
-              height: '34px',
-              borderRadius: '8px',
-              backgroundColor: 'var(--pub-coral)',
-              color: '#FFFFFF',
+              background: 'none',
+              border: 'none',
+              color: 'var(--pub-ink)',
+              cursor: 'pointer',
+              padding: '0.5rem',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(201, 75, 60, 0.3)',
             }}
+            aria-label="Toggle navigation menu"
           >
-            <Shield size={19} strokeWidth={2.4} />
-          </div>
-          <span
-            style={{
-              fontFamily: 'var(--font-heading)',
-              fontSize: '1.35rem',
-              fontWeight: 800,
-              letterSpacing: '-0.03em',
-              color: 'var(--pub-ink)',
-            }}
-          >
-            KOMPAS<span style={{ color: 'var(--pub-coral)' }}>.</span>
-          </span>
-        </Link>
-
-        {/* Desktop Navigation Links */}
-        <nav style={{ display: 'none', alignItems: 'center', gap: '1.75rem' }} className="pub-desktop-nav">
-          {navLinks.map((item) => {
-            const isActive = location.pathname === item.path;
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: '0.925rem',
-                  fontWeight: isActive ? 600 : 500,
-                  color: isActive ? 'var(--pub-coral)' : 'var(--pub-ink-soft)',
-                  textDecoration: 'none',
-                  transition: 'color 0.15s ease',
-                  position: 'relative',
-                  padding: '0.25rem 0',
-                }}
-              >
-                {item.label}
-                {isActive && (
-                  <span
-                    style={{
-                      position: 'absolute',
-                      bottom: '-2px',
-                      left: 0,
-                      right: 0,
-                      height: '2px',
-                      backgroundColor: 'var(--pub-coral)',
-                      borderRadius: '2px',
-                    }}
-                  />
-                )}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Right CTA Actions */}
-        <div style={{ display: 'none', alignItems: 'center', gap: '0.85rem' }} className="pub-desktop-cta">
-          <Link
-            to="/login"
-            style={{
-              fontFamily: 'var(--font-heading)',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              color: 'var(--pub-ink)',
-              textDecoration: 'none',
-              padding: '0.55rem 1rem',
-              borderRadius: 'var(--pub-radius-pill)',
-              transition: 'background-color 0.15s ease',
-            }}
-          >
-            Masuk
-          </Link>
-
-          <Link to="/event" className="pub-btn-coral" style={{ fontSize: '0.875rem', padding: '0.55rem 1.25rem' }}>
-            <span>Lihat Event</span>
-            <ArrowRight size={15} />
-          </Link>
-        </div>
-
-        {/* Mobile Hamburger Toggle */}
-        <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="pub-mobile-toggle"
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--pub-ink)',
-            cursor: 'pointer',
-            padding: '0.5rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-          aria-label="Toggle navigation menu"
-        >
-          {mobileMenuOpen ? <X size={26} /> : <Menu size={26} />}
-        </button>
+            {mobileMenuOpen ? <X size={26} /> : <Menu size={26} />}
+          </button>
       </div>
 
       {/* Mobile Drawer */}

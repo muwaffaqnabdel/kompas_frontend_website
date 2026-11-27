@@ -54,6 +54,8 @@ export default function Sidebar({ currentRole, activeTab, onSelectTab, onSwitchR
       default:
         return [
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+          { id: 'events', label: 'Event', icon: Calendar },
+          { id: 'profile', label: 'Profil Kontingen', icon: Users },
           { id: 'registration', label: 'Data Tim & Berkas', icon: FileText },
           { id: 'schedule', label: 'Jadwal & Agenda TM', icon: Clock },
           { id: 'results', label: 'Nilai & Evaluasi Juri', icon: Award },

@@ -10,49 +10,35 @@ export default function PesertaMetrics({
   school = 'SMAN 1 Jakarta',
   teamName = 'PASKIBRA GARUDA SAKTI',
 }) {
-  // Baca nomor urut & jam tampil dinamis dari konfigurasi Admin Panitia di localStorage
-  const [data, setData] = useState(() => {
+  const [data, setData] = useState({
+    orderNumber: propOrderNumber || '#01',
+    orderSlot: propOrderSlot || 'Slot Pagi (08:30 WIB)',
+    statusDocs: propStatusDocs || 'TERVERIFIKASI',
+  });
+
+  useEffect(() => {
+    if (propOrderNumber !== undefined || propOrderSlot !== undefined || propStatusDocs !== undefined) {
+      setData({
+        orderNumber: propOrderNumber || 'Belum Ditetapkan',
+        orderSlot: propOrderSlot || 'Menunggu penetapan jadwal panitia',
+        statusDocs: propStatusDocs || 'DRAFT',
+      });
+      return;
+    }
     try {
       const saved = localStorage.getItem(STORAGE_KEY_ASSIGNED_SCHEDULE);
       if (saved) {
         const parsed = JSON.parse(saved);
-        return {
-          orderNumber: parsed.orderNumber || propOrderNumber || '#01',
-          orderSlot: parsed.orderSlot || propOrderSlot || 'Slot Pagi (08:30 WIB)',
-          statusDocs: parsed.statusDocs || propStatusDocs || 'TERVERIFIKASI',
-        };
+        setData({
+          orderNumber: parsed.orderNumber || '#01',
+          orderSlot: parsed.orderSlot || 'Slot Pagi (08:30 WIB)',
+          statusDocs: parsed.statusDocs || 'TERVERIFIKASI',
+        });
       }
     } catch (e) {
       console.error(e);
     }
-    return {
-      orderNumber: propOrderNumber || '#01',
-      orderSlot: propOrderSlot || 'Slot Pagi (08:30 WIB)',
-      statusDocs: propStatusDocs || 'TERVERIFIKASI',
-    };
-  });
-
-  // Sinkronisasi otomatis saat ada perubahan di tab Admin Panitia
-  useEffect(() => {
-    const handleSync = () => {
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY_ASSIGNED_SCHEDULE);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          setData({
-            orderNumber: parsed.orderNumber || '#01',
-            orderSlot: parsed.orderSlot || 'Slot Pagi (08:30 WIB)',
-            statusDocs: parsed.statusDocs || 'TERVERIFIKASI',
-          });
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    };
-
-    window.addEventListener('storage', handleSync);
-    return () => window.removeEventListener('storage', handleSync);
-  }, []);
+  }, [propOrderNumber, propOrderSlot, propStatusDocs]);
 
   const isVerified = data.statusDocs === 'TERVERIFIKASI';
 

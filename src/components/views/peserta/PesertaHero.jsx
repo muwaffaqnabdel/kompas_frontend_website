@@ -6,6 +6,7 @@ export default function PesertaHero({
   location = 'GOR Remaja Jakarta Timur',
   date = '15 November 2026',
   category = 'SMA/SMK Putra-Putri',
+  status = 'VALIDATED',
   onOpenSchedule,
 }) {
   return (
@@ -35,7 +36,7 @@ export default function PesertaHero({
               fontWeight: 700,
             }}
           >
-            STATUS: VALIDATED
+            STATUS: {status}
           </span>
           <span style={{ fontSize: '0.8125rem', color: 'var(--pub-muted)', fontFamily: 'var(--font-mono)' }}>
             {regCode}

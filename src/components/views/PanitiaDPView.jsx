@@ -266,17 +266,63 @@ export default function PanitiaDPView({ activeTab = 'workstation' }) {
     };
   }, [selectedEventId, posIndex]);
 
-  // Background auto-polling heartbeat (setiap 2.5 detik) untuk sinkronisasi multi-device di lapangan
+  // Background auto-polling heartbeat (setiap 3 detik) dari backend DB untuk sinkronisasi multi-device
   const handleRefreshData = async (isManual = false) => {
     if (isManual) setIsRefreshing(true);
     try {
-      const saved = localStorage.getItem(getFlowStorageKey(selectedEventId));
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setFlowState(parsed);
-        checkAutoUnblock(parsed);
+      const res = await fetch(
+        `/api/dp/status?eventId=${encodeURIComponent(selectedEventId)}`,
+        { credentials: 'include' }
+      );
+      const data = await res.json();
+      if (res.ok && data.success && data.flowState) {
+        setFlowState((prev) => {
+          const activePosIds = [
+            data.flowState.pos1?.id,
+            data.flowState.pos2?.id,
+            data.flowState.pos3?.id,
+            data.flowState.pos4?.id,
+          ].filter(Boolean);
+          const completedIds = Array.isArray(data.flowState.completedTeamIds)
+            ? data.flowState.completedTeamIds
+            : [];
+          const syncedCalledIds = Array.from(new Set([...activePosIds, ...completedIds]));
+          const syncedTransferredIds = Array.from(
+            new Set([
+              data.flowState.pos2?.id,
+              data.flowState.pos3?.id,
+              data.flowState.pos4?.id,
+              ...completedIds,
+            ].filter(Boolean))
+          );
+
+          const merged = {
+            ...prev,
+            pos1: data.flowState.pos1 || null,
+            pos2: data.flowState.pos2 || null,
+            pos3: data.flowState.pos3 || null,
+            pos4: data.flowState.pos4 || null,
+            calledTeamIds: syncedCalledIds,
+            transferredToPos2TeamIds: syncedTransferredIds,
+            completedTeamIds: completedIds,
+            isJuriScoringOpen: Boolean(data.flowState.isJuriScoringOpen),
+          };
+          try {
+            localStorage.setItem(getFlowStorageKey(selectedEventId), JSON.stringify(merged));
+          } catch {}
+          checkAutoUnblock(merged);
+          return merged;
+        });
+        setLastSyncTime(new Date().toLocaleTimeString('id-ID') + ' WIB');
+      } else {
+        const saved = localStorage.getItem(getFlowStorageKey(selectedEventId));
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setFlowState(parsed);
+          checkAutoUnblock(parsed);
+        }
+        setLastSyncTime(new Date().toLocaleTimeString('id-ID') + ' WIB');
       }
-      setLastSyncTime(new Date().toLocaleTimeString('id-ID') + ' WIB');
     } catch (e) {
       console.warn('Sync refresh error:', e);
     } finally {
@@ -285,17 +331,18 @@ export default function PanitiaDPView({ activeTab = 'workstation' }) {
           setIsRefreshing(false);
           setNotification({
             type: 'success',
-            msg: '✓ Data posisi dan alur antrean seluruh pos berhasil disegarkan.',
+            msg: '✓ Data posisi dan alur antrean seluruh pos berhasil disegarkan dari server.',
           });
-        }, 250);
+        }, 200);
       }
     }
   };
 
   useEffect(() => {
+    handleRefreshData(false);
     const timer = setInterval(() => {
       handleRefreshData(false);
-    }, 2500);
+    }, 3000);
     return () => clearInterval(timer);
   }, [selectedEventId, posIndex]);
 
@@ -421,7 +468,7 @@ export default function PanitiaDPView({ activeTab = 'workstation' }) {
   // ==============================================================
   // AKSI 1: PANGGIL PESERTA KE POS 1 (DOKUMEN)
   // ==============================================================
-  const handleCallParticipant = (team) => {
+  const handleCallParticipant = async (team) => {
     if (flowState.pos1) {
       setNotification({
         type: 'danger',
@@ -436,6 +483,33 @@ export default function PanitiaDPView({ activeTab = 'workstation' }) {
       calledTeamIds: Array.from(new Set([...(flowState.calledTeamIds || []), team.id])),
     };
     saveFlowState(nextState);
+
+    try {
+      const res = await fetch('/api/dp/move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          eventId: selectedEventId,
+          participantId: team.id,
+          toDpIndex: 1,
+          operatorName,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        // Batalkan state lokal jika server menolak pemanggilan agar tombol tidak macet disabled
+        saveFlowState(flowState);
+        setNotification({
+          type: 'danger',
+          msg: data.message || 'Gagal memanggil pasukan ke Pos 01 di server.',
+        });
+        return;
+      }
+    } catch (err) {
+      console.warn('Failed syncing Pos 1 call to backend:', err);
+    }
+
     setDpStatus('IN_PROGRESS');
     setNotification({
       type: 'success',
@@ -449,9 +523,9 @@ export default function PanitiaDPView({ activeTab = 'workstation' }) {
   };
 
   // ==============================================================
-  // AKSI 2: BUKA PENILAIAN JURI (KHUSUS POS 4)
+  // AKSI 2: BUKA PENILAIAN JURI (KHUSUS POS 4 - PERSIST KE DB)
   // ==============================================================
-  const handleOpenJuriScoring = () => {
+  const handleOpenJuriScoring = async () => {
     if (!currentActiveTeam) return;
 
     const nextState = {
@@ -466,9 +540,33 @@ export default function PanitiaDPView({ activeTab = 'workstation' }) {
       console.warn('Failed to set juri scoring open:', e);
     }
 
+    try {
+      const res = await fetch('/api/dp/scoring-open', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          eventId: selectedEventId,
+          participantId: currentActiveTeam.id,
+          isOpen: true,
+          operatorName,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setNotification({
+          type: 'danger',
+          msg: data.message || 'Gagal membuka penilaian juri di server.',
+        });
+        return;
+      }
+    } catch (err) {
+      console.warn('Failed syncing DP 4 open scoring to backend:', err);
+    }
+
     setNotification({
       type: 'success',
-      msg: `🔓 SUKSES: Penilaian Dewan Juri resmi dibuka! Seluruh dewan juri kini dapat menginput nilai untuk ${currentActiveTeam.teamName}.`,
+      msg: `🔓 SUKSES: Penilaian Dewan Juri resmi dibuka di server! Seluruh tablet dewan juri kini dapat menginput nilai untuk ${currentActiveTeam.teamName}.`,
     });
 
     addTransitionLog(
@@ -660,17 +758,29 @@ export default function PanitiaDPView({ activeTab = 'workstation' }) {
   // ==============================================================
   // AKSI 4: RESET ALUR SIMULASI UNTUK UJI COBA ULANG
   // ==============================================================
-  const handleResetFlow = () => {
+  const handleResetFlow = async () => {
     const initial = getInitialFlowState();
     saveFlowState(initial);
     try {
       localStorage.removeItem('kompas_dp4_scoring_opened');
       window.dispatchEvent(new Event('kompas_dp4_scoring_changed'));
     } catch (e) {}
+
+    try {
+      await fetch('/api/dp/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ eventId: selectedEventId }),
+      });
+    } catch (err) {
+      console.warn('Failed resetting DP flow on backend:', err);
+    }
+
     setDpStatus('IN_PROGRESS');
     setNotification({
       type: 'success',
-      msg: `✓ Alur simulasi ${eventName} berhasil direset! Seluruh pos kini steril dan siap diuji coba kembali dari awal Pos 01.`,
+      msg: `✓ Alur ${eventName} berhasil direset di server! Seluruh pos kini steril dan siap digunakan kembali dari awal Pos 01.`,
     });
   };
 

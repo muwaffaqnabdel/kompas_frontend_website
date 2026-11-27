@@ -19,6 +19,8 @@ import {
   LogOut,
   Loader2,
   Calendar,
+  Radio,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import JuriStepScoring from './juri/JuriStepScoring';
@@ -295,15 +297,19 @@ export default function JuriView() {
   const [selectedLevel, setSelectedLevel] = useState('ALL');
   const [availableCategories, setAvailableCategories] = useState([]);
 
-  // Data Peserta riil dari Backend (Integrasi #2: GET /api/juri/participants)
+  // Data Peserta riil dari Backend (Integrasi #2 + #4 Live Polling 3d: GET /api/juri/participants)
   const [participants, setParticipants] = useState([]);
   const [participantsLoading, setParticipantsLoading] = useState(false);
   const [participantsError, setParticipantsError] = useState('');
+  const [isDp4ScoringOpen, setIsDp4ScoringOpen] = useState(false);
+  const [lastLiveSync, setLastLiveSync] = useState('');
 
-  const fetchJuriParticipants = async (targetEventId, showRefreshToast = false) => {
+  const fetchJuriParticipants = async (targetEventId, { showRefreshToast = false, silent = false } = {}) => {
     if (!targetEventId) return;
-    setParticipantsLoading(true);
-    setParticipantsError('');
+    if (!silent) {
+      setParticipantsLoading(true);
+      setParticipantsError('');
+    }
     try {
       const res = await fetch(
         `/api/juri/participants?eventId=${encodeURIComponent(targetEventId)}`,
@@ -312,24 +318,32 @@ export default function JuriView() {
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        setParticipants([]);
-        setAvailableCategories([]);
-        setParticipantsError(data.message || 'Gagal memuat daftar peserta event.');
+        if (!silent) {
+          setParticipants([]);
+          setAvailableCategories([]);
+          setParticipantsError(data.message || 'Gagal memuat daftar peserta event.');
+        }
         return;
       }
 
       setParticipants(Array.isArray(data.participants) ? data.participants : []);
       setAvailableCategories(Array.isArray(data.categories) ? data.categories : []);
+      setIsDp4ScoringOpen(Boolean(data.dp4ScoringOpen));
+      setLastLiveSync(new Date().toLocaleTimeString('id-ID') + ' WIB');
       if (showRefreshToast) {
-        showToast(`✓ Daftar peserta diperbarui (${data.total ?? 0} pasukan terdaftar).`);
+        showToast(`✓ Daftar peserta & posisi DP diperbarui (${data.total ?? 0} pasukan).`);
       }
     } catch (err) {
       console.error('Failed to fetch juri participants:', err);
-      setParticipants([]);
-      setAvailableCategories([]);
-      setParticipantsError('Gagal terhubung ke server saat memuat daftar peserta.');
+      if (!silent) {
+        setParticipants([]);
+        setAvailableCategories([]);
+        setParticipantsError('Gagal terhubung ke server saat memuat daftar peserta.');
+      }
     } finally {
-      setParticipantsLoading(false);
+      if (!silent) {
+        setParticipantsLoading(false);
+      }
     }
   };
 
@@ -375,6 +389,7 @@ export default function JuriView() {
       setAvailableCategories([]);
       setJuriCriteria([]);
       setAssignedCategories([]);
+      setIsDp4ScoringOpen(false);
       return;
     }
     setSelectedLevel('ALL');
@@ -382,96 +397,64 @@ export default function JuriView() {
     fetchJuriCriteria(activeJuriEvent.id);
   }, [sessionState, activeJuriEvent?.id, activeJudge?.userId]);
 
+  // Polling ringan tiap 3 detik dari database untuk sinkronisasi Pos DP 04 ↔ Tablet Juri lintas perangkat
+  useEffect(() => {
+    if (sessionState !== 'AUTHENTICATED' || !activeJuriEvent?.id || viewStep !== 'LIST') {
+      return;
+    }
+    const intervalId = setInterval(() => {
+      fetchJuriParticipants(activeJuriEvent.id, { silent: true });
+    }, 3000);
+    return () => clearInterval(intervalId);
+  }, [sessionState, activeJuriEvent?.id, viewStep]);
+
   // Pasukan yang sedang aktif dinilai saat ini
   const [selectedTeam, setSelectedTeam] = useState(null);
+
+  // Pasukan yang sedang dilihat rincian nilainya dalam mode Read-Only (Terkunci)
+  const [viewingTeam, setViewingTeam] = useState(null);
 
   // Nilai sementara aba-aba untuk pasukan yang dipilih
   const [currentScores, setCurrentScores] = useState({});
 
-  // Feedback tersimpan untuk pasukan yang dipilih
-  const [savedFeedback, setSavedFeedback] = useState('');
+  // Audio rekaman evaluasi yang ditangkap sejak JuriStepScoring (opsional)
+  const [capturedAudio, setCapturedAudio] = useState(null);
+
+  // Status submit skor ke database (POST /api/scores/submit)
+  const [isSubmittingScores, setIsSubmittingScores] = useState(false);
+  const [scoreSubmitError, setScoreSubmitError] = useState('');
 
   // Toast pemberitahuan ringkas
   const [toastMessage, setToastMessage] = useState('');
-
-  // Status Kunci Penilaian dari Pos DP 04 (Arena Utama)
-  const [isDp4ScoringOpen, setIsDp4ScoringOpen] = useState(() => {
-    try {
-      return localStorage.getItem('kompas_dp4_scoring_opened') === 'true';
-    } catch {
-      return false;
-    }
-  });
-
-  const [, setTick] = useState(0);
-
-  useEffect(() => {
-    const handleScoringChange = () => {
-      try {
-        setIsDp4ScoringOpen(localStorage.getItem('kompas_dp4_scoring_opened') === 'true');
-      } catch {
-        setIsDp4ScoringOpen(false);
-      }
-      setTick((t) => t + 1);
-    };
-    window.addEventListener('kompas_dp4_scoring_changed', handleScoringChange);
-    window.addEventListener('kompas_dp_flow_updated', handleScoringChange);
-    window.addEventListener('storage', handleScoringChange);
-    return () => {
-      window.removeEventListener('kompas_dp4_scoring_changed', handleScoringChange);
-      window.removeEventListener('kompas_dp_flow_updated', handleScoringChange);
-      window.removeEventListener('storage', handleScoringChange);
-    };
-  }, []);
 
   const showToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => {
       setToastMessage('');
-    }, 4000);
+    }, 4500);
   };
-
-  // Sinkronisasi posisi peserta dengan alur Pos DP lokal (akan dimigrasikan ke realtime backend di Nomor 4)
-  const resolvedParticipants = participants.map((p) => {
-    if (activeJuriEvent?.id) {
-      try {
-        const saved = localStorage.getItem(`kompas_dp_flow_state_${activeJuriEvent.id}`);
-        if (saved) {
-          const fs = JSON.parse(saved);
-          if (fs.pos4?.id === p.id) {
-            return { ...p, currentPos: 'POS 04', posLabel: 'Pos 04 — Arena Tampil Utama' };
-          } else if (fs.pos3?.id === p.id) {
-            return { ...p, currentPos: 'POS 03', posLabel: 'Pos 03 — Ruang Warm Up' };
-          } else if (fs.pos2?.id === p.id) {
-            return { ...p, currentPos: 'POS 02', posLabel: 'Pos 02 — Sesi Photoshoot' };
-          } else if (fs.pos1?.id === p.id) {
-            return { ...p, currentPos: 'POS 01', posLabel: 'Pos 01 — Verifikasi Berkas' };
-          } else if (fs.completedTeamIds?.includes(p.id)) {
-            return { ...p, currentPos: 'SELESAI', posLabel: 'Selesai Tampil di Arena' };
-          }
-        }
-      } catch (e) {}
-    }
-    return p;
-  });
 
   // Filter peserta berdasarkan Kategori / Jenjang yang dipilih di Dropdown
   const filteredParticipants =
     selectedLevel === 'ALL'
-      ? resolvedParticipants
-      : resolvedParticipants.filter((p) => (p.category || p.level) === selectedLevel);
+      ? participants
+      : participants.filter((p) => (p.category || p.level) === selectedLevel);
   const currentEventSubtitle = activeJuriEvent?.name
     ? `${activeJuriEvent.name} (${activeJuriEvent.status || 'AKTIF'})`
     : 'Event Penugasan Aktif';
 
-  // 1. KLIK TOMBOL "MULAI PENILAIAN" (HANYA BISA DIKLIK JIKA DI POS 04 DAN DIBUKA OLEH DP 4)
+  // 1. KLIK TOMBOL "MULAI PENILAIAN" (HANYA BISA DIKLIK JIKA DI POS 04 DAN DIBUKA OLEH DP 4 DI SERVER)
   const handleStartScoring = (team) => {
+    if (team.isScored) {
+      setViewingTeam(team);
+      return;
+    }
     if (team.currentPos !== 'POS 04') {
       showToast(`⚠️ Pasukan ${team.school} belum masuk ke Arena Lapangan (Masih di ${team.posLabel})!`);
       return;
     }
-    const isOpened = localStorage.getItem('kompas_dp4_scoring_opened') === 'true';
-    if (!isOpened) {
+    const isTeamScoringOpen = Boolean(team.isScoringOpen || isDp4ScoringOpen);
+    if (!isTeamScoringOpen) {
       showToast(`⚠️ Penilaian Juri belum dibuka oleh Petugas Pos 04 Lapangan! Silakan tunggu petugas DP 04 membuka penilaian.`);
       return;
     }
@@ -483,76 +466,113 @@ export default function JuriView() {
       showToast(`⚠️ Belum ada butir aba-aba penilaian untuk kategori (${assignedCategories.join(', ') || activeJudge?.category || 'Anda'}) pada event ini.`);
       return;
     }
+    setScoreSubmitError('');
+    setCapturedAudio(null);
     setSelectedTeam(team);
-    setCurrentScores(team.scoreData?.scores || {});
+    setCurrentScores({});
     setViewStep('SCORING');
   };
 
-  // 2. SUBMIT NILAI DARI STEP SCORING -> MASUK KE STEP VOICE FEEDBACK
-  const handleAbaAbaScoresSubmitted = (scoresObj) => {
-    setCurrentScores(scoresObj);
-    setViewStep('VOICE_FEEDBACK');
+  // 2. SUBMIT & KUNCI NILAI KE DATABASE (POST /api/scores/submit) -> MASUK KE STEP VOICE FEEDBACK
+  const handleAbaAbaScoresSubmitted = async (scoresObj, audioPayload = null) => {
+    if (!selectedTeam || !activeJuriEvent?.id) return;
+
+    setIsSubmittingScores(true);
+    setScoreSubmitError('');
+
+    try {
+      const res = await fetch('/api/scores/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          eventId: activeJuriEvent.id,
+          participantId: selectedTeam.id,
+          scores: scoresObj,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setScoreSubmitError(data.message || 'Gagal menyimpan dan mengunci nilai ke database.');
+        return;
+      }
+
+      const totalCalculated = Object.values(scoresObj).reduce((sum, v) => sum + (Number(v) || 0), 0);
+
+      setCurrentScores(scoresObj);
+      setCapturedAudio(audioPayload);
+      setParticipants((prev) =>
+        prev.map((p) =>
+          p.id === selectedTeam.id
+            ? {
+                ...p,
+                isScored: true,
+                totalScore: data.submission?.judgeTotal ?? totalCalculated,
+                scoreData: {
+                  scores: scoresObj,
+                  feedback: p.scoreData?.feedback || '',
+                  audioStorageUrl: p.scoreData?.audioStorageUrl || null,
+                  scoredAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+                },
+              }
+            : p
+        )
+      );
+
+      showToast(`✓ Nilai ${selectedTeam.school} resmi tersimpan & dikunci di database!`);
+      setViewStep('VOICE_FEEDBACK');
+
+      // Segarkan data peserta dari backend di latar belakang
+      fetchJuriParticipants(activeJuriEvent.id, { silent: true });
+    } catch (err) {
+      console.error('Failed submitting juri scores:', err);
+      setScoreSubmitError('Gagal terhubung ke server saat menyimpan nilai. Coba lagi.');
+    } finally {
+      setIsSubmittingScores(false);
+    }
   };
 
-  // 3. SELESAI KIRIM AI FEEDBACK -> SIMPAN & OTOMATIS KEMBALI KE TAMPILAN AWAL
-  const handleVoiceFeedbackFinished = (finalFeedbackText) => {
-    if (!selectedTeam) return;
+  // 3. SELESAI STEP VOICE FEEDBACK -> KEMBALI KE DAFTAR PESERTA & SEGARKAN DATA
+  const handleVoiceFeedbackFinished = (feedbackResult) => {
+    const finalText =
+      typeof feedbackResult === 'string' ? feedbackResult : feedbackResult?.feedbackText || '';
+    const finalAudioUrl =
+      typeof feedbackResult === 'object' ? feedbackResult?.audioStorageUrl || null : null;
 
-    const totalCalculated = Object.values(currentScores).reduce((sum, v) => sum + (Number(v) || 0), 0);
-
-    // Update status peserta menjadi 'SELESAI DINILAI'
-    setParticipants((prev) =>
-      prev.map((p) => {
-        if (p.id === selectedTeam.id) {
-          return {
-            ...p,
-            isScored: true,
-            totalScore: totalCalculated,
-            scoreData: {
-              scores: currentScores,
-              feedback: finalFeedbackText,
-              scoredAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-              judgeName: activeJudge.name,
-            },
-          };
-        }
-        return p;
-      })
-    );
-
-    showToast(`✓ Berhasil! Nilai & AI Feedback untuk ${selectedTeam.school} telah resmi tersimpan.`);
+    if (selectedTeam && (finalText || finalAudioUrl)) {
+      setParticipants((prev) =>
+        prev.map((p) =>
+          p.id === selectedTeam.id
+            ? {
+                ...p,
+                feedbackStatus: feedbackResult?.status || 'SENT',
+                scoreData: {
+                  ...(p.scoreData || { scores: currentScores }),
+                  ...(finalText && { feedback: finalText }),
+                  ...(finalAudioUrl && { audioStorageUrl: finalAudioUrl }),
+                },
+              }
+            : p
+        )
+      );
+      if (finalText) {
+        showToast(`✓ Evaluasi AI & rekaman suara untuk ${selectedTeam.school} resmi dikirim!`);
+      }
+    }
     setViewStep('LIST');
     setSelectedTeam(null);
     setCurrentScores({});
-  };
-
-  // 4. SIMULATOR LAPANGAN: Geser Tim ke POS 04 untuk membuka kunci penilaian saat demo
-  const handleSimulateMoveToPos4 = (teamId) => {
-    setParticipants((prev) =>
-      prev.map((p) => {
-        if (p.id === teamId) {
-          return {
-            ...p,
-            currentPos: 'POS 04',
-            posLabel: 'Pos 04 — Arena Tampil Utama',
-            isScored: false,
-          };
-        }
-        return p;
-      })
-    );
-    try {
-      localStorage.setItem('kompas_dp4_scoring_opened', 'true');
-      window.dispatchEvent(new Event('kompas_dp4_scoring_changed'));
-    } catch (e) {}
-    const targetTeam = participants.find((p) => p.id === teamId);
-    showToast(`⚡ Pasukan ${targetTeam?.school || ''} telah didorong masuk ke POS 04 (Arena Lapangan)! Status Penilaian Terbuka.`);
+    setCapturedAudio(null);
+    if (activeJuriEvent?.id) {
+      fetchJuriParticipants(activeJuriEvent.id, { silent: true });
+    }
   };
 
   // Muat ulang data peserta & kriteria terbaru dari server
   const handleRefreshParticipants = () => {
     if (activeJuriEvent?.id) {
-      fetchJuriParticipants(activeJuriEvent.id, true);
+      fetchJuriParticipants(activeJuriEvent.id, { showRefreshToast: true });
       fetchJuriCriteria(activeJuriEvent.id);
     }
   };
@@ -778,8 +798,13 @@ export default function JuriView() {
         judge={activeJudge}
         abaAbaList={juriCriteria}
         initialScores={currentScores}
+        isSubmitting={isSubmittingScores}
+        submitError={scoreSubmitError}
         onSubmitScores={handleAbaAbaScoresSubmitted}
-        onCancel={() => setViewStep('LIST')}
+        onCancel={() => {
+          setScoreSubmitError('');
+          setViewStep('LIST');
+        }}
       />
     );
   }
@@ -790,11 +815,14 @@ export default function JuriView() {
   if (viewStep === 'VOICE_FEEDBACK' && selectedTeam) {
     return (
       <JuriVoiceNoteStep
+        eventId={activeJuriEvent?.id}
         team={selectedTeam}
         judge={activeJudge}
         scores={currentScores}
         abaAbaList={juriCriteria}
-        onBackToScoring={() => setViewStep('SCORING')}
+        scoresLocked={true}
+        recordedAudio={capturedAudio}
+        onBackToScoring={() => setViewStep('LIST')}
         onFinishFeedback={handleVoiceFeedbackFinished}
       />
     );
@@ -1078,9 +1106,29 @@ export default function JuriView() {
               <strong>Aturan Locking Flow Penjurian:</strong> Penilaian dewan juri hanya dapat dimulai saat pasukan telah berada di <strong>POS 04 (Arena Lapangan)</strong> dan petugas DP 04 telah mengklik tombol <strong>"Buka Penilaian Juri"</strong>.
             </span>
           </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--pub-muted)', fontWeight: 600 }}>
-            Total: {filteredParticipants.length} Pasukan Terdaftar
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                fontSize: '0.725rem',
+                fontWeight: 700,
+                color: '#047857',
+                backgroundColor: '#ECFDF5',
+                border: '1px solid #A7F3D0',
+                padding: '0.2rem 0.55rem',
+                borderRadius: '9999px',
+              }}
+              title="Sinkronisasi otomatis setiap 3 detik dengan Petugas Pos DP 04"
+            >
+              <Radio size={12} />
+              <span>Live Sync 3d{lastLiveSync ? ` • ${lastLiveSync}` : ''}</span>
+            </span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--pub-muted)', fontWeight: 600 }}>
+              Total: {filteredParticipants.length} Pasukan Terdaftar
+            </span>
+          </div>
         </div>
 
         {/* TABEL DATA PESERTA & STATUS PENILAIAN */}
@@ -1148,6 +1196,7 @@ export default function JuriView() {
               ) : (
                 filteredParticipants.map((p) => {
                 const isAtPos4 = p.currentPos === 'POS 04';
+                const isTeamOpen = Boolean(p.isScoringOpen || (isAtPos4 && isDp4ScoringOpen));
                 const isFinished = p.isScored;
 
                 return (
@@ -1248,7 +1297,7 @@ export default function JuriView() {
                           </span>
                         </div>
                       ) : isAtPos4 ? (
-                        isDp4ScoringOpen ? (
+                        isTeamOpen ? (
                           <span
                             style={{
                               backgroundColor: '#FEF2F2',
@@ -1319,15 +1368,16 @@ export default function JuriView() {
                       {isFinished ? (
                         <button
                           type="button"
-                          onClick={() => handleStartScoring(p)}
+                          onClick={() => setViewingTeam(p)}
                           className="pub-btn-outline"
                           style={{ fontSize: '0.775rem', padding: '0.4rem 0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                          title="Lihat rincian nilai yang sudah dikunci (hanya baca)"
                         >
                           <Eye size={13} />
-                          <span>Lihat / Revisi Nilai</span>
+                          <span>Lihat Nilai</span>
                         </button>
                       ) : isAtPos4 ? (
-                        isDp4ScoringOpen ? (
+                        isTeamOpen ? (
                           <button
                             type="button"
                             onClick={() => handleStartScoring(p)}
@@ -1397,59 +1447,185 @@ export default function JuriView() {
             </tbody>
           </table>
         </div>
+      </div>
 
-        {/* 3. SIMULATOR TOOLBAR UNTUK PITCHING KE PANITIA LOMBA */}
+      {/* MODAL LIHAT NILAI (READ-ONLY — TERKUNCI SETELAH SUBMIT) */}
+      {viewingTeam && (
         <div
           style={{
-            marginTop: '0.5rem',
-            backgroundColor: '#FAF5FF',
-            borderRadius: '12px',
-            padding: '1rem 1.25rem',
-            border: '1px solid #E9D5FF',
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(3px)',
+            zIndex: 100000,
             display: 'flex',
-            justifyContent: 'space-between',
             alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '0.75rem',
+            justifyContent: 'center',
+            padding: '1.25rem',
           }}
+          onClick={() => setViewingTeam(null)}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Sparkles size={16} color="#7C3AED" />
-            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#6D28D9', textTransform: 'uppercase' }}>
-              Simulasi Lapangan (Demo Presentasi Panitia):
-            </span>
-          </div>
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: '16px',
+              maxWidth: '640px',
+              width: '100%',
+              maxHeight: '85vh',
+              overflowY: 'auto',
+              padding: '1.75rem',
+              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.25)',
+              borderTop: '5px solid #059669',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', marginBottom: '1rem' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.25rem' }}>
+                  <span
+                    style={{
+                      backgroundColor: '#ECFDF5',
+                      color: '#047857',
+                      border: '1px solid #A7F3D0',
+                      padding: '0.18rem 0.55rem',
+                      borderRadius: '9999px',
+                      fontSize: '0.7rem',
+                      fontWeight: 800,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                    }}
+                  >
+                    <Lock size={11} />
+                    <span>TERKUNCI • HANYA BACA</span>
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 600 }}>
+                    No. Urut {viewingTeam.orderNumber}
+                  </span>
+                </div>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#0F172A' }}>
+                  {viewingTeam.school}
+                </h3>
+                <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.825rem', color: '#64748B' }}>
+                  {viewingTeam.teamName} • Danton: {viewingTeam.danton}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingTeam(null)}
+                style={{
+                  background: '#F1F5F9',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '0.4rem',
+                  color: '#475569',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                aria-label="Tutup"
+              >
+                <X size={18} />
+              </button>
+            </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.775rem', color: '#6D28D9', fontWeight: 600 }}>
-              Dorong Pasukan ke DP 04:
-            </span>
-            {filteredParticipants
-              .filter((p) => p.currentPos !== 'POS 04')
-              .slice(0, 3)
-              .map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => handleSimulateMoveToPos4(p.id)}
-                  style={{
-                    backgroundColor: '#EDE9FE',
-                    color: '#6D28D9',
-                    border: '1px solid #C4B5FD',
-                    borderRadius: '6px',
-                    padding: '0.3rem 0.65rem',
-                    fontSize: '0.725rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                  title={`Klik untuk simulasi ${p.school} masuk ke panggung arena POS 04`}
-                >
-                  ⚡ Masukkan {p.school.split(' ')[0]} {p.school.split(' ')[1] || ''}
-                </button>
-              ))}
+            <div
+              style={{
+                backgroundColor: '#FFFBEB',
+                border: '1px solid #FDE68A',
+                borderRadius: '10px',
+                padding: '0.75rem 0.95rem',
+                fontSize: '0.78rem',
+                color: '#92400E',
+                marginBottom: '1rem',
+                lineHeight: 1.45,
+              }}
+            >
+              Nilai ini telah disubmit & dikunci di database demi menjaga transparansi. Apabila terdapat kesalahan input (human error), silakan konfirmasi secara lisan kepada <strong>Admin Panitia</strong> untuk melakukan koreksi.
+            </div>
+
+            <div style={{ border: '1px solid #E2E8F0', borderRadius: '10px', overflow: 'hidden', marginBottom: '1rem' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.825rem' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
+                    <th style={{ padding: '0.65rem 0.85rem', textAlign: 'left', fontWeight: 800, color: '#334155' }}>No</th>
+                    <th style={{ padding: '0.65rem 0.85rem', textAlign: 'left', fontWeight: 800, color: '#334155' }}>Aba-Aba / Kriteria</th>
+                    <th style={{ padding: '0.65rem 0.85rem', textAlign: 'right', fontWeight: 800, color: '#334155' }}>Nilai</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {juriCriteria.map((crit, idx) => {
+                    const val = viewingTeam.scoreData?.scores?.[crit.id];
+                    return (
+                      <tr key={crit.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                        <td style={{ padding: '0.6rem 0.85rem', color: '#64748B', fontWeight: 700 }}>{idx + 1}</td>
+                        <td style={{ padding: '0.6rem 0.85rem', color: '#0F172A', fontWeight: 600 }}>
+                          {crit.name}
+                          <div style={{ fontSize: '0.7rem', color: '#64748B' }}>{crit.category}</div>
+                        </td>
+                        <td style={{ padding: '0.6rem 0.85rem', textAlign: 'right', fontWeight: 800, color: '#0D9488' }} className="tabular-nums">
+                          {val !== undefined && val !== null ? val : '-'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr style={{ backgroundColor: '#ECFDF5' }}>
+                    <td colSpan={2} style={{ padding: '0.75rem 0.85rem', fontWeight: 800, color: '#065F46' }}>
+                      Total Skor ({activeJudge.name})
+                    </td>
+                    <td style={{ padding: '0.75rem 0.85rem', textAlign: 'right', fontWeight: 900, fontSize: '1rem', color: '#047857' }} className="tabular-nums">
+                      {viewingTeam.totalScore ?? 0} Pts
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {(viewingTeam.scoreData?.feedback || viewingTeam.scoreData?.audioStorageUrl) && (
+              <div
+                style={{
+                  backgroundColor: '#FAF5FF',
+                  border: '1px solid #E9D5FF',
+                  borderRadius: '10px',
+                  padding: '0.85rem 1rem',
+                  marginBottom: '1rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.6rem',
+                }}
+              >
+                <div style={{ fontSize: '0.725rem', fontWeight: 800, color: '#6D28D9', textTransform: 'uppercase' }}>
+                  Evaluasi & Rekaman Suara Dewan Juri:
+                </div>
+                {viewingTeam.scoreData?.audioStorageUrl && (
+                  <audio
+                    controls
+                    src={viewingTeam.scoreData.audioStorageUrl}
+                    style={{ width: '100%', height: '36px' }}
+                  />
+                )}
+                {viewingTeam.scoreData?.feedback && (
+                  <p style={{ margin: 0, fontSize: '0.825rem', color: '#3B0764', lineHeight: 1.5, whiteSpace: 'pre-line' }}>
+                    {viewingTeam.scoreData.feedback}
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => setViewingTeam(null)}
+                className="pub-btn-outline"
+                style={{ padding: '0.55rem 1.25rem', fontSize: '0.85rem', fontWeight: 700 }}
+              >
+                Tutup
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

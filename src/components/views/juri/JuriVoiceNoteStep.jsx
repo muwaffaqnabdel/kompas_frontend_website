@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Sparkles,
   Mic,
@@ -6,106 +6,379 @@ import {
   Send,
   CheckCircle,
   ArrowLeft,
-  FileText,
   AlertCircle,
-  Radio,
-  X,
+  Loader2,
+  Pause,
+  Play,
+  Volume2,
+  ChevronDown,
+  ChevronUp,
+  RotateCcw,
 } from 'lucide-react';
 
+function pickSupportedAudioMimeType() {
+  if (typeof window === 'undefined' || typeof MediaRecorder === 'undefined') return '';
+  const candidates = [
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/ogg;codecs=opus',
+    'audio/mp4',
+  ];
+  return candidates.find((m) => MediaRecorder.isTypeSupported(m)) || '';
+}
+
 export default function JuriVoiceNoteStep({
+  eventId,
   team,
   judge,
   scores = {},
   abaAbaList = [],
+  scoresLocked = true,
+  recordedAudio = null, // { blob, mimeType, durationSec, markers } dari JuriStepScoring
   onBackToScoring,
   onFinishFeedback,
 }) {
   const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
+
   const [isProcessingAi, setIsProcessingAi] = useState(false);
+  const [aiError, setAiError] = useState('');
+  const [aiWarning, setAiWarning] = useState('');
+  const [usedMarkers, setUsedMarkers] = useState(false);
+
+  const [feedbackId, setFeedbackId] = useState(null);
+  const [rawTranscript, setRawTranscript] = useState('');
+  const [showRawTranscript, setShowRawTranscript] = useState(false);
   const [aiDraft, setAiDraft] = useState('');
+
+  const [localAudioUrl, setLocalAudioUrl] = useState(null);
+  const [audioStorageUrl, setAudioStorageUrl] = useState(null);
+  const [audioDurationSec, setAudioDurationSec] = useState(recordedAudio?.durationSec || 0);
+
   const [countdown, setCountdown] = useState(null);
+  const [isSendingFinal, setIsSendingFinal] = useState(false);
+  const [sendError, setSendError] = useState('');
   const [isSent, setIsSent] = useState(false);
 
+  const mediaRecorderRef = useRef(null);
+  const mediaStreamRef = useRef(null);
+  const chunksRef = useRef([]);
+  const hasAutoProcessedRef = useRef(false);
+  const latestBlobRef = useRef(recordedAudio?.blob || null);
+  const latestMimeRef = useRef(recordedAudio?.mimeType || 'audio/webm');
+  const latestMarkersRef = useRef(recordedAudio?.markers || []);
+
   const totalScore = Object.values(scores).reduce((sum, v) => sum + (Number(v) || 0), 0);
-  const maxPossibleScore = abaAbaList.length * 22;
+  const maxPossibleScore = abaAbaList.reduce((sum, item) => {
+    const maxOpt =
+      Array.isArray(item.options) && item.options.length > 0
+        ? Math.max(...item.options.map((v) => Number(v) || 0))
+        : Number(item.maxScore) || 100;
+    return sum + maxOpt;
+  }, 0);
 
-  useEffect(() => {
-    let interval;
-    if (isRecording) {
-      interval = setInterval(() => {
-        setRecordSeconds((prev) => prev + 1);
-      }, 1000);
-    } else {
-      setRecordSeconds(0);
-    }
-    return () => clearInterval(interval);
-  }, [isRecording]);
+  // Proses upload audio ke Supabase Storage + Groq Whisper-v3-Turbo + Llama 3.3 70B
+  const processAudioWithGroq = async (blob, mimeType = 'audio/webm', markers = []) => {
+    if (!blob || blob.size === 0) return;
 
-  const handleToggleRecord = () => {
-    if (!isRecording) {
-      setIsRecording(true);
-      setAiDraft('');
-    } else {
-      setIsRecording(false);
-      setIsProcessingAi(true);
+    latestBlobRef.current = blob;
+    latestMimeRef.current = mimeType;
+    latestMarkersRef.current = markers;
 
-      setTimeout(() => {
-        setIsProcessingAi(false);
-        const sampleFeedback = `Catatan Dewan Juri untuk ${team?.school || 'SMAN 1 Jakarta'} (Pasukan ${team?.teamName || 'Garuda Sakti'}):
-Secara umum penampilan sangat memukau dengan penguasaan lapangan yang solid. Kerapihan saf dan banjar pada langkah tegap sangat sinkron dan selaras dengan ketukan tempo.
-Catatan evaluasi khusus: Pada transisi gerakan hadap serong kanan, hentakan kaki penutup banjar kedua sedikit mendahului komando danton. Artikulasi danton prima, tempo hentakan stabil.`;
-        setAiDraft(sampleFeedback);
-      }, 900);
-    }
-  };
+    // Buat preview audio lokal langsung agar Juri bisa memutar rekaman aslinya
+    setLocalAudioUrl((prevUrl) => {
+      if (prevUrl) URL.revokeObjectURL(prevUrl);
+      return URL.createObjectURL(blob);
+    });
 
-  const handleInstantDemo = () => {
     setIsProcessingAi(true);
-    setTimeout(() => {
-      setIsProcessingAi(false);
-      setAiDraft(
-        `Catatan Evaluasi Resmi Dewan Juri untuk ${team?.school || 'SMAN 1 Jakarta'}:
-1. Kerapihan & Sikap: Tumit merapat konsisten, dada membusung tegap, keseragaman sudut pandang 100% terjaga.
-2. Kekompakan Gerak: Gerakan PBB dasar sangat rapi dan berwibawa. Pada aba-aba penghormatan, sudut tangan presisi di pelipis.
-3. Rekomendasi: Perhatikan hentakan penutup banjar kiri pada langkah tegap ke langkah biasa agar ketukan tidak terburu-buru.`
+    setAiError('');
+    setAiWarning('');
+
+    try {
+      const formData = new FormData();
+      const ext = mimeType.includes('ogg')
+        ? 'ogg'
+        : mimeType.includes('mp4')
+        ? 'm4a'
+        : 'webm';
+      formData.append('file', blob, `juri-voice.${ext}`);
+      formData.append('eventId', eventId || team?.eventId || '');
+      formData.append('participantId', team?.id || '');
+      formData.append('teamName', team?.teamName || '');
+      formData.append('schoolName', team?.school || '');
+      formData.append('judgeCategory', judge?.category || '');
+      if (Array.isArray(markers) && markers.length > 0) {
+        formData.append('abaAbaMarkers', JSON.stringify(markers));
+      }
+      if (Array.isArray(abaAbaList) && abaAbaList.length > 0) {
+        const names = abaAbaList
+          .map((item) => item?.title || item?.name || '')
+          .filter(Boolean);
+        if (names.length > 0) {
+          formData.append('abaAbaNames', JSON.stringify(names));
+        }
+      }
+
+      const res = await fetch('/api/ai/voice-feedback', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (data.audioStorageUrl) {
+        setAudioStorageUrl(data.audioStorageUrl);
+      }
+      if (data.feedbackId) {
+        setFeedbackId(data.feedbackId);
+      }
+
+      if (!res.ok || !data.success) {
+        setAiError(
+          data.message ||
+            'Gagal memproses audio melalui AI Groq. Anda dapat mencoba ulang, merekam ulang, atau mengetik catatan manual.'
+        );
+        return;
+      }
+
+      setRawTranscript(data.rawTranscript || '');
+      setAiDraft(data.refinedText || data.rawTranscript || '');
+      setUsedMarkers(Boolean(data.usedMarkers));
+      if (data.aiWarning) {
+        setAiWarning(data.aiWarning);
+      }
+      if (data.audioUploadError) {
+        setAiWarning((prev) =>
+          prev
+            ? `${prev} (Catatan penyimpanan audio: ${data.audioUploadError})`
+            : `Audio berhasil ditranskrip, namun gagal diunggah ke storage: ${data.audioUploadError}`
+        );
+      }
+    } catch (err) {
+      console.error('Error processing voice feedback:', err);
+      setAiError(
+        'Terjadi kendala koneksi saat memproses suara ke server AI. Silakan coba proses ulang atau ketik catatan secara manual.'
       );
-    }, 400);
+    } finally {
+      setIsProcessingAi(false);
+    }
   };
 
+  // Jika Juri sudah merekam sejak tahap penilaian aba-aba, otomatis proses rekaman tersebut saat layar ini terbuka
+  useEffect(() => {
+    if (recordedAudio?.blob && !hasAutoProcessedRef.current) {
+      hasAutoProcessedRef.current = true;
+      setAudioDurationSec(recordedAudio.durationSec || 0);
+      processAudioWithGroq(
+        recordedAudio.blob,
+        recordedAudio.mimeType || 'audio/webm',
+        recordedAudio.markers || []
+      );
+    }
+  }, [recordedAudio]);
+
+  // Timer rekaman jika merekam di layar ini
+  useEffect(() => {
+    if (!isRecording || isPaused) return;
+    const interval = setInterval(() => {
+      setRecordSeconds((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isRecording, isPaused]);
+
+  // Bersihkan mic & objectURL saat unmount
+  useEffect(() => {
+    return () => {
+      try {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+          mediaRecorderRef.current.stop();
+        }
+      } catch {}
+      try {
+        mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+      } catch {}
+    };
+  }, []);
+
+  const handleStartRecordHere = async () => {
+    setAiError('');
+    setAiWarning('');
+    setSendError('');
+    setCountdown(null);
+
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      setAiError('Browser tidak mendukung perekaman mikrofon.');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1,
+        },
+      });
+      mediaStreamRef.current = stream;
+      chunksRef.current = [];
+      setRecordSeconds(0);
+      setIsPaused(false);
+
+      const mimeType = pickSupportedAudioMimeType();
+      const recorder = new MediaRecorder(stream, {
+        ...(mimeType ? { mimeType } : {}),
+        audioBitsPerSecond: 32000,
+      });
+      const actualMime = recorder.mimeType || mimeType || 'audio/webm';
+
+      recorder.ondataavailable = (evt) => {
+        if (evt.data && evt.data.size > 0) {
+          chunksRef.current.push(evt.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        const finalBlob =
+          chunksRef.current.length > 0
+            ? new Blob(chunksRef.current, { type: actualMime })
+            : null;
+        try {
+          mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+        } catch {}
+        mediaStreamRef.current = null;
+        setIsRecording(false);
+        setIsPaused(false);
+        if (finalBlob) {
+          setAudioDurationSec(recordSeconds);
+          processAudioWithGroq(finalBlob, actualMime, []);
+        }
+      };
+
+      mediaRecorderRef.current = recorder;
+      recorder.start(1000);
+      setIsRecording(true);
+    } catch (err) {
+      console.error('Mic error:', err);
+      setAiError('Izin mikrofon ditolak atau perangkat mikrofon tidak ditemukan.');
+    }
+  };
+
+  const handleStopRecordHere = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+  };
+
+  const handleTogglePauseHere = () => {
+    const rec = mediaRecorderRef.current;
+    if (!rec) return;
+    if (rec.state === 'recording') {
+      rec.pause();
+      setIsPaused(true);
+    } else if (rec.state === 'paused') {
+      rec.resume();
+      setIsPaused(false);
+    }
+  };
+
+  // Konfirmasi final kirim feedback (status DRAFT_AI -> SENT di PostgreSQL)
+  const executeFinalSend = async () => {
+    const finalText = aiDraft.trim();
+    if (!finalText) {
+      setSendError('Teks evaluasi belum diisi. Rekam suara atau ketik catatan terlebih dahulu.');
+      setCountdown(null);
+      return;
+    }
+
+    setIsSendingFinal(true);
+    setSendError('');
+    setCountdown(null);
+
+    try {
+      let res;
+      if (feedbackId) {
+        res = await fetch(`/api/ai/voice-feedback/${encodeURIComponent(feedbackId)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            eventId: eventId || team?.eventId,
+            participantId: team?.id,
+            refinedText: finalText,
+            rawTranscript,
+            audioStorageUrl,
+          }),
+        });
+      } else {
+        res = await fetch('/api/ai/voice-feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            eventId: eventId || team?.eventId,
+            participantId: team?.id,
+            refinedText: finalText,
+            rawTranscript: rawTranscript || finalText,
+            confirmSend: true,
+          }),
+        });
+      }
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setSendError(data.message || 'Gagal mengirim evaluasi ke server.');
+        setIsSendingFinal(false);
+        return;
+      }
+
+      setIsSent(true);
+      setTimeout(() => {
+        onFinishFeedback({
+          feedbackId: data.feedback?.id || data.feedbackId || feedbackId,
+          feedbackText: finalText,
+          audioStorageUrl: data.feedback?.audioStorageUrl || data.audioStorageUrl || audioStorageUrl,
+          status: 'SENT',
+        });
+      }, 900);
+    } catch (err) {
+      console.error('Send feedback error:', err);
+      setSendError('Gagal terhubung ke server saat mengirim evaluasi.');
+      setIsSendingFinal(false);
+    }
+  };
+
+  // Mulai countdown 5 detik (sesuai PRD 6.6)
   const handleStartSend = () => {
-    setCountdown(3);
+    setSendError('');
+    if (!aiDraft.trim()) {
+      setSendError('Teks evaluasi masih kosong. Rekam suara atau ketik catatan evaluasi terlebih dahulu.');
+      return;
+    }
+    setCountdown(5);
   };
 
   useEffect(() => {
     let timer;
     if (countdown !== null && countdown > 0) {
       timer = setTimeout(() => {
-        setCountdown(countdown - 1);
+        setCountdown((prev) => (prev !== null ? prev - 1 : null));
       }, 1000);
-    } else if (countdown === 0) {
-      setIsSent(true);
-      setCountdown(null);
-      setTimeout(() => {
-        onFinishFeedback(aiDraft || 'Penilaian selesai dengan catatan evaluasi standar dewan juri.');
-      }, 1000);
+    } else if (countdown === 0 && !isSendingFinal && !isSent) {
+      executeFinalSend();
     }
     return () => clearTimeout(timer);
-  }, [countdown, aiDraft, onFinishFeedback]);
-
-  const handleSendImmediately = () => {
-    setIsSent(true);
-    setCountdown(null);
-    setTimeout(() => {
-      onFinishFeedback(aiDraft || 'Penilaian selesai dengan catatan evaluasi standar dewan juri.');
-    }, 700);
-  };
+  }, [countdown]);
 
   const formatTimer = (secs) => {
     const m = Math.floor(secs / 60);
     const s = secs % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
+
+  const activePlayerSrc = audioStorageUrl || localAudioUrl;
 
   return (
     <div
@@ -141,146 +414,401 @@ Catatan evaluasi khusus: Pada transisi gerakan hadap serong kanan, hentakan kaki
           paddingBottom: '0.85rem',
         }}
       >
-        <button
-          type="button"
-          onClick={onBackToScoring}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.35rem',
-            background: 'transparent',
-            border: 'none',
-            color: '#64748B',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
-        >
-          <ArrowLeft size={18} />
-          <span>Kembali ke Nilai</span>
-        </button>
+        {scoresLocked ? (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              color: '#047857',
+              backgroundColor: '#ECFDF5',
+              border: '1px solid #A7F3D0',
+              padding: '0.3rem 0.65rem',
+              borderRadius: '9999px',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+            }}
+          >
+            <CheckCircle size={14} />
+            <span>Nilai Terkunci ✓</span>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onBackToScoring}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              background: 'transparent',
+              border: 'none',
+              color: '#64748B',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            <ArrowLeft size={18} />
+            <span>Kembali ke Nilai</span>
+          </button>
+        )}
 
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A' }}>
-            {team?.school || 'SMAN 1 Jakarta'}
+            {team?.school || 'Kontingen Peserta'}
           </div>
           <div style={{ fontSize: '0.8rem', color: '#64748B' }}>
             Total Skor: <strong style={{ color: '#0D9488' }}>{totalScore}</strong> / {maxPossibleScore} Pts
           </div>
         </div>
 
-        <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#7C3AED' }}>
-          AI Voice Note
+        <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#7C3AED', textAlign: 'right' }}>
+          AI Voice Feedback
         </div>
       </div>
 
-      {/* 2. AREA TENGAH: VOICE RECORDING & AI DRAFT */}
+      {/* 2. AREA TENGAH: PEMUTAR AUDIO ASLI, REKAM ULANG, & REVIEW DRAFT AI */}
       <div
         style={{
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'center',
+          justifyContent: 'flex-start',
           width: '100%',
-          maxWidth: '750px',
+          maxWidth: '780px',
           margin: '0 auto',
-          padding: '1.5rem 0',
-          gap: '1.5rem',
+          padding: '1.25rem 0',
+          gap: '1.15rem',
         }}
       >
-        {/* Tombol Rekam Suara Besar */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.85rem' }}>
-          <button
-            type="button"
-            onClick={handleToggleRecord}
-            disabled={isProcessingAi || isSent}
-            style={{
-              width: '90px',
-              height: '90px',
-              borderRadius: '50%',
-              backgroundColor: isRecording ? '#DC2626' : '#7C3AED',
-              color: '#FFFFFF',
-              border: isRecording ? '5px solid #FCA5A5' : 'none',
-              cursor: isProcessingAi || isSent ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: isRecording
-                ? '0 0 0 12px rgba(220, 38, 38, 0.2)'
-                : '0 8px 24px rgba(124, 58, 237, 0.35)',
-              transition: 'all 0.15s ease',
-              transform: isRecording ? 'scale(1.05)' : 'scale(1)',
-            }}
-          >
-            {isRecording ? <MicOff size={38} /> : <Mic size={38} />}
-          </button>
-
-          {isRecording ? (
-            <div style={{ color: '#DC2626', fontWeight: 800, fontSize: '1rem' }}>
-              SEDANG MEREKAM... ({formatTimer(recordSeconds)})
-            </div>
-          ) : isProcessingAi ? (
-            <div style={{ color: '#7C3AED', fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <Sparkles size={16} />
-              <span>Memproses Transkripsi AI...</span>
-            </div>
-          ) : (
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0F172A' }}>
-                Sentuh Mic untuk Rekam Evaluasi Suara
+        {/* Kartu Audio Rekaman Asli + Kontrol Rekam / Rekam Ulang */}
+        <div
+          style={{
+            width: '100%',
+            backgroundColor: '#F8FAFC',
+            border: '1px solid #E2E8F0',
+            borderRadius: '14px',
+            padding: '1.1rem 1.25rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.85rem',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Volume2 size={18} color="#7C3AED" />
+              <div>
+                <div style={{ fontSize: '0.875rem', fontWeight: 800, color: '#0F172A' }}>
+                  Rekaman Suara Evaluasi Dewan Juri
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#64748B' }}>
+                  Groq Whisper v3 + AI Paskibra • Audio asli disimpan agar dapat diputar peserta
+                </div>
               </div>
+            </div>
+
+            {!isRecording ? (
               <button
                 type="button"
-                onClick={handleInstantDemo}
+                onClick={handleStartRecordHere}
+                disabled={isProcessingAi || isSent || isSendingFinal}
                 style={{
-                  background: 'transparent',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  padding: '0.55rem 1.1rem',
+                  borderRadius: '9999px',
                   border: 'none',
-                  color: '#7C3AED',
-                  fontSize: '0.775rem',
+                  backgroundColor: '#7C3AED',
+                  color: '#FFFFFF',
+                  fontSize: '0.8rem',
                   fontWeight: 700,
-                  cursor: 'pointer',
-                  textDecoration: 'underline',
-                  marginTop: '0.35rem',
+                  cursor: isProcessingAi || isSent ? 'not-allowed' : 'pointer',
+                  opacity: isProcessingAi || isSent ? 0.65 : 1,
                 }}
               >
-                ⚡ Isi Otomatis Contoh Evaluasi AI (Demo Cepat)
+                <Mic size={15} />
+                <span>{activePlayerSrc ? 'Rekam Ulang Suara' : 'Mulai Rekam Suara'}</span>
               </button>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <span style={{ fontSize: '0.825rem', fontWeight: 800, color: '#DC2626' }} className="tabular-nums">
+                  ● {formatTimer(recordSeconds)}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleTogglePauseHere}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                    padding: '0.4rem 0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #CBD5E1',
+                    backgroundColor: '#FFFFFF',
+                    color: '#0F172A',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {isPaused ? <Play size={13} /> : <Pause size={13} />}
+                  <span>{isPaused ? 'Lanjut' : 'Jeda'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStopRecordHere}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    padding: '0.42rem 0.9rem',
+                    borderRadius: '8px',
+                    border: 'none',
+                    backgroundColor: '#DC2626',
+                    color: '#FFFFFF',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <MicOff size={14} />
+                  <span>Stop & Proses AI</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {activePlayerSrc && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              <audio controls src={activePlayerSrc} style={{ width: '100%', height: '38px' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#64748B' }}>
+                <span>
+                  {audioStorageUrl
+                    ? '✓ Audio asli tersimpan di Supabase Storage'
+                    : isProcessingAi
+                    ? 'Mengunggah audio ke Supabase Storage...'
+                    : 'Preview audio lokal'}
+                </span>
+                {audioDurationSec > 0 && <span>Durasi: {formatTimer(audioDurationSec)}</span>}
+              </div>
+            </div>
+          )}
+
+          {isProcessingAi && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.55rem',
+                padding: '0.7rem 0.9rem',
+                borderRadius: '10px',
+                backgroundColor: '#F5F3FF',
+                border: '1px solid #DDD6FE',
+                color: '#6D28D9',
+                fontSize: '0.825rem',
+                fontWeight: 700,
+              }}
+            >
+              <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+              <span>Memproses transkripsi Groq Whisper v3 & merapikan catatan Paskibra...</span>
+            </div>
+          )}
+
+          {aiError && (
+            <div
+              style={{
+                padding: '0.75rem 0.95rem',
+                borderRadius: '10px',
+                backgroundColor: '#FEF2F2',
+                border: '1px solid #FECACA',
+                color: '#991B1B',
+                fontSize: '0.8rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '0.5rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                <span>{aiError}</span>
+              </div>
+              {latestBlobRef.current && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    processAudioWithGroq(
+                      latestBlobRef.current,
+                      latestMimeRef.current,
+                      latestMarkersRef.current
+                    )
+                  }
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                    padding: '0.3rem 0.65rem',
+                    borderRadius: '6px',
+                    border: '1px solid #FCA5A5',
+                    backgroundColor: '#FFFFFF',
+                    color: '#991B1B',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <RotateCcw size={12} />
+                  <span>Coba Proses Ulang</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          {aiWarning && (
+            <div
+              style={{
+                padding: '0.65rem 0.85rem',
+                borderRadius: '8px',
+                backgroundColor: '#FFFBEB',
+                border: '1px solid #FDE68A',
+                color: '#92400E',
+                fontSize: '0.775rem',
+              }}
+            >
+              {aiWarning}
             </div>
           )}
         </div>
 
-        {/* Hasil Transkripsi AI */}
-        {aiDraft && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6D28D9' }}>
-              Hasil Evaluasi AI (Dapat Dikoreksi Juri):
+        {/* Area Review & Edit Draft AI (atau Tulis Manual) */}
+        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.825rem', fontWeight: 800, color: '#6D28D9' }}>
+              <Sparkles size={15} />
+              <span>Ringkasan Evaluasi Dewan Juri (Wajib Ditinjau / Dapat Diedit):</span>
             </div>
-            <textarea
-              value={aiDraft}
-              onChange={(e) => setAiDraft(e.target.value)}
-              rows={4}
-              style={{
-                width: '100%',
-                padding: '0.85rem 1rem',
-                borderRadius: '12px',
-                border: '1.5px solid #C4B5FD',
-                fontFamily: 'var(--font-sans)',
-                fontSize: '0.925rem',
-                lineHeight: 1.5,
-                color: '#0F172A',
-                backgroundColor: '#FAF5FF',
-                resize: 'none',
-                boxSizing: 'border-box',
-                outline: 'none',
-              }}
-            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              {usedMarkers && (
+                <span
+                  style={{
+                    backgroundColor: '#ECFDF5',
+                    color: '#047857',
+                    border: '1px solid #A7F3D0',
+                    padding: '0.15rem 0.5rem',
+                    borderRadius: '6px',
+                    fontSize: '0.68rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  Dipetakan per Aba-Aba ✓
+                </span>
+              )}
+              <span
+                style={{
+                  backgroundColor: isSent ? '#ECFDF5' : '#EDE9FE',
+                  color: isSent ? '#047857' : '#6D28D9',
+                  padding: '0.18rem 0.55rem',
+                  borderRadius: '6px',
+                  fontSize: '0.7rem',
+                  fontWeight: 800,
+                }}
+              >
+                {isSent ? 'STATUS: TERKIRIM' : 'STATUS: DRAFT AI'}
+              </span>
+            </div>
+          </div>
+
+          <textarea
+            value={aiDraft}
+            onChange={(e) => {
+              setAiDraft(e.target.value);
+              if (countdown !== null) setCountdown(null);
+            }}
+            disabled={isProcessingAi || isSent || isSendingFinal}
+            rows={6}
+            placeholder="Rekam suara di atas agar AI merangkum otomatis, atau ketik catatan evaluasi resmi untuk tim peserta di sini..."
+            style={{
+              width: '100%',
+              padding: '0.9rem 1rem',
+              borderRadius: '12px',
+              border: '1.5px solid #C4B5FD',
+              fontFamily: 'var(--font-sans)',
+              fontSize: '0.9rem',
+              lineHeight: 1.55,
+              color: '#0F172A',
+              backgroundColor: '#FAF5FF',
+              resize: 'vertical',
+              boxSizing: 'border-box',
+              outline: 'none',
+            }}
+          />
+
+          {/* Transkrip Mentah Whisper (opsional bisa dibuka juri untuk cek silang) */}
+          {rawTranscript && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowRawTranscript((v) => !v)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  color: '#64748B',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                }}
+              >
+                {showRawTranscript ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                <span>{showRawTranscript ? 'Sembunyikan Transkrip Mentah Whisper' : 'Lihat Transkrip Mentah Whisper'}</span>
+              </button>
+              {showRawTranscript && (
+                <div
+                  style={{
+                    marginTop: '0.4rem',
+                    padding: '0.7rem 0.85rem',
+                    borderRadius: '8px',
+                    backgroundColor: '#F8FAFC',
+                    border: '1px solid #E2E8F0',
+                    fontSize: '0.78rem',
+                    color: '#475569',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  "{rawTranscript}"
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {sendError && (
+          <div
+            style={{
+              width: '100%',
+              padding: '0.7rem 0.95rem',
+              borderRadius: '10px',
+              backgroundColor: '#FEF2F2',
+              border: '1px solid #FECACA',
+              color: '#B91C1C',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+            }}
+          >
+            {sendError}
           </div>
         )}
 
         {isSent && (
           <div
             style={{
+              width: '100%',
               padding: '0.85rem 1.25rem',
               borderRadius: '10px',
               backgroundColor: '#ECFDF5',
@@ -293,12 +821,12 @@ Catatan evaluasi khusus: Pada transisi gerakan hadap serong kanan, hentakan kaki
             }}
           >
             <CheckCircle size={20} color="#059669" />
-            <span>Nilai & Evaluasi Berhasil Dikirim! Mengalihkan ke halaman awal...</span>
+            <span>Evaluasi & rekaman suara resmi terkirim! Kembali ke daftar pasukan...</span>
           </div>
         )}
       </div>
 
-      {/* 3. Bottom Action: Kirim & Selesai */}
+      {/* 3. Bottom Action: Countdown 5 Detik & Kirim Final */}
       <div
         style={{
           display: 'flex',
@@ -309,42 +837,105 @@ Catatan evaluasi khusus: Pada transisi gerakan hadap serong kanan, hentakan kaki
           margin: '0 auto',
           paddingTop: '1rem',
           borderTop: '1px solid #E2E8F0',
+          flexWrap: 'wrap',
+          gap: '0.75rem',
         }}
       >
-        <button
-          type="button"
-          onClick={onBackToScoring}
-          disabled={isSent}
-          style={{
-            padding: '0.75rem 1.4rem',
-            borderRadius: '10px',
-            border: '1.5px solid #E2E8F0',
-            backgroundColor: '#FFFFFF',
-            color: '#64748B',
-            fontSize: '0.9rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-          }}
-        >
-          ← Nilai Aba-Aba
-        </button>
+        {scoresLocked ? (
+          <button
+            type="button"
+            onClick={() =>
+              onFinishFeedback({
+                feedbackId,
+                feedbackText: '',
+                audioStorageUrl,
+                status: 'SKIPPED',
+              })
+            }
+            disabled={isSent || isSendingFinal}
+            style={{
+              padding: '0.75rem 1.3rem',
+              borderRadius: '10px',
+              border: '1.5px solid #E2E8F0',
+              backgroundColor: '#FFFFFF',
+              color: '#64748B',
+              fontSize: '0.875rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            Lewati & Kembali ke Daftar
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onBackToScoring}
+            disabled={isSent || isSendingFinal}
+            style={{
+              padding: '0.75rem 1.3rem',
+              borderRadius: '10px',
+              border: '1.5px solid #E2E8F0',
+              backgroundColor: '#FFFFFF',
+              color: '#64748B',
+              fontSize: '0.875rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            ← Nilai Aba-Aba
+          </button>
+        )}
 
         {countdown !== null ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#C94B3C' }}>
-              Mengirim dalam {countdown}s...
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+            <div
+              className="tabular-nums"
+              style={{
+                width: '34px',
+                height: '34px',
+                borderRadius: '50%',
+                backgroundColor: '#C94B3C',
+                color: '#FFFFFF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 900,
+                fontSize: '1rem',
+              }}
+            >
+              {countdown}
+            </div>
+            <span style={{ fontSize: '0.875rem', fontWeight: 800, color: '#C94B3C' }}>
+              Mengirim dalam {countdown} detik...
             </span>
             <button
               type="button"
-              onClick={handleSendImmediately}
+              onClick={() => setCountdown(null)}
               style={{
-                padding: '0.65rem 1.25rem',
+                padding: '0.55rem 0.95rem',
+                borderRadius: '8px',
+                border: '1px solid #CBD5E1',
+                backgroundColor: '#FFFFFF',
+                color: '#334155',
+                fontWeight: 700,
+                fontSize: '0.8rem',
+                cursor: 'pointer',
+              }}
+            >
+              Batalkan / Edit Lagi
+            </button>
+            <button
+              type="button"
+              onClick={executeFinalSend}
+              disabled={isSendingFinal}
+              style={{
+                padding: '0.6rem 1.15rem',
                 borderRadius: '8px',
                 border: 'none',
                 backgroundColor: '#C94B3C',
                 color: '#FFFFFF',
-                fontWeight: 700,
-                fontSize: '0.85rem',
+                fontWeight: 800,
+                fontSize: '0.825rem',
                 cursor: 'pointer',
               }}
             >
@@ -355,24 +946,29 @@ Catatan evaluasi khusus: Pada transisi gerakan hadap serong kanan, hentakan kaki
           <button
             type="button"
             onClick={handleStartSend}
-            disabled={isSent}
+            disabled={isSent || isProcessingAi || isSendingFinal || isRecording}
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.6rem',
-              padding: '0.85rem 2.2rem',
+              gap: '0.55rem',
+              padding: '0.85rem 2rem',
               borderRadius: '12px',
               backgroundColor: '#7C3AED',
               color: '#FFFFFF',
               border: 'none',
               fontWeight: 800,
-              fontSize: '0.95rem',
-              cursor: isSent ? 'not-allowed' : 'pointer',
+              fontSize: '0.925rem',
+              cursor: isSent || isProcessingAi || isSendingFinal || isRecording ? 'not-allowed' : 'pointer',
+              opacity: isSent || isProcessingAi || isSendingFinal || isRecording ? 0.65 : 1,
               boxShadow: '0 4px 16px rgba(124, 58, 237, 0.3)',
             }}
           >
-            <Send size={18} />
-            <span>Kirim & Selesai ✓</span>
+            {isSendingFinal ? (
+              <Loader2 size={17} style={{ animation: 'spin 1s linear infinite' }} />
+            ) : (
+              <Send size={17} />
+            )}
+            <span>{isSendingFinal ? 'Mengirim...' : 'Setujui & Kirim Feedback (5s)'}</span>
           </button>
         )}
       </div>

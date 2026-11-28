@@ -1,63 +1,298 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Download,
-  Trophy,
-  Award,
-  Medal,
-  Clock,
-  Mic,
-  Sparkles,
-  ChevronRight,
-  Shield,
-  Layers,
-  UserCheck,
-} from 'lucide-react';
-import {
-  DEFAULT_OFFICIAL_RESULTS,
-  getInitialOfficialResults,
-  computeCategoryStandings,
-  getTeamAchievements,
-} from '../admin-panitia/AdminPanitiaResults';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Loader2, Download } from 'lucide-react';
 
-export default function PesertaResultsView() {
-  const [results, setResults] = useState(() => getInitialOfficialResults());
-  const [selectedTeamId, setSelectedTeamId] = useState(() => results[0]?.teamId || 'part-1');
-  const [activeMainTab, setActiveMainTab] = useState('summary'); // 'summary' | 'leaderboard'
-  const [activeCategoryFilter, setActiveCategoryFilter] = useState('overall'); // 'overall', 'pbb', 'variasi', 'danton', 'kostum'
+function formatDateTimeId(val) {
+  if (!val) return '';
+  try {
+    return new Date(val).toLocaleString('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }) + ' WIB';
+  } catch {
+    return String(val);
+  }
+}
 
-  // Sinkronkan data hasil peserta secara real-time bila ada update data panitia
+export default function PesertaResultsView({ activeRegistration = null, onGoToEvents }) {
+  const [resultData, setResultData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [activeSubTab, setActiveSubTab] = useState('summary'); // 'summary' | 'breakdown' | 'leaderboard'
+  const [leaderboardCategory, setLeaderboardCategory] = useState('ALL');
+
+  const participantId = activeRegistration?.id || '';
+
   useEffect(() => {
-    const handleSync = () => setResults(getInitialOfficialResults());
-    window.addEventListener('kompas_participants_updated', handleSync);
-    return () => window.removeEventListener('kompas_participants_updated', handleSync);
-  }, []);
+    let cancelled = false;
+    const loadResults = async () => {
+      if (!participantId) {
+        setResultData(null);
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      setError('');
+      try {
+        const res = await fetch(
+          `/api/peserta/results?participantId=${encodeURIComponent(participantId)}`,
+          { credentials: 'include' }
+        );
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.message || 'Gagal memuat hasil penilaian.');
+        }
+        if (!cancelled) {
+          setResultData(data.result || null);
+          setLeaderboardCategory('ALL');
+        }
+      } catch (err) {
+        if (!cancelled) setError(err.message || 'Terjadi kendala koneksi saat memuat hasil.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    loadResults();
+    return () => {
+      cancelled = true;
+    };
+  }, [participantId]);
 
-  // Data tim yang sedang aktif dilihat
-  const currentTeam = results.find((t) => t.teamId === selectedTeamId) || results[0] || DEFAULT_OFFICIAL_RESULTS[0];
+  // Klasemen yang terurut sesuai filter kategori
+  const filteredLeaderboard = useMemo(() => {
+    const list = Array.isArray(resultData?.leaderboard) ? resultData.leaderboard : [];
+    if (leaderboardCategory === 'ALL') return list;
+    return [...list]
+      .sort(
+        (a, b) =>
+          (b.categoryScores?.[leaderboardCategory] || 0) -
+          (a.categoryScores?.[leaderboardCategory] || 0)
+      )
+      .map((item, idx) => ({
+        ...item,
+        displayRank: idx + 1,
+        displayScore: item.categoryScores?.[leaderboardCategory] ?? 0,
+      }));
+  }, [resultData?.leaderboard, leaderboardCategory]);
 
-  // Hitung raihan gelar dan klasemen
-  const achievements = getTeamAchievements(currentTeam.teamId, results);
-  const standings = computeCategoryStandings(results);
-  const activeLeaderboardList = standings[activeCategoryFilter] || standings.overall;
-  const currentTeamOverall = standings.overall.find((t) => t.teamId === currentTeam.teamId) || currentTeam;
+  // Grup rincian aba-aba per kategori
+  const groupedDetailedScores = useMemo(() => {
+    const list = Array.isArray(resultData?.detailedScores) ? resultData.detailedScores : [];
+    const map = new Map();
+    for (const item of list) {
+      const cat = item.category || 'PBB';
+      if (!map.has(cat)) map.set(cat, []);
+      map.get(cat).push(item);
+    }
+    return [...map.entries()];
+  }, [resultData?.detailedScores]);
 
-  return (
+  if (!activeRegistration) {
+    return (
+      <div
+        style={{
+          maxWidth: '760px',
+          margin: '1.5rem auto',
+          backgroundColor: 'var(--pub-surface)',
+          borderRadius: '18px',
+          border: '1px solid var(--pub-line)',
+          padding: '2.5rem 1.75rem',
+          textAlign: 'center',
+          fontFamily: 'var(--font-sans)',
+        }}
+      >
+        <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', fontWeight: 800, color: 'var(--pub-ink)', margin: '0 0 0.45rem 0' }}>
+          Belum Ada Event yang Diikuti
+        </h2>
+        <p style={{ fontSize: '0.85rem', color: 'var(--pub-muted)', maxWidth: '460px', margin: '0 auto 1.25rem auto', lineHeight: 1.55 }}>
+          Daftar ke event lomba terlebih dahulu untuk melihat hasil penilaian, klasemen resmi, dan rekaman suara evaluasi Dewan Juri.
+        </p>
+        {onGoToEvents && (
+          <button
+            type="button"
+            onClick={onGoToEvents}
+            className="pub-btn-coral"
+            style={{ padding: '0.65rem 1.25rem', fontSize: '0.84rem', fontWeight: 700, cursor: 'pointer' }}
+          >
+            Cari & Daftar Event
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div style={{ padding: '3.5rem 1rem', textAlign: 'center', color: 'var(--pub-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem' }}>
+        <Loader2 size={24} style={{ animation: 'spin 1s linear infinite' }} />
+        <span style={{ fontSize: '0.85rem' }}>Memuat hasil penilaian & evaluasi Dewan Juri...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '1rem 1.25rem', borderRadius: '12px', backgroundColor: '#FEF2F2', border: '1px solid #FECACA', color: '#991B1B', fontSize: '0.85rem', fontWeight: 600 }}>
+        {error}
+      </div>
+    );
+  }
+
+  const eventInfo = resultData?.event || {};
+  const participant = resultData?.participant || {};
+  const isPublished = Boolean(resultData?.isPublished);
+  const isScored = Boolean(resultData?.isScored);
+  const feedbacks = Array.isArray(resultData?.feedbacks) ? resultData.feedbacks : [];
+  const summary = resultData?.summary || null;
+  const categories = Array.isArray(resultData?.categories) ? resultData.categories : [];
+
+  const renderFeedbackSection = () => (
     <div
       style={{
+        backgroundColor: 'var(--pub-surface)',
+        borderRadius: '16px',
+        padding: '1.5rem',
+        border: '1px solid var(--pub-line)',
+        boxShadow: 'var(--pub-shadow-card)',
         display: 'flex',
         flexDirection: 'column',
-        gap: '1.5rem',
-        maxWidth: '1020px',
-        margin: '0 auto',
-        fontFamily: 'var(--font-sans)',
+        gap: '1rem',
       }}
     >
-      {/* 1. Header Banner & Selector Tim (Untuk Kemudahan Testing Demo) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <div>
+          <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#DC2626', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+            EVALUASI & REKAMAN SUARA ASLI DEWAN JURI
+          </div>
+          <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.12rem', fontWeight: 800, color: 'var(--pub-ink)', margin: '0.2rem 0 0 0' }}>
+            Catatan Pembinaan Pasukan ({feedbacks.length} Evaluasi)
+          </h2>
+        </div>
+      </div>
+
+      {feedbacks.length === 0 ? (
+        <div
+          style={{
+            padding: '1.65rem 1.25rem',
+            borderRadius: '12px',
+            backgroundColor: 'var(--pub-canvas)',
+            border: '1px dashed var(--pub-line)',
+            textAlign: 'center',
+            color: 'var(--pub-muted)',
+            fontSize: '0.84rem',
+            lineHeight: 1.55,
+          }}
+        >
+          Belum ada catatan evaluasi atau rekaman suara resmi yang dikirimkan oleh Dewan Juri untuk tim{' '}
+          <strong style={{ color: 'var(--pub-ink)' }}>{participant.teamName}</strong>. Setelah Juri menyetujui evaluasi suara (countdown 5 detik), rekaman asli dan ringkasan AI akan otomatis muncul di sini.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {feedbacks.map((fb) => (
+            <div
+              key={fb.id}
+              style={{
+                backgroundColor: '#FFFBFB',
+                border: '1px solid #FECACA',
+                borderLeft: '4px solid #DC2626',
+                borderRadius: '12px',
+                padding: '1.15rem 1.25rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.8rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <div>
+                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#0F172A' }}>
+                    {fb.judgeName}
+                  </div>
+                  <div style={{ fontSize: '0.76rem', color: '#64748B', marginTop: '0.1rem' }}>
+                    {fb.judgeRole}
+                    {fb.judgeInstitution ? ` · ${fb.judgeInstitution}` : ''}
+                  </div>
+                </div>
+                {fb.sentAt && (
+                  <span style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600 }}>
+                    Dikirim: {formatDateTimeId(fb.sentAt)}
+                  </span>
+                )}
+              </div>
+
+              {/* Pemutar Audio Asli Rekaman Juri */}
+              {fb.audioStorageUrl && (
+                <div
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: '10px',
+                    padding: '0.75rem 0.9rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.45rem',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#B91C1C' }}>
+                      Rekaman Suara Asli Dewan Juri
+                    </span>
+                    <a
+                      href={fb.audioStorageUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      download
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        color: '#475569',
+                        textDecoration: 'none',
+                      }}
+                    >
+                      <Download size={12} />
+                      <span>Unduh Audio</span>
+                    </a>
+                  </div>
+                  <audio controls src={fb.audioStorageUrl} style={{ width: '100%', height: '38px' }} />
+                </div>
+              )}
+
+              {/* Ringkasan Evaluasi Resmi (AI + Ditinjau Juri) */}
+              {fb.refinedText && (
+                <div
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #F1F5F9',
+                    borderRadius: '10px',
+                    padding: '0.9rem 1rem',
+                    fontSize: '0.86rem',
+                    lineHeight: 1.65,
+                    color: '#1E293B',
+                    whiteSpace: 'pre-line',
+                  }}
+                >
+                  {fb.refinedText}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.35rem', maxWidth: '1000px', margin: '0 auto', fontFamily: 'var(--font-sans)' }}>
+      {/* 1. Header Banner */}
       <div
         style={{
           backgroundColor: 'var(--pub-surface)',
           borderRadius: 'var(--pub-radius-card)',
-          padding: '1.5rem 1.75rem',
+          padding: '1.45rem 1.7rem',
           border: '1px solid var(--pub-line)',
           boxShadow: 'var(--pub-shadow-card)',
           display: 'flex',
@@ -68,614 +303,427 @@ export default function PesertaResultsView() {
         }}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem', flexWrap: 'wrap' }}>
             <span
               style={{
-                backgroundColor: 'rgba(217, 119, 6, 0.12)',
-                color: '#B45309',
-                padding: '0.2rem 0.6rem',
-                borderRadius: '6px',
-                fontSize: '0.725rem',
+                backgroundColor: isPublished ? 'var(--pub-teal-light)' : '#FEF3C7',
+                color: isPublished ? 'var(--pub-teal)' : '#B45309',
+                padding: '0.2rem 0.65rem',
+                borderRadius: '9999px',
+                fontSize: '0.7rem',
                 fontWeight: 800,
-                textTransform: 'uppercase',
                 letterSpacing: '0.04em',
               }}
             >
-              PENGUMUMAN HASIL RESMI
+              {isPublished ? 'HASIL RESMI DIPUBLIKASIKAN' : 'MENUNGGU PUBLIKASI HASIL'}
             </span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--pub-muted)' }}>
-              LKBB Nasional Paskibra 2026
+            <span style={{ fontSize: '0.78rem', color: 'var(--pub-muted)', fontWeight: 600 }}>
+              {eventInfo.name}
             </span>
           </div>
 
-          <h1
-            style={{
-              fontFamily: 'var(--font-heading)',
-              fontSize: '1.5rem',
-              fontWeight: 800,
-              color: 'var(--pub-ink)',
-              margin: '0 0 0.2rem 0',
-              letterSpacing: '-0.015em',
-            }}
-          >
-            Hasil & Raihan Kejuaraan Kontingen
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.45rem', fontWeight: 800, color: 'var(--pub-ink)', margin: '0 0 0.2rem 0' }}>
+            Nilai & Evaluasi Dewan Juri
           </h1>
-          <p style={{ fontSize: '0.825rem', color: 'var(--pub-muted)', margin: 0 }}>
-            Rekapitulasi resmi dewan juri mencakup Juara Umum serta gelar Best Category per aspek lomba.
+          <p style={{ fontSize: '0.83rem', color: 'var(--pub-muted)', margin: 0 }}>
+            Kontingen: <strong style={{ color: 'var(--pub-ink)' }}>{participant.schoolName}</strong> · Tim:{' '}
+            <strong style={{ color: 'var(--pub-ink)' }}>{participant.teamName}</strong>
           </p>
         </div>
 
-        {/* Quick Team Selector & Download PDF */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
-          <select
-            value={selectedTeamId}
-            onChange={(e) => setSelectedTeamId(e.target.value)}
-            style={{
-              fontSize: '0.775rem',
-              fontWeight: 600,
-              padding: '0.5rem 0.75rem',
-              borderRadius: '8px',
-              border: '1px solid var(--pub-line)',
-              backgroundColor: 'var(--pub-canvas)',
-              color: 'var(--pub-ink)',
-              cursor: 'pointer',
-            }}
-            title="Pilih tim untuk melihat raihan hasil"
-          >
-            {results.map((t) => (
-              <option key={t.teamId} value={t.teamId}>
-                {t.school} ({t.teamName})
-              </option>
-            ))}
-          </select>
-
+        {isPublished && (
           <button
-            className="pub-btn-coral"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.45rem',
-              padding: '0.5rem 1.15rem',
-              fontSize: '0.8125rem',
-              fontWeight: 700,
-            }}
-            onClick={() => alert(`Mengunduh lembar rekapitulasi resmi PDF untuk ${currentTeam.school}...`)}
+            type="button"
+            onClick={() => window.print()}
+            className="pub-btn-outline"
+            style={{ padding: '0.5rem 0.95rem', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}
           >
-            <Download size={14} />
-            <span>Unduh Rekap PDF</span>
+            Cetak / Simpan PDF
           </button>
-        </div>
+        )}
       </div>
 
-      {/* 2. HERO TROPHY CARD: PENCAPAIAN JUARA TIM KONTINGEN (TO THE POINT) */}
-      <div
-        style={{
-          backgroundColor: '#FFFFFF',
-          borderRadius: '16px',
-          border: '1.5px solid var(--pub-line)',
-          borderTop: '5px solid var(--pub-coral)',
-          padding: '1.5rem 1.75rem',
-          boxShadow: 'var(--pub-shadow-card)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '1.25rem',
-        }}
-      >
-        {/* Identitas Pasukan */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
-              <span
-                style={{
-                  backgroundColor: 'var(--pub-navy)',
-                  color: '#FFFFFF',
-                  padding: '0.15rem 0.45rem',
-                  borderRadius: '4px',
-                  fontSize: '0.725rem',
-                  fontWeight: 800,
-                }}
-              >
-                NO. {currentTeam.orderNumber}
-              </span>
-              <h2
-                style={{
-                  fontFamily: 'var(--font-heading)',
-                  fontSize: '1.35rem',
-                  fontWeight: 800,
-                  color: 'var(--pub-ink)',
-                  margin: 0,
-                }}
-              >
-                {currentTeam.school}
-              </h2>
-              <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--pub-coral)' }}>
-                ({currentTeam.teamName})
-              </span>
-            </div>
-
-            <div style={{ fontSize: '0.775rem', color: 'var(--pub-muted)', display: 'flex', gap: '0.85rem', flexWrap: 'wrap' }}>
-              <span>Komandan Peleton: <strong style={{ color: 'var(--slate-text)' }}>{currentTeam.danton}</strong></span>
-              <span>•</span>
-              <span>Waktu Tampil: <strong style={{ color: 'var(--slate-text)' }}>{currentTeam.performanceTime}</strong></span>
-              <span>•</span>
-              <span>Durasi: <strong style={{ color: 'var(--slate-text)' }}>{currentTeam.duration}</strong></span>
-            </div>
-          </div>
-
+      {/* 2. Jika Hasil Akhir Belum Dipublikasikan oleh Admin Panitia */}
+      {!isPublished ? (
+        <>
           <div
             style={{
-              backgroundColor: currentTeamOverall.badgeColor?.bg || '#FEF3C7',
-              color: currentTeamOverall.badgeColor?.text || '#92400E',
-              border: `1px solid ${currentTeamOverall.badgeColor?.border || '#FDE68A'}`,
-              padding: '0.45rem 1rem',
-              borderRadius: '8px',
-              textAlign: 'center',
-            }}
-          >
-            <div style={{ fontSize: '0.675rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              KLASEMEN AKUMULASI
-            </div>
-            <div style={{ fontSize: '1.15rem', fontWeight: 800, marginTop: '0.1rem' }}>
-              {currentTeamOverall.trophyTitle}
-            </div>
-          </div>
-        </div>
-
-        {/* 3 Box Ringkasan Skor Utama */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.85rem' }}>
-          <div
-            style={{
-              backgroundColor: 'var(--pub-canvas)',
-              borderRadius: '10px',
-              padding: '0.85rem 1rem',
+              backgroundColor: 'var(--pub-surface)',
+              borderRadius: '16px',
+              padding: '1.5rem 1.75rem',
               border: '1px solid var(--pub-line)',
+              borderLeft: '5px solid var(--pub-amber)',
+              boxShadow: 'var(--pub-shadow-card)',
             }}
           >
-            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--pub-muted)', textTransform: 'uppercase' }}>
-              Peringkat Akumulasi Umum
+            <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#B45309', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Status Pengumuman Skor & Klasemen
             </div>
-            <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--pub-coral)', marginTop: '0.2rem' }}>
-              #{currentTeam.rank}{' '}
-              <span style={{ fontSize: '0.85rem', color: 'var(--pub-muted)', fontWeight: 600 }}>
-                dari {results.length} Tim
-              </span>
-            </div>
-          </div>
-
-          <div
-            style={{
-              backgroundColor: 'var(--pub-canvas)',
-              borderRadius: '10px',
-              padding: '0.85rem 1rem',
-              border: '1px solid var(--pub-line)',
-            }}
-          >
-            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--pub-muted)', textTransform: 'uppercase' }}>
-              Total Skor Keseluruhan
-            </div>
-            <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--pub-navy)', marginTop: '0.2rem' }}>
-              {currentTeam.totalScore}{' '}
-              <span style={{ fontSize: '0.85rem', color: 'var(--pub-muted)', fontWeight: 600 }}>
-                / 1200 Poin
-              </span>
-            </div>
-          </div>
-
-          <div
-            style={{
-              backgroundColor: 'var(--pub-canvas)',
-              borderRadius: '10px',
-              padding: '0.85rem 1rem',
-              border: '1px solid var(--pub-line)',
-            }}
-          >
-            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--pub-muted)', textTransform: 'uppercase' }}>
-              Penalti Waktu / Batas
-            </div>
-            <div style={{ fontSize: '1.65rem', fontWeight: 800, color: currentTeam.penalty < 0 ? '#DC2626' : 'var(--emerald)', marginTop: '0.2rem' }}>
-              {currentTeam.penalty}{' '}
-              <span style={{ fontSize: '0.85rem', color: 'var(--pub-muted)', fontWeight: 600 }}>
-                Poin
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* KOLEKSI GELAR JUARA KATEGORI (BEST CATEGORY AWARDS) */}
-        <div style={{ borderTop: '1px solid var(--pub-line)', paddingTop: '1.15rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.75rem' }}>
-            <Trophy size={16} style={{ color: '#D97706' }} />
-            <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.95rem', fontWeight: 800, color: 'var(--pub-ink)', margin: 0 }}>
-              Koleksi Raihan Gelar Juara Kategori (Best Category)
+            <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.12rem', fontWeight: 800, color: 'var(--pub-ink)', margin: '0.3rem 0 0.45rem 0' }}>
+              {isScored
+                ? `Penilaian dari ${resultData.judgesCountScored} Dewan Juri Sudah Masuk`
+                : 'Hasil & Peringkat Resmi Belum Dipublikasikan'}
             </h3>
+            <p style={{ fontSize: '0.84rem', color: 'var(--pub-muted)', margin: 0, lineHeight: 1.6 }}>
+              {isScored
+                ? 'Nilai tim Anda sudah tercatat dan terkunci oleh Dewan Juri. Total skor akhir, rincian nilai per aba-aba, dan klasemen resmi akan terbuka otomatis begitu Admin Panitia mengaktifkan publikasi hasil lomba.'
+                : 'Rincian nilai, gelar kejuaraan, dan klasemen resmi akan tampil otomatis di halaman ini setelah seluruh pasukan selesai tampil dan Admin Panitia mempublikasikan hasil resmi.'}
+            </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.75rem' }}>
-            {achievements.categories.map((cat) => {
-              const isWinner = cat.rank <= 3;
+          {/* Evaluasi suara yang sudah SENT oleh Juri tetap dapat didengarkan & dibaca peserta */}
+          {renderFeedbackSection()}
+        </>
+      ) : (
+        <>
+          {/* 3. Hasil Sudah Dipublikasikan: Sub-Tab Navigasi */}
+          <div
+            style={{
+              display: 'flex',
+              gap: '0.4rem',
+              backgroundColor: 'var(--pub-surface)',
+              padding: '0.4rem',
+              borderRadius: '12px',
+              border: '1px solid var(--pub-line)',
+              width: 'fit-content',
+              flexWrap: 'wrap',
+            }}
+          >
+            {[
+              { id: 'summary', label: 'Ringkasan & Evaluasi Juri' },
+              { id: 'breakdown', label: 'Rincian Nilai Aba-Aba' },
+              { id: 'leaderboard', label: `Klasemen Resmi (${resultData?.leaderboard?.length || 0} Tim)` },
+            ].map((tab) => {
+              const active = activeSubTab === tab.id;
               return (
-                <div
-                  key={cat.key}
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveSubTab(tab.id)}
                   style={{
-                    backgroundColor: isWinner ? '#FEFBF3' : '#F8FAFC',
-                    borderRadius: '10px',
-                    padding: '0.85rem 1rem',
-                    border: isWinner ? '1.5px solid #FDE68A' : '1px solid var(--pub-line)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.25rem',
+                    padding: '0.52rem 1.05rem',
+                    borderRadius: '8px',
+                    border: 'none',
+                    backgroundColor: active ? 'var(--pub-coral)' : 'transparent',
+                    color: active ? '#FFFFFF' : 'var(--pub-muted)',
+                    fontSize: '0.82rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--pub-muted)' }}>
-                      {cat.label}
-                    </span>
-                    {cat.medal ? (
-                      <span style={{ fontSize: '1rem' }}>{cat.medal}</span>
-                    ) : (
-                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--pub-muted)' }}>
-                        Rank #{cat.rank}
-                      </span>
-                    )}
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.35rem', marginTop: '0.1rem' }}>
-                    <span style={{ fontSize: '1.1rem', fontWeight: 800, color: isWinner ? '#92400E' : 'var(--pub-ink)' }}>
-                      {cat.title}
-                    </span>
-                  </div>
-
-                  <div style={{ fontSize: '0.725rem', color: isWinner ? '#B45309' : 'var(--pub-muted)', fontWeight: 600 }}>
-                    Skor: <strong className="tabular-nums">{cat.score}</strong> / {cat.max} Poin
-                  </div>
-                </div>
+                  {tab.label}
+                </button>
               );
             })}
           </div>
-        </div>
-      </div>
 
-      {/* 3. SWITCHER TAB: RINCIAN NILAI TIM VS KLASEMEN SEMUA PESERTA */}
-      <div
-        style={{
-          backgroundColor: 'var(--pub-surface)',
-          borderRadius: 'var(--pub-radius-card)',
-          border: '1px solid var(--pub-line)',
-          boxShadow: 'var(--pub-shadow-card)',
-          overflow: 'hidden',
-        }}
-      >
-        {/* Main Tab Switcher Bar */}
-        <div
-          style={{
-            padding: '0.75rem 1.5rem',
-            backgroundColor: 'var(--pub-canvas)',
-            borderBottom: '1px solid var(--pub-line)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '0.75rem',
-          }}
-        >
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <button
-              type="button"
-              onClick={() => setActiveMainTab('summary')}
-              style={{
-                fontSize: '0.825rem',
-                fontWeight: activeMainTab === 'summary' ? 800 : 600,
-                padding: '0.45rem 1rem',
-                borderRadius: '8px',
-                border: activeMainTab === 'summary' ? '1px solid var(--pub-coral)' : '1px solid var(--pub-line)',
-                backgroundColor: activeMainTab === 'summary' ? 'var(--pub-coral)' : '#FFFFFF',
-                color: activeMainTab === 'summary' ? '#FFFFFF' : 'var(--pub-ink)',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-              }}
-            >
-              <span>📋 Rincian Nilai & Evaluasi Juri</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveMainTab('leaderboard')}
-              style={{
-                fontSize: '0.825rem',
-                fontWeight: activeMainTab === 'leaderboard' ? 800 : 600,
-                padding: '0.45rem 1rem',
-                borderRadius: '8px',
-                border: activeMainTab === 'leaderboard' ? '1px solid var(--pub-coral)' : '1px solid var(--pub-line)',
-                backgroundColor: activeMainTab === 'leaderboard' ? 'var(--pub-coral)' : '#FFFFFF',
-                color: activeMainTab === 'leaderboard' ? '#FFFFFF' : 'var(--pub-ink)',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-              }}
-            >
-              <span>🏆 Klasemen Seluruh Peserta</span>
-            </button>
-          </div>
-        </div>
-
-        {/* TAB 1: RINCIAN NILAI & CATATAN EVALUASI JURI TIM KONTINGEN */}
-        {activeMainTab === 'summary' && (
-          <div style={{ padding: '1.5rem 1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div>
-              <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.05rem', fontWeight: 800, color: 'var(--pub-ink)', margin: '0 0 0.25rem 0' }}>
-                Rincian Perolehan Nilai Berdasarkan 4 Aspek Lomba
-              </h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--pub-muted)', margin: 0 }}>
-                Detail skor perolehan dari penilaian dewan juri bersertifikasi untuk kontingen {currentTeam.school}.
-              </p>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem' }}>
-              {[
-                { key: 'pbb', num: '1', title: 'PBB Murni', score: currentTeam.categoryScores.pbb.score, max: 400 },
-                { key: 'variasi', num: '2', title: 'Variasi & Formasi', score: currentTeam.categoryScores.variasi.score, max: 300 },
-                { key: 'danton', num: '3', title: 'Komandan Peleton (Danton)', score: currentTeam.categoryScores.danton.score, max: 200 },
-                { key: 'kostum', num: '4', title: 'Make Up & Kostum', score: currentTeam.categoryScores.kostum.score, max: 200 },
-              ].map((item) => {
-                const ach = achievements.categories.find((c) => c.key === item.key);
-                return (
-                  <div
-                    key={item.key}
-                    style={{
-                      padding: '1.15rem',
-                      borderRadius: '10px',
-                      border: '1px solid var(--pub-line)',
-                      backgroundColor: 'var(--pub-canvas)',
-                      borderLeft: '4px solid var(--pub-teal)',
-                    }}
-                  >
-                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--pub-muted)' }}>
-                      {item.num}. {item.title}
-                    </div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--pub-navy)', marginTop: '0.2rem' }}>
-                      {item.score}{' '}
-                      <span style={{ fontSize: '0.8rem', color: 'var(--pub-muted)', fontWeight: 600 }}>/ {item.max}</span>
-                    </div>
-                    <div style={{ fontSize: '0.725rem', color: 'var(--pub-teal)', fontWeight: 700, marginTop: '0.25rem' }}>
-                      {ach?.title} ({ach?.medal || `#${ach?.rank}`})
-                    </div>
+          {/* SUB-TAB 1: RINGKASAN, RAIHAN & EVALUASI AUDIO JURI */}
+          {activeSubTab === 'summary' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {/* Kartu Peringkat & Total Skor */}
+              <div
+                style={{
+                  backgroundColor: 'var(--pub-navy)',
+                  color: '#FFFFFF',
+                  borderRadius: '18px',
+                  padding: '1.65rem 1.85rem',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '1.25rem',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--pub-sand)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    PERINGKAT RESMI KONTINGEN
                   </div>
-                );
-              })}
-            </div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', marginTop: '0.3rem', flexWrap: 'wrap' }}>
+                    <span className="tabular-nums" style={{ fontFamily: 'var(--font-heading)', fontSize: '2.4rem', fontWeight: 900, color: '#FFFFFF', lineHeight: 1 }}>
+                      {summary?.rank ? `#${summary.rank}` : '-'}
+                    </span>
+                    <span style={{ fontSize: '0.88rem', color: '#CBD5E1' }}>
+                      {summary?.totalRankedTeams
+                        ? `dari ${summary.totalRankedTeams} tim yang dinilai`
+                        : 'Belum ada nilai masuk'}
+                    </span>
+                  </div>
 
-            {/* Catatan Evaluasi Resmi Dewan Juri */}
+                  {summary?.achievements?.length > 0 && (
+                    <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', marginTop: '0.85rem' }}>
+                      {summary.achievements.map((gelar) => (
+                        <span
+                          key={gelar}
+                          style={{
+                            backgroundColor: 'rgba(201, 75, 60, 0.25)',
+                            border: '1px solid rgba(254, 202, 202, 0.45)',
+                            color: '#FEE2E2',
+                            padding: '0.24rem 0.7rem',
+                            borderRadius: '9999px',
+                            fontSize: '0.74rem',
+                            fontWeight: 800,
+                          }}
+                        >
+                          {gelar}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--pub-sand)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    TOTAL SKOR AKHIR
+                  </div>
+                  <div className="tabular-nums" style={{ fontFamily: 'var(--font-heading)', fontSize: '2.3rem', fontWeight: 900, color: '#34D399', lineHeight: 1.1, marginTop: '0.25rem' }}>
+                    {summary?.totalScore ?? 0}
+                  </div>
+                  <div style={{ fontSize: '0.76rem', color: '#94A3B8', marginTop: '0.15rem' }}>
+                    Dinilai oleh {resultData.judgesCountScored} Dewan Juri
+                  </div>
+                </div>
+              </div>
+
+              {/* Grid Skor Per Kategori */}
+              {summary?.categoryBreakdown?.length > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.9rem' }}>
+                  {summary.categoryBreakdown.map((cat) => (
+                    <div
+                      key={cat.category}
+                      style={{
+                        backgroundColor: 'var(--pub-surface)',
+                        borderRadius: '14px',
+                        padding: '1.15rem 1.25rem',
+                        border: '1px solid var(--pub-line)',
+                        boxShadow: 'var(--pub-shadow-card)',
+                      }}
+                    >
+                      <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--pub-muted)', textTransform: 'uppercase' }}>
+                        {cat.category}
+                      </div>
+                      <div className="tabular-nums" style={{ fontFamily: 'var(--font-heading)', fontSize: '1.55rem', fontWeight: 800, color: 'var(--pub-ink)', marginTop: '0.3rem' }}>
+                        {cat.score} Pts
+                      </div>
+                      <div style={{ fontSize: '0.74rem', color: cat.rank === 1 ? 'var(--pub-teal)' : 'var(--pub-muted)', fontWeight: 700, marginTop: '0.2rem' }}>
+                        {cat.rank ? `Peringkat #${cat.rank} dari ${cat.totalTeamsInCategory} tim` : 'Belum ada skor'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Evaluasi & Pemutar Audio Asli Dewan Juri */}
+              {renderFeedbackSection()}
+            </div>
+          )}
+
+          {/* SUB-TAB 2: RINCIAN NILAI PER ABA-ABA */}
+          {activeSubTab === 'breakdown' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
+              {groupedDetailedScores.length === 0 ? (
+                <div style={{ backgroundColor: 'var(--pub-surface)', borderRadius: '16px', padding: '2rem', border: '1px solid var(--pub-line)', textAlign: 'center', color: 'var(--pub-muted)', fontSize: '0.85rem' }}>
+                  Belum ada rincian nilai aba-aba yang tercatat untuk tim ini.
+                </div>
+              ) : (
+                groupedDetailedScores.map(([categoryName, rows]) => {
+                  const catSubtotal = rows.reduce((sum, r) => sum + (Number(r.subtotal) || 0), 0);
+                  return (
+                    <div
+                      key={categoryName}
+                      style={{
+                        backgroundColor: 'var(--pub-surface)',
+                        borderRadius: '16px',
+                        border: '1px solid var(--pub-line)',
+                        boxShadow: 'var(--pub-shadow-card)',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div style={{ padding: '1rem 1.25rem', backgroundColor: 'var(--pub-canvas)', borderBottom: '1px solid var(--pub-line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <strong style={{ fontSize: '0.92rem', color: 'var(--pub-ink)' }}>
+                          Kategori: {categoryName}
+                        </strong>
+                        <span className="tabular-nums" style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--pub-teal)' }}>
+                          Total: {Number(catSubtotal.toFixed(2))} Pts
+                        </span>
+                      </div>
+
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.84rem', textAlign: 'left' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid var(--pub-line)', color: 'var(--pub-muted)', fontSize: '0.74rem', textTransform: 'uppercase' }}>
+                              <th style={{ padding: '0.7rem 1rem', width: '52px' }}>No</th>
+                              <th style={{ padding: '0.7rem 1rem' }}>Aba-Aba / Kriteria</th>
+                              <th style={{ padding: '0.7rem 1rem' }}>Nilai Per Juri</th>
+                              <th style={{ padding: '0.7rem 1rem', textAlign: 'right' }}>Subtotal</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rows.map((row, idx) => (
+                              <tr key={row.criterionId} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                                <td className="tabular-nums" style={{ padding: '0.7rem 1rem', color: 'var(--pub-muted)', fontWeight: 700 }}>
+                                  {idx + 1}
+                                </td>
+                                <td style={{ padding: '0.7rem 1rem', fontWeight: 700, color: 'var(--pub-ink)' }}>
+                                  {row.name}
+                                  {row.weight !== 1 && (
+                                    <span style={{ fontSize: '0.72rem', color: 'var(--pub-muted)', marginLeft: '0.4rem' }}>
+                                      (Bobot ×{row.weight})
+                                    </span>
+                                  )}
+                                </td>
+                                <td style={{ padding: '0.7rem 1rem' }}>
+                                  <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                                    {row.judgeScores.map((js) => (
+                                      <span
+                                        key={js.judgeId}
+                                        className="tabular-nums"
+                                        style={{
+                                          fontSize: '0.74rem',
+                                          fontWeight: 700,
+                                          backgroundColor: '#F8FAFC',
+                                          border: '1px solid #E2E8F0',
+                                          borderRadius: '6px',
+                                          padding: '0.15rem 0.45rem',
+                                          color: '#334155',
+                                        }}
+                                      >
+                                        {js.judgeName}: <strong>{js.scoreValue}</strong>
+                                      </span>
+                                    ))}
+                                  </div>
+                                </td>
+                                <td className="tabular-nums" style={{ padding: '0.7rem 1rem', textAlign: 'right', fontWeight: 800, color: 'var(--pub-ink)' }}>
+                                  {row.subtotal}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+
+          {/* SUB-TAB 3: KLASEMEN RESMI (LEADERBOARD) */}
+          {activeSubTab === 'leaderboard' && (
             <div
               style={{
-                backgroundColor: '#F8FAFC',
-                borderRadius: '12px',
-                padding: '1.25rem 1.5rem',
-                border: '1px solid #CBD5E1',
-                borderLeft: '4px solid #0F172A',
+                backgroundColor: 'var(--pub-surface)',
+                borderRadius: '16px',
+                padding: '1.35rem',
+                border: '1px solid var(--pub-line)',
+                boxShadow: 'var(--pub-shadow-card)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '0.5rem',
+                gap: '1rem',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                <Mic size={15} style={{ color: 'var(--pub-coral)' }} />
-                <h4 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9rem', fontWeight: 800, color: 'var(--pub-ink)', margin: 0 }}>
-                  Catatan Evaluasi Resmi Dewan Juri (Voice AI Transcript):
-                </h4>
-              </div>
-              <p style={{ fontSize: '0.85rem', color: 'var(--slate-text)', lineHeight: 1.6, margin: 0, fontStyle: 'italic' }}>
-                "{currentTeam.aiFeedback?.refinedFeedback || 'Penampilan peleton sangat solid dan rapi secara keseluruhan.'}"
-              </p>
-              <div style={{ fontSize: '0.725rem', color: 'var(--pub-muted)' }}>
-                Terekam pada: {currentTeam.aiFeedback?.recordedAt || currentTeam.performanceTime} • Divalidasi oleh Ketua Dewan Juri
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 2: KLASEMEN SELURUH PESERTA & JUARA KATEGORI */}
-        {activeMainTab === 'leaderboard' && (
-          <div>
-            {/* Header Filter Klasemen dengan Dropdown Kategori */}
-            <div
-              style={{
-                padding: '0.85rem 1.5rem',
-                backgroundColor: 'var(--pub-canvas)',
-                borderBottom: '1px solid var(--pub-line)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '0.75rem',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--pub-ink)' }}>
-                  {activeCategoryFilter === 'overall' && '🏆 Klasemen Juara Umum (Akumulasi Nilai)'}
-                  {activeCategoryFilter === 'pbb' && '🎖️ Klasemen Best PBB Murni'}
-                  {activeCategoryFilter === 'variasi' && '🎭 Klasemen Best Variasi & Formasi'}
-                  {activeCategoryFilter === 'danton' && '🗣️ Klasemen Best Komandan Peleton (Danton)'}
-                  {activeCategoryFilter === 'kostum' && '👔 Klasemen Best Make Up & Kostum'}
-                </span>
-                <span
-                  style={{
-                    fontSize: '0.7rem',
-                    fontWeight: 700,
-                    backgroundColor: 'var(--pub-sand)',
-                    color: 'var(--pub-navy)',
-                    padding: '0.12rem 0.45rem',
-                    borderRadius: '4px',
-                  }}
-                >
-                  {activeLeaderboardList.length} Peserta
-                </span>
-              </div>
-
-              {/* Dropdown Kategori Klasemen */}
-              <div style={{ position: 'relative' }}>
-                <select
-                  value={activeCategoryFilter}
-                  onChange={(e) => setActiveCategoryFilter(e.target.value)}
-                  style={{
-                    padding: '0.45rem 2rem 0.45rem 0.85rem',
-                    fontSize: '0.8125rem',
-                    fontWeight: 700,
-                    borderRadius: '8px',
-                    border: '1px solid var(--pub-line)',
-                    backgroundColor: '#FFFFFF',
-                    color: 'var(--pub-ink)',
-                    cursor: 'pointer',
-                    outline: 'none',
-                    appearance: 'none',
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
-                    backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'right 0.65rem center',
-                  }}
-                  title="Pilih Kategori Klasemen"
-                >
-                  <option value="overall">🏆 Juara Umum / Akumulasi</option>
-                  <option value="pbb">🎖️ Best PBB Murni</option>
-                  <option value="variasi">🎭 Best Variasi & Formasi</option>
-                  <option value="danton">🗣️ Best Danton</option>
-                  <option value="kostum">👔 Best Kostum</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Tabel Klasemen */}
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-                <thead>
-                  <tr
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.6rem' }}>
+                <strong style={{ fontSize: '0.95rem', color: 'var(--pub-ink)' }}>
+                  Klasemen Resmi — {eventInfo.name}
+                </strong>
+                <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => setLeaderboardCategory('ALL')}
                     style={{
-                      backgroundColor: 'var(--pub-canvas)',
-                      borderBottom: '1.5px solid var(--pub-line)',
-                      color: 'var(--muted-slate)',
-                      textTransform: 'uppercase',
-                      fontSize: '0.7rem',
-                      letterSpacing: '0.05em',
+                      padding: '0.35rem 0.75rem',
+                      borderRadius: '9999px',
+                      border: leaderboardCategory === 'ALL' ? '1px solid var(--pub-coral)' : '1px solid var(--pub-line)',
+                      backgroundColor: leaderboardCategory === 'ALL' ? 'var(--pub-coral)' : 'var(--pub-canvas)',
+                      color: leaderboardCategory === 'ALL' ? '#FFFFFF' : 'var(--pub-ink)',
+                      fontSize: '0.74rem',
                       fontWeight: 700,
+                      cursor: 'pointer',
                     }}
                   >
-                    <th style={{ padding: '0.85rem 1rem', width: '60px', textAlign: 'center' }}>Rank</th>
-                    <th style={{ padding: '0.85rem 1rem' }}>
-                      {activeCategoryFilter === 'danton' ? 'Komandan Peleton (Danton) & Sekolah' : 'Sekolah & Pasukan'}
-                    </th>
-                    <th style={{ padding: '0.85rem 1rem', width: '140px', textAlign: 'center' }}>
-                      {activeCategoryFilter === 'overall' ? 'Total Nilai' : `Nilai ${activeCategoryFilter.toUpperCase()}`}
-                    </th>
-                    <th style={{ padding: '0.85rem 1rem', width: '170px', textAlign: 'center' }}>
-                      Predikat Gelar
-                    </th>
-                    {activeCategoryFilter !== 'overall' && (
-                      <th style={{ padding: '0.85rem 1rem', width: '130px', textAlign: 'center' }}>
-                        Total Akumulasi
-                      </th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {activeLeaderboardList.map((team, idx) => {
-                    const isSelected = team.teamId === currentTeam.teamId;
-                    const isTop3 = team.categoryRank <= 3;
-                    return (
-                      <tr
-                        key={team.teamId}
-                        style={{
-                          borderBottom: '1px solid var(--pub-line)',
-                          backgroundColor: isSelected
-                            ? '#FEF3C7'
-                            : idx % 2 === 0
-                            ? '#FFFFFF'
-                            : '#FBFBFA',
-                          fontWeight: isSelected ? 700 : 400,
-                        }}
-                      >
-                        <td style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>
-                          <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <span className="tabular-nums" style={{ fontWeight: 800, color: isTop3 ? 'var(--pub-coral)' : 'var(--pub-navy)' }}>
-                              {team.categoryRank}
-                            </span>
-                            {team.categoryMedal && <span style={{ fontSize: '0.75rem' }}>{team.categoryMedal}</span>}
-                          </div>
-                        </td>
+                    Juara Umum
+                  </button>
+                  {categories.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setLeaderboardCategory(cat)}
+                      style={{
+                        padding: '0.35rem 0.75rem',
+                        borderRadius: '9999px',
+                        border: leaderboardCategory === cat ? '1px solid var(--pub-coral)' : '1px solid var(--pub-line)',
+                        backgroundColor: leaderboardCategory === cat ? 'var(--pub-coral)' : 'var(--pub-canvas)',
+                        color: leaderboardCategory === cat ? '#FFFFFF' : 'var(--pub-ink)',
+                        fontSize: '0.74rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-                        <td style={{ padding: '0.85rem 1rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
-                            <span
-                              style={{
-                                fontSize: '0.7rem',
-                                fontWeight: 800,
-                                backgroundColor: isSelected ? 'var(--pub-coral)' : 'var(--pub-navy)',
-                                color: '#FFFFFF',
-                                padding: '0.1rem 0.35rem',
-                                borderRadius: '4px',
-                              }}
-                            >
-                              NO. {team.orderNumber}
-                            </span>
-                            <span style={{ fontWeight: 800, color: 'var(--pub-ink)' }}>
-                              {activeCategoryFilter === 'danton' ? team.danton : team.school}
-                            </span>
-                            <span style={{ fontSize: '0.775rem', color: isSelected ? '#92400E' : 'var(--pub-muted)' }}>
-                              {activeCategoryFilter === 'danton' ? `(${team.school})` : `(${team.teamName})`}
-                            </span>
-                            {isSelected && (
-                              <span style={{ fontSize: '0.675rem', fontWeight: 800, color: '#92400E', backgroundColor: '#FDE68A', padding: '0.05rem 0.35rem', borderRadius: '4px' }}>
-                                TIM ANDA
-                              </span>
-                            )}
-                          </div>
-                        </td>
-
-                        <td style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>
-                          <span className="tabular-nums" style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--pub-navy)' }}>
-                            {team.categoryScore}
-                          </span>
-                        </td>
-
-                        <td style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>
-                          <span
+              {filteredLeaderboard.length === 0 ? (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--pub-muted)', fontSize: '0.84rem' }}>
+                  Belum ada tim dengan skor masuk pada event ini.
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: 'var(--pub-canvas)', borderBottom: '2px solid var(--pub-line)', fontSize: '0.74rem', textTransform: 'uppercase', color: 'var(--pub-muted)' }}>
+                        <th style={{ padding: '0.75rem 0.9rem', width: '70px' }}>Peringkat</th>
+                        <th style={{ padding: '0.75rem 0.9rem' }}>Kontingen & Pasukan</th>
+                        <th style={{ padding: '0.75rem 0.9rem' }}>Jenjang</th>
+                        <th style={{ padding: '0.75rem 0.9rem', textAlign: 'right' }}>
+                          {leaderboardCategory === 'ALL' ? 'Total Skor' : `Skor ${leaderboardCategory}`}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredLeaderboard.map((row) => {
+                        const rankNum = leaderboardCategory === 'ALL' ? row.rank : row.displayRank;
+                        const scoreVal = leaderboardCategory === 'ALL' ? row.totalScore : row.displayScore;
+                        return (
+                          <tr
+                            key={row.participantId}
                             style={{
-                              fontSize: '0.725rem',
-                              fontWeight: 800,
-                              backgroundColor: team.badgeColor?.bg || '#F1F5F9',
-                              color: team.badgeColor?.text || '#64748B',
-                              border: `1px solid ${team.badgeColor?.border || '#E2E8F0'}`,
-                              padding: '0.2rem 0.55rem',
-                              borderRadius: '6px',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.3rem',
+                              borderBottom: '1px solid #F1F5F9',
+                              backgroundColor: row.isCurrentTeam ? 'rgba(201, 75, 60, 0.08)' : 'transparent',
                             }}
                           >
-                            {team.categoryMedal && <span>{team.categoryMedal}</span>}
-                            <span>{team.categoryTitle}</span>
-                          </span>
-                        </td>
-
-                        {activeCategoryFilter !== 'overall' && (
-                          <td style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>
-                            <span className="tabular-nums" style={{ fontWeight: 700, color: 'var(--pub-ink)' }}>
-                              {team.totalScore}
-                            </span>
-                            <div style={{ fontSize: '0.675rem', color: 'var(--pub-muted)' }}>
-                              #{team.rank} Umum
-                            </div>
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                            <td className="tabular-nums" style={{ padding: '0.8rem 0.9rem', fontWeight: 900, color: rankNum <= 3 ? 'var(--pub-coral)' : 'var(--pub-ink)' }}>
+                              #{rankNum}
+                            </td>
+                            <td style={{ padding: '0.8rem 0.9rem' }}>
+                              <div style={{ fontWeight: 800, color: 'var(--pub-ink)', display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                                <span>{row.schoolName}</span>
+                                {row.isCurrentTeam && (
+                                  <span style={{ fontSize: '0.68rem', fontWeight: 800, backgroundColor: 'var(--pub-coral)', color: '#FFFFFF', padding: '0.1rem 0.45rem', borderRadius: '9999px' }}>
+                                    Tim Anda
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--pub-muted)' }}>{row.teamName}</div>
+                            </td>
+                            <td style={{ padding: '0.8rem 0.9rem', fontSize: '0.8rem', color: '#475569' }}>
+                              {row.category}
+                            </td>
+                            <td className="tabular-nums" style={{ padding: '0.8rem 0.9rem', textAlign: 'right', fontWeight: 900, fontSize: '0.95rem', color: 'var(--pub-teal)' }}>
+                              {scoreVal} Pts
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

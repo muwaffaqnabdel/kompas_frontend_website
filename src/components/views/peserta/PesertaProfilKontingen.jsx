@@ -424,9 +424,8 @@ export default function PesertaProfilKontingen({ profileData, onProfileUpdated }
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div>
-            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.05rem', fontWeight: 800, color: 'var(--pub-ink)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-              <Users size={18} color="var(--pub-coral)" />
-              <span>2. Bank Anggota & Pas Foto ({members.length} Anggota)</span>
+            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.05rem', fontWeight: 800, color: 'var(--pub-ink)', margin: 0 }}>
+              2. Bank Anggota & Pas Foto ({members.length} Anggota)
             </h2>
             <p style={{ fontSize: '0.78rem', color: 'var(--pub-muted)', margin: '0.25rem 0 0 0' }}>
               {membersWithPhoto}/{members.length} anggota memiliki pas foto · Otomatis dikompresi ≤ 80 KB sebelum masuk Supabase Storage.

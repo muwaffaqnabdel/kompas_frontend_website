@@ -322,9 +322,8 @@ export default function PesertaDataTimBerkas({
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
           <div>
-            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 800, color: 'var(--pub-ink)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-              <FileText size={18} color="var(--pub-coral)" />
-              <span>1. Berkas Persyaratan Event — {activeRegistration.eventName}</span>
+            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 800, color: 'var(--pub-ink)', margin: 0 }}>
+              1. Berkas Persyaratan Event — {activeRegistration.eventName}
             </h2>
             <p style={{ fontSize: '0.8rem', color: 'var(--pub-muted)', margin: '0.2rem 0 0 0' }}>
               Unggah berkas khusus yang diminta oleh panitia event ini (Surat Tugas, Formulir Event, Bukti Transfer, dll.).
@@ -532,9 +531,8 @@ export default function PesertaDataTimBerkas({
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div>
-            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 800, color: 'var(--pub-ink)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-              <Users size={18} color="var(--pub-teal)" />
-              <span>2. Pasukan & Pas Foto Event Ini ({members.length} Anggota)</span>
+            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 800, color: 'var(--pub-ink)', margin: 0 }}>
+              2. Pasukan & Pas Foto Event Ini ({members.length} Anggota)
             </h2>
             <p style={{ fontSize: '0.8rem', color: 'var(--pub-muted)', margin: '0.2rem 0 0 0' }}>
               Pas foto diambil otomatis dari Profil Kontingen. Perubahan pasukan di sini hanya berlaku untuk tim ini (tidak merusak event lain).

@@ -22,6 +22,26 @@ import { getStoredPublicEvents, saveStoredPublicEvent, getStoredBanner, saveStor
 
 const DEFAULT_BANNER_FALLBACK = 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1000&q=80';
 
+function safeDateInputValue(rawDate, fallback = '') {
+  if (!rawDate) return fallback;
+  const parsed = new Date(rawDate);
+  if (Number.isNaN(parsed.getTime())) return fallback;
+  return parsed.toISOString().split('T')[0];
+}
+
+function normalizeJudgesList(list = []) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .filter(Boolean)
+    .map((j, idx) => ({
+      id: j.id || `juri-${idx + 1}`,
+      name: j.name || j.fullName || j.email || 'Dewan Juri',
+      role: j.role || j.judgeRole || 'Dewan Juri',
+      institution: j.institution || j.judgeInstitution || 'Dewan Juri Resmi',
+      verified: j.verified !== false,
+    }));
+}
+
 export default function AdminPanitiaEventSettings({
   currentEvent: propCurrentEvent,
   onUpdateEvent,
@@ -47,7 +67,7 @@ export default function AdminPanitiaEventSettings({
     title: currentEvent.name || currentEvent.title || '',
     category: currentEvent.category || 'SMA/SMK Sederajat',
     organizer: currentEvent.organizer || '',
-    date: currentEvent.eventDate ? new Date(currentEvent.eventDate).toISOString().split('T')[0] : (currentEvent.date || ''),
+    date: safeDateInputValue(currentEvent.eventDate, currentEvent.date || ''),
     registrationDeadline: currentEvent.registrationDeadline || '',
     location: currentEvent.location || '',
     address: currentEvent.address || '',
@@ -57,7 +77,10 @@ export default function AdminPanitiaEventSettings({
     shortDesc: currentEvent.description || currentEvent.shortDesc || '',
     fullDesc: currentEvent.fullDesc || '',
     bannerUrl: resolveBanner(currentEvent),
-    judges: currentEvent.judges || [
+    judges:
+      currentEvent.judges?.length > 0
+        ? normalizeJudgesList(currentEvent.judges)
+        : [
       {
         id: 'juri-1',
         name: 'Kolonel (Purn) Bambang S., M.Pd',
@@ -103,7 +126,7 @@ export default function AdminPanitiaEventSettings({
         title: currentEvent.name || currentEvent.title || prev.title,
         category: currentEvent.category || prev.category || 'SMA/SMK Sederajat',
         organizer: currentEvent.organizer || prev.organizer || '',
-        date: currentEvent.eventDate ? new Date(currentEvent.eventDate).toISOString().split('T')[0] : (currentEvent.date || prev.date),
+        date: safeDateInputValue(currentEvent.eventDate, currentEvent.date || prev.date),
         registrationDeadline: currentEvent.registrationDeadline || prev.registrationDeadline || '',
         location: currentEvent.location || prev.location || '',
         address: currentEvent.address || prev.address || '',
@@ -113,7 +136,10 @@ export default function AdminPanitiaEventSettings({
         shortDesc: currentEvent.description || currentEvent.shortDesc || prev.shortDesc,
         fullDesc: currentEvent.fullDesc || prev.fullDesc || '',
         bannerUrl: resolvedBanner || prev.bannerUrl || DEFAULT_BANNER_FALLBACK,
-        judges: currentEvent.judges?.length > 0 ? currentEvent.judges : prev.judges,
+        judges:
+          currentEvent.judges?.length > 0
+            ? normalizeJudgesList(currentEvent.judges)
+            : prev.judges,
       }));
     }
   }, [currentEvent?.id, currentEvent?.bannerUrl, currentEvent?.name, eventId]);
@@ -1045,16 +1071,16 @@ export default function AdminPanitiaEventSettings({
                           fontFamily: 'var(--font-heading)',
                         }}
                       >
-                        {judge.name.charAt(0)}
+                        {(judge.name || judge.fullName || 'J').charAt(0).toUpperCase()}
                       </div>
                       <div>
                         <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--pub-ink)' }}>
-                          {judge.name}
+                          {judge.name || judge.fullName || 'Dewan Juri'}
                         </div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--pub-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.1rem' }}>
-                          <span style={{ color: 'var(--pub-coral)', fontWeight: 600 }}>{judge.role}</span>
+                          <span style={{ color: 'var(--pub-coral)', fontWeight: 600 }}>{judge.role || 'Dewan Juri'}</span>
                           <span>·</span>
-                          <span>{judge.institution}</span>
+                          <span>{judge.institution || 'Dewan Juri Resmi'}</span>
                         </div>
                       </div>
                     </div>

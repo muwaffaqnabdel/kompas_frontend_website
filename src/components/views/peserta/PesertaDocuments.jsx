@@ -87,12 +87,8 @@ export default function PesertaDocuments({ documents = [] }) {
                     borderRadius: 'var(--pub-radius-pill)',
                     fontSize: '0.7rem',
                     fontWeight: 700,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.25rem',
                   }}
                 >
-                  <CheckCircle2 size={12} />
                   TERVERIFIKASI
                 </span>
               )}
@@ -106,13 +102,9 @@ export default function PesertaDocuments({ documents = [] }) {
                     borderRadius: 'var(--pub-radius-pill)',
                     fontSize: '0.7rem',
                     fontWeight: 800,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.25rem',
                     border: '1px solid #FCD34D',
                   }}
                 >
-                  <AlertCircle size={12} />
                   PERLU REVISI
                 </span>
               )}
@@ -126,12 +118,8 @@ export default function PesertaDocuments({ documents = [] }) {
                     borderRadius: 'var(--pub-radius-pill)',
                     fontSize: '0.7rem',
                     fontWeight: 700,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.25rem',
                   }}
                 >
-                  <Clock size={12} />
                   MENUNGGU VALIDASI
                 </span>
               )}

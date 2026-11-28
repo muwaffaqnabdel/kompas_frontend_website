@@ -368,30 +368,24 @@ export default function SuperAdminMonitoringCards({ events = [], onOpenControlMo
 
                   {/* Info Lokasi & Tanggal */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.45rem' }}>
-                      <MapPin size={14} color="var(--pub-coral)" style={{ marginTop: '0.15rem', flexShrink: 0 }} />
-                      <div>
-                        <div style={{ fontSize: '0.6875rem', color: 'var(--pub-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
-                          Lokasi Lomba
-                        </div>
-                        <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--pub-ink)', marginTop: '0.1rem', lineHeight: 1.25 }}>
-                          {evt.location || 'Lokasi Belum Diatur'}
-                        </div>
+                    <div>
+                      <div style={{ fontSize: '0.6875rem', color: 'var(--pub-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+                        Lokasi Lomba
+                      </div>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--pub-ink)', marginTop: '0.1rem', lineHeight: 1.25 }}>
+                        {evt.location || 'Lokasi Belum Diatur'}
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.45rem' }}>
-                      <Calendar size={14} color="var(--pub-teal)" style={{ marginTop: '0.15rem', flexShrink: 0 }} />
-                      <div>
-                        <div style={{ fontSize: '0.6875rem', color: 'var(--pub-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
-                          Hari H
-                        </div>
-                        <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--pub-ink)', marginTop: '0.1rem' }}>
-                          {new Date(evt.eventDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        </div>
-                        <div className="tabular-nums" style={{ fontSize: '0.7rem', color: 'var(--pub-muted)', marginTop: '0.05rem' }}>
-                          {getCountdownText(evt.eventDate)}
-                        </div>
+                    <div>
+                      <div style={{ fontSize: '0.6875rem', color: 'var(--pub-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+                        Hari H
+                      </div>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--pub-ink)', marginTop: '0.1rem' }}>
+                        {new Date(evt.eventDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </div>
+                      <div className="tabular-nums" style={{ fontSize: '0.7rem', color: 'var(--pub-muted)', marginTop: '0.05rem' }}>
+                        {getCountdownText(evt.eventDate)}
                       </div>
                     </div>
                   </div>
@@ -461,9 +455,8 @@ export default function SuperAdminMonitoringCards({ events = [], onOpenControlMo
                       <div className="tabular-nums" style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--pub-ink)', marginTop: '0.1rem' }}>
                         {totalCount} Tim
                       </div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--pub-teal)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.2rem', marginTop: '0.1rem' }}>
-                        <CheckCircle2 size={11} />
-                        <span>{validatedCount} Tervalidasi</span>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--pub-teal)', fontWeight: 600, marginTop: '0.1rem' }}>
+                        {validatedCount} Tervalidasi
                       </div>
                     </div>
 
@@ -573,12 +566,9 @@ export default function SuperAdminMonitoringCards({ events = [], onOpenControlMo
                   >
                     {/* Header Panel Expand */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                        <FileText size={16} color="var(--pub-coral)" />
-                        <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--pub-ink)', fontFamily: 'var(--font-heading)' }}>
-                          Detail Operasional & Kelengkapan Berkas
-                        </span>
-                      </div>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--pub-ink)', fontFamily: 'var(--font-heading)' }}>
+                        Detail Operasional & Kelengkapan Berkas
+                      </span>
                       <span
                         style={{
                           fontSize: '0.7rem',
@@ -701,15 +691,10 @@ export default function SuperAdminMonitoringCards({ events = [], onOpenControlMo
                           fontSize: '0.775rem',
                           fontWeight: 700,
                           cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '0.4rem',
                           boxShadow: 'var(--shadow-sm)',
                         }}
                       >
-                        <Eye size={14} color="var(--pub-coral)" />
-                        <span>Lihat Berkas Peserta</span>
+                        Lihat Berkas Peserta
                       </button>
 
                       <button
@@ -720,13 +705,9 @@ export default function SuperAdminMonitoringCards({ events = [], onOpenControlMo
                           padding: '0.55rem 0.95rem',
                           fontSize: '0.775rem',
                           fontWeight: 700,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.4rem',
                         }}
                       >
-                        <Sliders size={14} />
-                        <span>Kontrol Status</span>
+                        Kontrol Status
                       </button>
 
                       <a
@@ -743,13 +724,11 @@ export default function SuperAdminMonitoringCards({ events = [], onOpenControlMo
                           fontWeight: 600,
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '0.35rem',
                           textDecoration: 'none',
                         }}
                         title="Buka halaman publik lomba di tab baru"
                       >
-                        <ExternalLink size={13} color="var(--pub-muted)" />
-                        <span>Halaman Publik</span>
+                        Halaman Publik
                       </a>
                     </div>
                   </div>

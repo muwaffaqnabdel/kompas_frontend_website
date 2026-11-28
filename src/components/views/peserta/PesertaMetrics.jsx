@@ -64,13 +64,9 @@ export default function PesertaMetrics({
             fontWeight: 800,
             color: isVerified ? 'var(--pub-teal)' : 'var(--pub-amber)',
             marginTop: '0.4rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.4rem',
           }}
         >
-          {isVerified ? <ShieldCheck size={20} /> : <AlertCircle size={20} />}
-          <span>{data.statusDocs}</span>
+          {data.statusDocs}
         </div>
         <div style={{ fontSize: '0.75rem', color: 'var(--pub-muted)', marginTop: '0.25rem' }}>
           {isVerified ? 'Semua dokumen disetujui panitia' : 'Menunggu perbaikan dokumen'}

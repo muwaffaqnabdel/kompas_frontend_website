@@ -163,11 +163,11 @@ export default function Sidebar({ currentRole, activeTab, onSelectTab, onSwitchR
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem' }}>
             {[
-              { role: 'SUPER_ADMIN', label: '👑 Admin' },
-              { role: 'ADMIN_PANITIA', label: '📋 Panitia' },
-              { role: 'PANITIA_DP', label: '🚩 Pos DP' },
-              { role: 'JURI', label: '⚖️ Juri' },
-              { role: 'PESERTA', label: '🎖️ Peserta' },
+              { role: 'SUPER_ADMIN', label: 'Admin' },
+              { role: 'ADMIN_PANITIA', label: 'Panitia' },
+              { role: 'PANITIA_DP', label: 'Pos DP' },
+              { role: 'JURI', label: 'Juri' },
+              { role: 'PESERTA', label: 'Peserta' },
             ].map((r) => (
               <button
                 key={r.role}

@@ -1,0 +1,17 @@
+{
+  "name": "KOMPAS — Platform Kompetisi Paskibra",
+  "short_name": "KOMPAS",
+  "description": "Platform terintegrasi manajemen kompetisi LKBB & Paskibra dengan pelacakan posisi DP 1-4 dan notifikasi panggilan langsung.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#FAF8F5",
+  "theme_color": "#C94B3C",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

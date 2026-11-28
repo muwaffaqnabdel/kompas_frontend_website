@@ -53,14 +53,12 @@ export default function Topbar({ onOpenAuth, onSelectRoleDemo }) {
             textDecoration: 'none',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.35rem',
             backgroundColor: 'rgba(255, 255, 255, 0.08)',
             padding: '0.25rem 0.65rem',
             borderRadius: '4px',
             border: '1px solid rgba(255, 255, 255, 0.15)',
           }}
         >
-          <Globe size={13} color="#94A3B8" />
           <span>Web Publik</span>
         </Link>
 
@@ -161,7 +159,6 @@ export default function Topbar({ onOpenAuth, onSelectRoleDemo }) {
               className="btn btn-primary"
               style={{ fontSize: '0.8125rem', padding: '0.4rem 0.9rem', backgroundColor: 'var(--pub-coral)' }}
             >
-              <User size={14} />
               <span>Login / Masuk</span>
             </button>
           </div>

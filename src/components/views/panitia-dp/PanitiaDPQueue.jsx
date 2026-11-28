@@ -15,12 +15,7 @@ export default function PanitiaDPQueue({
   // JIKA POS 01: TAMPILKAN SELURUH DATA PESERTA DENGAN AKSI PANGGIL
   // ==============================================================
   if (posIndex === 1) {
-    const participantsList = allParticipants.length > 0 ? allParticipants : [
-      { id: 'part-1', queueNumber: '01', teamName: 'PASKIBRA GARUDA SAKTI', schoolName: 'SMAN 1 Jakarta', status: 'VALIDATED' },
-      { id: 'part-2', queueNumber: '02', teamName: 'SATRIA BHAYANGKARA', schoolName: 'SMAN 3 Bandung', status: 'SUBMITTED' },
-      { id: 'part-3', queueNumber: '03', teamName: 'KARTIKA WIRATAMA', schoolName: 'SMKN 2 Surabaya', status: 'REVISION_REQUIRED' },
-      { id: 'part-4', queueNumber: '04', teamName: 'PASKIBRA PANDU NUSANTARA', schoolName: 'SMA Taruna Nusantara Magelang', status: 'VALIDATED' },
-    ];
+    const participantsList = Array.isArray(allParticipants) ? allParticipants : [];
 
     return (
       <div
@@ -35,10 +30,10 @@ export default function PanitiaDPQueue({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
           <div>
             <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.05rem', fontWeight: 800, color: 'var(--pub-ink)', margin: 0 }}>
-              Daftar Seluruh Kontingen Peserta (Antrean Masuk Pos 01)
+              Daftar Kontingen Tervalidasi (Antrean Masuk Pos 01)
             </h3>
             <p style={{ fontSize: '0.75rem', color: 'var(--pub-muted)', margin: '0.2rem 0 0 0' }}>
-              Peserta berada di area tunggu sekitar lomba. Klik <strong>Panggil Masuk DP 1</strong> untuk memanggil pasukan masuk ke pemeriksaan berkas.
+              Hanya tim yang sudah divalidasi Admin Panitia yang muncul di sini. Klik <strong>Panggil Masuk DP 1</strong> untuk mengirim panggilan ke akun peserta.
             </p>
           </div>
           <span style={{ fontSize: '0.725rem', backgroundColor: 'var(--pub-sand)', color: 'var(--pub-ink)', padding: '0.25rem 0.65rem', borderRadius: 'var(--pub-radius-pill)', fontWeight: 700 }}>
@@ -46,11 +41,29 @@ export default function PanitiaDPQueue({
           </span>
         </div>
 
+        {participantsList.length === 0 ? (
+          <div
+            style={{
+              padding: '1.5rem',
+              borderRadius: '12px',
+              border: '1px dashed var(--pub-line)',
+              backgroundColor: 'var(--pub-canvas)',
+              textAlign: 'center',
+              color: 'var(--pub-muted)',
+              fontSize: '0.84rem',
+              lineHeight: 1.55,
+            }}
+          >
+            Belum ada kontingen yang tervalidasi pada event ini. Validasi berkas peserta terlebih dahulu melalui menu <strong>Admin Panitia → Peserta &amp; Berkas</strong>.
+          </div>
+        ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
           {participantsList.map((team, idx) => {
             const isTransferred = transferredTeamIds.includes(team.id);
             const isActiveInPos1 = activeTeamId === team.id;
             const isCalled = calledTeamIds.includes(team.id) || isActiveInPos1;
+            const membersQty = team.membersCount ?? (Array.isArray(team.members) ? team.members.length : 16);
+            const isQualifiedStatus = ['VALIDATED', 'SCHEDULED', 'SCORED', 'FEEDBACK_GENERATED', 'FINALIZED'].includes(team.status);
 
             return (
               <div
@@ -86,7 +99,7 @@ export default function PanitiaDPQueue({
                       fontSize: '0.875rem',
                     }}
                   >
-                    {team.queueNumber || `0${idx + 1}`}
+                    {team.queueNumber || String(idx + 1).padStart(2, '0')}
                   </div>
 
                   <div>
@@ -94,7 +107,7 @@ export default function PanitiaDPQueue({
                       {team.teamName}
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--pub-muted)', marginTop: '0.1rem' }}>
-                      {team.schoolName || team.school} · 16 Personel Pasukan
+                      {team.schoolName || team.school} · {membersQty} Personel Pasukan
                     </div>
                   </div>
                 </div>
@@ -104,15 +117,15 @@ export default function PanitiaDPQueue({
                   {/* Status Berkas */}
                   <span
                     style={{
-                      backgroundColor: team.status === 'VALIDATED' ? 'var(--pub-teal-light)' : '#FEF3C7',
-                      color: team.status === 'VALIDATED' ? 'var(--pub-teal)' : '#B45309',
+                      backgroundColor: isQualifiedStatus ? 'var(--pub-teal-light)' : '#FEF3C7',
+                      color: isQualifiedStatus ? 'var(--pub-teal)' : '#B45309',
                       padding: '0.2rem 0.55rem',
                       borderRadius: '6px',
                       fontSize: '0.7rem',
                       fontWeight: 700,
                     }}
                   >
-                    {team.status === 'VALIDATED' ? 'Berkas Valid' : 'Menunggu Review'}
+                    {team.status === 'SCHEDULED' ? 'Terjadwal' : isQualifiedStatus ? 'Tervalidasi' : 'Belum Valid'}
                   </span>
 
                   {/* Tombol Aksi Panggilan */}
@@ -193,6 +206,7 @@ export default function PanitiaDPQueue({
             );
           })}
         </div>
+        )}
       </div>
     );
   }
@@ -200,10 +214,7 @@ export default function PanitiaDPQueue({
   // ==============================================================
   // JIKA POS 02, 03, 04: TAMPILKAN ANTREAN SEDERHANA PER POS
   // ==============================================================
-  const items = queueItems.length > 0 ? queueItems : [
-    { order: '02', teamName: 'SATRIA BHAYANGKARA', school: 'SMAN 3 Bandung', members: 16, status: 'WAITING' },
-    { order: '03', teamName: 'KARTIKA WIRATAMA', school: 'SMKN 2 Surabaya', members: 16, status: 'STANDBY' },
-  ];
+  const items = Array.isArray(queueItems) ? queueItems : [];
 
   return (
     <div
@@ -218,6 +229,21 @@ export default function PanitiaDPQueue({
       <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.05rem', fontWeight: 800, color: 'var(--pub-ink)', margin: '0 0 0.85rem 0' }}>
         {title}
       </h3>
+      {items.length === 0 ? (
+        <div
+          style={{
+            padding: '1.25rem',
+            borderRadius: '12px',
+            border: '1px dashed var(--pub-line)',
+            backgroundColor: 'var(--pub-canvas)',
+            textAlign: 'center',
+            color: 'var(--pub-muted)',
+            fontSize: '0.82rem',
+          }}
+        >
+          Belum ada kontingen tervalidasi dalam antrean untuk event ini.
+        </div>
+      ) : (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
         {items.map((team, idx) => (
           <div
@@ -255,6 +281,7 @@ export default function PanitiaDPQueue({
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }

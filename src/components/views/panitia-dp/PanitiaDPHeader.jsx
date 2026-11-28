@@ -89,16 +89,12 @@ export default function PanitiaDPHeader({
           </span>
           {POS_CONFIG.map((p) => {
             const isActive = p.index === posIndex;
-            const PIcon = p.icon;
             return (
               <button
                 key={p.index}
                 type="button"
                 onClick={() => onSelectPos && onSelectPos(p.index)}
                 style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
                   padding: '0.4rem 0.85rem',
                   borderRadius: '20px',
                   fontSize: '0.8rem',
@@ -111,8 +107,7 @@ export default function PanitiaDPHeader({
                   transition: 'all 0.15s ease',
                 }}
               >
-                <PIcon size={14} />
-                <span>{p.shortName}</span>
+                {p.shortName}
               </button>
             );
           })}
@@ -193,8 +188,8 @@ export default function PanitiaDPHeader({
                 fontFamily: 'var(--font-sans)',
               }}
             >
-              <option value="08007fe4-8f16-4324-b815-2cb8ead844af">🏆 LKBB Nasional 2026</option>
-              <option value="0b85acba-5fc6-4861-b0ce-e35a3bf4cc19">🚩 FORDA Jawa Tengah 2026</option>
+              <option value="08007fe4-8f16-4324-b815-2cb8ead844af">LKBB Nasional 2026</option>
+              <option value="0b85acba-5fc6-4861-b0ce-e35a3bf4cc19">FORDA Jawa Tengah 2026</option>
             </select>
           </div>
 
@@ -203,9 +198,6 @@ export default function PanitiaDPHeader({
               type="button"
               onClick={onResetFlow}
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.35rem',
                 fontSize: '0.75rem',
                 fontWeight: 700,
                 padding: '0.38rem 0.75rem',
@@ -218,8 +210,7 @@ export default function PanitiaDPHeader({
               }}
               title="Reset seluruh pos ke kondisi steril untuk mulai uji coba baru"
             >
-              <RotateCcw size={13} color="var(--pub-coral)" />
-              <span>Reset Alur</span>
+              Reset Alur
             </button>
           )}
         </div>
@@ -258,17 +249,13 @@ export default function PanitiaDPHeader({
           <h1
             style={{
               fontFamily: 'var(--font-heading)',
-              fontSize: '1.5rem',
+              fontSize: '1.45rem',
               fontWeight: 800,
               margin: '0 0 0.35rem 0',
               color: 'var(--pub-ink)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
             }}
           >
-            <IconComp size={24} color="var(--pub-coral)" />
-            <span>{currentPos.name}</span>
+            {currentPos.name}
           </h1>
 
           <p style={{ fontSize: '0.825rem', color: 'var(--pub-muted)', margin: 0 }}>
@@ -297,8 +284,8 @@ export default function PanitiaDPHeader({
               }}
             >
               {targetDpCapacity === 'AVAILABLE'
-                ? `🟢 ${currentPos.targetName} Kosong (Slot Tersedia)`
-                : `🔴 ${currentPos.targetName} Penuh (Atomic Lock)`}
+                ? `${currentPos.targetName} Kosong (Slot Tersedia)`
+                : `${currentPos.targetName} Penuh (Atomic Lock)`}
             </button>
           </div>
         )}

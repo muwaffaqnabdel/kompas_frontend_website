@@ -24,84 +24,24 @@ const STORAGE_KEY_TM_INFO = 'kompas_tm_meeting_info';
 const STORAGE_KEY_TM_DOCS = 'kompas_tm_documents';
 const STORAGE_KEY_TM_NOTES = 'kompas_tm_summary_notes';
 
-// Initial Mock Data untuk TM
-const DEFAULT_TM_INFO = {
+const EMPTY_TM_INFO = {
   platform: 'Zoom Meeting',
-  zoomUrl: 'https://zoom.us/j/89241109928?pwd=kompasLKBB2026official',
-  meetingId: '892 4110 9928',
-  passcode: 'LKBB2026',
-  date: '2026-11-14',
-  time: '13:30',
+  zoomUrl: '',
+  meetingId: '',
+  passcode: '',
+  date: '',
+  time: '13:00',
   timezone: 'WIB',
-  instructions: 'Format nama akun Zoom: [No Urut] - [Nama Sekolah] - [Nama Official/Danton]. Harap memasuki ruang virtual 15 menit sebelum acara dimulai. Setiap kontingen maksimal mengirimkan 2 akun delegasi.',
+  instructions: '',
   isPublished: true,
 };
 
-const DEFAULT_DOCUMENTS = [
-  {
-    id: 'doc-1',
-    name: 'Berita_Acara_Hasil_Pengundian_Nomor_Urut_TM.pdf',
-    ext: 'pdf',
-    size: '2.4 MB',
-    uploadedAt: '24 Okt 2026, 09:15 WIB',
-    uploader: 'Sekretariat Panitia',
-    isPublished: true,
-  },
-  {
-    id: 'doc-2',
-    name: 'Tata_Tertib_dan_Petunjuk_Teknis_Final_LKBB.docx',
-    ext: 'docx',
-    size: '1.2 MB',
-    uploadedAt: '24 Okt 2026, 09:30 WIB',
-    uploader: 'Sie Perlombaan',
-    isPublished: true,
-  },
-];
-
-const DEFAULT_SUMMARY_NOTES = `1. Batas waktu tampil peleton maksimal 10 menit (Peluit 1: Mulai panggung, Peluit 2: Peringatan sisa 2 menit, Peluit 3: Waktu habis).
-2. Toleransi keterlambatan kehadiran di DP 1 (Cek Dokumen & Fisik) maksimal 5 menit dari jadwal tampil.
-3. Seluruh nomor urut undian tampil bersifat final dan mengikat sesuai Berita Acara terlampir.
-4. Musik pengiring variasi & formasi wajib diserahkan ke meja operator sound paling lambat saat gladi kotor H-1.
-5. Kostum Danton wajib mengenakan PDH resmi pangkalan satuan masing-masing.`;
-
 export default function AdminPanitiaTechnicalMeeting({ currentEvent }) {
-  const eventId = currentEvent?.id || 'evt-lkbb-2026';
+  const eventId = currentEvent?.id || '';
 
-  // State Card 1: Zoom Info
-  const [meetingInfo, setMeetingInfo] = useState(() => {
-    try {
-      const saved =
-        localStorage.getItem(`${STORAGE_KEY_TM_INFO}_${eventId}`) ||
-        localStorage.getItem(STORAGE_KEY_TM_INFO);
-      return saved ? JSON.parse(saved) : DEFAULT_TM_INFO;
-    } catch {
-      return DEFAULT_TM_INFO;
-    }
-  });
-
-  // State Card 2: Documents (PDF & Word)
-  const [documents, setDocuments] = useState(() => {
-    try {
-      const saved =
-        localStorage.getItem(`${STORAGE_KEY_TM_DOCS}_${eventId}`) ||
-        localStorage.getItem(STORAGE_KEY_TM_DOCS);
-      return saved ? JSON.parse(saved) : DEFAULT_DOCUMENTS;
-    } catch {
-      return DEFAULT_DOCUMENTS;
-    }
-  });
-
-  // State Card 2: Summary Notes
-  const [summaryNotes, setSummaryNotes] = useState(() => {
-    try {
-      const saved =
-        localStorage.getItem(`${STORAGE_KEY_TM_NOTES}_${eventId}`) ||
-        localStorage.getItem(STORAGE_KEY_TM_NOTES);
-      return saved && saved !== 'null' ? saved : DEFAULT_SUMMARY_NOTES;
-    } catch {
-      return DEFAULT_SUMMARY_NOTES;
-    }
-  });
+  const [meetingInfo, setMeetingInfo] = useState(EMPTY_TM_INFO);
+  const [documents, setDocuments] = useState([]);
+  const [summaryNotes, setSummaryNotes] = useState('');
 
   // Toast & Inline Feedback State
   const [toastMessage, setToastMessage] = useState(null);
@@ -115,65 +55,45 @@ export default function AdminPanitiaTechnicalMeeting({ currentEvent }) {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // Ambil data TM dari Backend API saat pertama kali dimuat
+  // Ambil data TM murni dari Database Backend sesuai eventId aktif
   useEffect(() => {
+    if (!eventId) return;
+    let cancelled = false;
     const fetchTMData = async () => {
       try {
-        const res = await fetch(`/api/panitia/technical-meeting?eventId=${eventId}`, {
+        const res = await fetch(`/api/panitia/technical-meeting?eventId=${encodeURIComponent(eventId)}`, {
           credentials: 'include',
         });
         const data = await res.json();
-        if (data.success) {
-          if (data.meetingInfo) {
-            setMeetingInfo(data.meetingInfo);
-            localStorage.setItem(`${STORAGE_KEY_TM_INFO}_${eventId}`, JSON.stringify(data.meetingInfo));
-            localStorage.setItem(STORAGE_KEY_TM_INFO, JSON.stringify(data.meetingInfo));
-          }
-          if (Array.isArray(data.documents)) {
-            setDocuments(data.documents);
-            localStorage.setItem(`${STORAGE_KEY_TM_DOCS}_${eventId}`, JSON.stringify(data.documents));
-            localStorage.setItem(STORAGE_KEY_TM_DOCS, JSON.stringify(data.documents));
-          }
-          if (data.summaryNotes !== undefined && data.summaryNotes !== null) {
-            setSummaryNotes(data.summaryNotes);
-            localStorage.setItem(`${STORAGE_KEY_TM_NOTES}_${eventId}`, data.summaryNotes);
-            localStorage.setItem(STORAGE_KEY_TM_NOTES, data.summaryNotes);
-          }
+        if (!cancelled && data.success) {
+          setMeetingInfo(data.meetingInfo ? { ...EMPTY_TM_INFO, ...data.meetingInfo } : EMPTY_TM_INFO);
+          setDocuments(Array.isArray(data.documents) ? data.documents : []);
+          setSummaryNotes(typeof data.summaryNotes === 'string' ? data.summaryNotes : '');
         }
       } catch (err) {
-        console.warn('Backend TM API offline, menggunakan penyimpanan lokal:', err);
+        console.warn('Gagal mengambil data Technical Meeting:', err);
       }
     };
 
     fetchTMData();
+    return () => {
+      cancelled = true;
+    };
   }, [eventId]);
 
   const syncLocalAndEvent = (newInfo, newDocs, newNotes) => {
     try {
-      if (newInfo) {
-        localStorage.setItem(`${STORAGE_KEY_TM_INFO}_${eventId}`, JSON.stringify(newInfo));
-        localStorage.setItem(STORAGE_KEY_TM_INFO, JSON.stringify(newInfo));
-      }
-      if (newDocs) {
-        localStorage.setItem(`${STORAGE_KEY_TM_DOCS}_${eventId}`, JSON.stringify(newDocs));
-        localStorage.setItem(STORAGE_KEY_TM_DOCS, JSON.stringify(newDocs));
-      }
-      if (newNotes !== undefined && newNotes !== null) {
-        localStorage.setItem(`${STORAGE_KEY_TM_NOTES}_${eventId}`, newNotes);
-        localStorage.setItem(STORAGE_KEY_TM_NOTES, newNotes);
-      }
       window.dispatchEvent(
         new CustomEvent('kompas_tm_updated', {
           detail: {
+            eventId,
             meetingInfo: newInfo || meetingInfo,
             documents: newDocs || documents,
             summaryNotes: newNotes !== undefined && newNotes !== null ? newNotes : summaryNotes,
           },
         })
       );
-    } catch (err) {
-      console.error('Failed to sync TM localStorage:', err);
-    }
+    } catch {}
   };
 
   // 1. Handlers Card 1 (Zoom Meeting)
@@ -229,13 +149,13 @@ _Panitia Pelaksana LKBB Paskibra 2026_`;
     window.open(meetingInfo.zoomUrl, '_blank', 'noopener,noreferrer');
   };
 
-  // 2. Handlers Card 2 (Documents Upload & Notes)
+  // 2. Handlers Card 2 (Upload Dokumen Nyata ke Supabase Storage + DB)
   const handleFileUpload = async (e) => {
     const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
+    if (files.length === 0 || !eventId) return;
 
     const allowedExtensions = ['pdf', 'doc', 'docx'];
-    const newDocs = [];
+    const uploadedDocs = [];
 
     for (const file of files) {
       const ext = file.name.split('.').pop().toLowerCase();
@@ -244,50 +164,33 @@ _Panitia Pelaksana LKBB Paskibra 2026_`;
         continue;
       }
 
-      // Hitung ukuran readable
-      const sizeInMb = (file.size / (1024 * 1024)).toFixed(1);
-      const sizeStr = file.size > 1024 * 1024 ? `${sizeInMb} MB` : `${Math.round(file.size / 1024)} KB`;
-
-      const docItem = {
-        id: `doc-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-        name: file.name,
-        ext: ext,
-        size: sizeStr,
-        uploadedAt:
-          new Date().toLocaleDateString('id-ID', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          }) + ' WIB',
-        uploader: 'Admin Panitia',
-        isPublished: true,
-      };
-
-      newDocs.push(docItem);
-
-      // Simpan dokumen ke backend API
       try {
-        await fetch('/api/panitia/technical-meeting/documents', {
+        const fd = new FormData();
+        fd.append('eventId', eventId);
+        fd.append('file', file);
+
+        const res = await fetch('/api/panitia/technical-meeting/documents', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({
-            eventId,
-            document: docItem,
-          }),
+          body: fd,
         });
+        const data = await res.json();
+        if (res.ok && data.success && data.document) {
+          uploadedDocs.push(data.document);
+        } else {
+          alert(data.message || `Gagal mengunggah "${file.name}".`);
+        }
       } catch (err) {
-        console.warn('Backend upload TM doc offline:', err);
+        console.error('Upload TM doc error:', err);
+        alert(`Gagal terhubung ke server saat mengunggah "${file.name}".`);
       }
     }
 
-    if (newDocs.length > 0) {
-      const updated = [...documents, ...newDocs];
+    if (uploadedDocs.length > 0) {
+      const updated = [...documents, ...uploadedDocs];
       setDocuments(updated);
       syncLocalAndEvent(null, updated, null);
-      showToast(`${newDocs.length} dokumen hasil TM berhasil ditambahkan!`);
+      showToast(`${uploadedDocs.length} dokumen hasil TM berhasil diunggah ke Supabase Storage!`);
     }
 
     if (fileInputRef.current) fileInputRef.current.value = '';

@@ -2,17 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
-  CheckCircle,
   X,
-  AlertTriangle,
-  Lock,
   Loader2,
   Mic,
-  MicOff,
   Pause,
   Play,
   Square,
-  RotateCcw,
 } from 'lucide-react';
 
 function pickSupportedAudioMimeType() {
@@ -38,10 +33,10 @@ export default function JuriStepScoring({
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [scores, setScores] = useState(initialScores);
-  const [missingItemsModal, setMissingItemsModal] = useState(null); // array of { index, number, name }
+  const [missingItemsModal, setMissingItemsModal] = useState(null);
   const [confirmSubmitModal, setConfirmSubmitModal] = useState(false);
 
-  // State Rekaman Suara Evaluasi (Mulai dalam kondisi STANDBY + Pause/Resume + Timestamp Marker per Aba-Aba)
+  // State Rekaman Suara Evaluasi (STANDBY + Pause/Resume + Timestamp Marker per Aba-Aba)
   const [recStatus, setRecStatus] = useState('STANDBY'); // 'STANDBY' | 'RECORDING' | 'PAUSED' | 'STOPPED'
   const [recSeconds, setRecSeconds] = useState(0);
   const [recError, setRecError] = useState('');
@@ -54,6 +49,7 @@ export default function JuriStepScoring({
   const activeSecondsRef = useRef(0);
   const markersRef = useRef([]);
   const stopPromiseResolveRef = useRef(null);
+  const autoAdvanceTimerRef = useRef(null);
 
   const currentAbaAba = abaAbaList[currentIndex] || {
     id: `aba-${currentIndex + 1}`,
@@ -72,8 +68,16 @@ export default function JuriStepScoring({
     (sum, item) => sum + (Number(scores[item.id]) || 0),
     0
   );
+  const progressPct =
+    abaAbaList.length > 0 ? Math.round((filledCount / abaAbaList.length) * 100) : 0;
 
-  // Catat marker aba-aba di detik rekaman aktif setiap kali juri membuka aba-aba baru saat merekam
+  const clearAutoAdvance = () => {
+    if (autoAdvanceTimerRef.current) {
+      clearTimeout(autoAdvanceTimerRef.current);
+      autoAdvanceTimerRef.current = null;
+    }
+  };
+
   const recordMarkerForCurrent = (abaItem) => {
     if (!abaItem) return;
     const prev = markersRef.current[markersRef.current.length - 1];
@@ -92,7 +96,6 @@ export default function JuriStepScoring({
     }
   }, [currentIndex, recStatus]);
 
-  // Timer rekaman aktif (otomatis jeda saat PAUSED sehingga timestamp marker tetap presisi)
   useEffect(() => {
     if (recStatus !== 'RECORDING') return;
     const interval = setInterval(() => {
@@ -102,9 +105,9 @@ export default function JuriStepScoring({
     return () => clearInterval(interval);
   }, [recStatus]);
 
-  // Pastikan mikrofon dilepas bersih saat komponen unmount
   useEffect(() => {
     return () => {
+      clearAutoAdvance();
       try {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
           mediaRecorderRef.current.stop();
@@ -132,7 +135,7 @@ export default function JuriStepScoring({
   const handleStartRecording = async () => {
     setRecError('');
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-      setRecError('Browser tidak mendukung perekaman mikrofon.');
+      setRecError('Browser tidak mendukung mikrofon.');
       return;
     }
 
@@ -155,7 +158,7 @@ export default function JuriStepScoring({
       const mimeType = pickSupportedAudioMimeType();
       const recorderOptions = {
         ...(mimeType ? { mimeType } : {}),
-        audioBitsPerSecond: 32000, // ~32 kbps Opus: 5 menit ≈ 1,2 MB (sangat ringan & jernih)
+        audioBitsPerSecond: 32000,
       };
 
       const recorder = new MediaRecorder(stream, recorderOptions);
@@ -188,12 +191,12 @@ export default function JuriStepScoring({
       };
 
       mediaRecorderRef.current = recorder;
-      recorder.start(1000); // flush chunk tiap 1 detik
+      recorder.start(1000);
       setRecStatus('RECORDING');
       recordMarkerForCurrent(currentAbaAba);
     } catch (err) {
       console.error('Failed starting judge mic:', err);
-      setRecError('Izin mikrofon ditolak atau perangkat mic tidak terdeteksi.');
+      setRecError('Izin mikrofon ditolak atau mic tidak terdeteksi.');
       releaseMicStream();
     }
   };
@@ -234,27 +237,38 @@ export default function JuriStepScoring({
     await stopRecordingAndGetAudio();
   };
 
+  // Klik nilai langsung otomatis lanjut ke aba-aba berikutnya (dengan jeda umpan balik visual 180ms)
   const handleSelectScore = (val) => {
     setScores((prev) => ({
       ...prev,
       [currentAbaAba.id]: val,
     }));
+
+    clearAutoAdvance();
+    if (currentIndex < abaAbaList.length - 1) {
+      autoAdvanceTimerRef.current = setTimeout(() => {
+        setCurrentIndex((prev) => (prev < abaAbaList.length - 1 ? prev + 1 : prev));
+        autoAdvanceTimerRef.current = null;
+      }, 180);
+    }
   };
 
   const handlePrev = () => {
+    clearAutoAdvance();
     if (currentIndex > 0) {
       setCurrentIndex((prev) => prev - 1);
     }
   };
 
   const handleNext = () => {
+    clearAutoAdvance();
     if (currentIndex < abaAbaList.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     }
   };
 
-  // Validasi ketat kelengkapan semua aba-aba sebelum submit & kunci nilai
   const handleFinalSubmit = () => {
+    clearAutoAdvance();
     const missing = abaAbaList
       .map((item, idx) => ({
         index: idx,
@@ -280,444 +294,308 @@ export default function JuriStepScoring({
   const isLastAbaAba = currentIndex === abaAbaList.length - 1;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        width: '100vw',
-        height: '100vh',
-        backgroundColor: '#FFFFFF',
-        zIndex: 99999,
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        padding: '1.5rem 2rem',
-        boxSizing: 'border-box',
-        fontFamily: 'var(--font-sans)',
-      }}
-    >
-      {/* 1. Minimal Header (Nama Tim & Progres Saja) */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          width: '100%',
-          maxWidth: '900px',
-          margin: '0 auto',
-          borderBottom: '1px solid #E2E8F0',
-          paddingBottom: '0.85rem',
-        }}
-      >
+    <div className="juri-android-shell">
+      {/* Thin Top Progress Bar */}
+      <div style={{ width: '100%', height: '4px', backgroundColor: '#F1F5F9', flexShrink: 0 }}>
+        <div
+          style={{
+            width: `${progressPct}%`,
+            height: '100%',
+            backgroundColor: progressPct === 100 ? '#059669' : '#DC2626',
+            transition: 'width 0.2s ease',
+          }}
+        />
+      </div>
+
+      {/* 1. Compact Header (Android-First) */}
+      <header className="juri-android-header">
         <button
           type="button"
           onClick={onCancel}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.35rem',
-            background: 'transparent',
-            border: 'none',
-            color: '#64748B',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            padding: '0.35rem 0.6rem',
-            borderRadius: '6px',
-          }}
+          className="juri-back-btn"
           title="Keluar dari lembar penilaian"
         >
           <X size={18} />
-          <span>Kembali</span>
+          <span className="juri-hide-xs">Kembali</span>
         </button>
 
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0F172A' }}>
-            {team?.school || 'SMAN 1 Jakarta'}
+        <div style={{ textAlign: 'center', flex: 1, minWidth: 0, padding: '0 0.5rem' }}>
+          <div
+            style={{
+              fontSize: 'clamp(0.88rem, 3.6vw, 1.02rem)',
+              fontWeight: 800,
+              color: '#0F172A',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {team?.school || 'Kontingen Peserta'}
           </div>
-          <div style={{ fontSize: '0.8rem', color: '#64748B' }}>
-            No. Urut {team?.orderNumber || '01'} • Aba-Aba {currentIndex + 1} dari {abaAbaList.length} •{' '}
+          <div style={{ fontSize: '0.74rem', color: '#64748B', marginTop: '0.1rem' }} className="tabular-nums">
+            Urut {team?.orderNumber || '01'} · No. {currentIndex + 1}/{abaAbaList.length} ·{' '}
             <strong style={{ color: filledCount === abaAbaList.length ? '#059669' : '#B45309' }}>
               Terisi {filledCount}/{abaAbaList.length}
             </strong>
           </div>
         </div>
 
-        <div style={{ minWidth: '100px', textAlign: 'right', fontSize: '0.78rem', fontWeight: 800, color: '#DC2626' }}>
-          {currentAbaAba.category || judge?.category || 'PBB'}
-        </div>
-      </div>
-
-      {/* 1B. BAR REKAMAN SUARA EVALUASI (STANDBY + PAUSE/RESUME + TIMESTAMP MARKER) */}
-      <div
-        style={{
-          width: '100%',
-          maxWidth: '900px',
-          margin: '0.75rem auto 0',
-          padding: '0.55rem 0.9rem',
-          borderRadius: '10px',
-          backgroundColor:
-            recStatus === 'RECORDING'
-              ? '#FEF2F2'
-              : recStatus === 'PAUSED'
-              ? '#FFFBEB'
-              : recStatus === 'STOPPED'
-              ? '#ECFDF5'
-              : '#F8FAFC',
-          border:
-            recStatus === 'RECORDING'
-              ? '1px solid #FECACA'
-              : recStatus === 'PAUSED'
-              ? '1px solid #FDE68A'
-              : recStatus === 'STOPPED'
-              ? '1px solid #A7F3D0'
-              : '1px solid #E2E8F0',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '0.6rem',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', flexWrap: 'wrap' }}>
-          {recStatus === 'RECORDING' ? (
-            <>
-              <span
-                style={{
-                  width: '10px',
-                  height: '10px',
-                  borderRadius: '50%',
-                  backgroundColor: '#DC2626',
-                  display: 'inline-block',
-                }}
-              />
-              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#B91C1C' }} className="tabular-nums">
-                MEREKAM EVALUASI ({formatTimer(recSeconds)})
-              </span>
-              <span style={{ fontSize: '0.725rem', color: '#7F1D1D' }}>
-                • Penanda aba-aba aktif otomatis
-              </span>
-            </>
-          ) : recStatus === 'PAUSED' ? (
-            <>
-              <Pause size={15} color="#B45309" />
-              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#B45309' }} className="tabular-nums">
-                REKAMAN DIJEDA ({formatTimer(recSeconds)})
-              </span>
-            </>
-          ) : recStatus === 'STOPPED' ? (
-            <>
-              <CheckCircle size={15} color="#059669" />
-              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#047857' }} className="tabular-nums">
-                Rekaman Evaluasi Siap ({formatTimer(recSeconds)}) — otomatis diringkas AI setelah submit nilai
-              </span>
-            </>
-          ) : (
-            <>
-              <Mic size={15} color="#7C3AED" />
-              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155' }}>
-                Rekaman Suara Evaluasi (Standby):
-              </span>
-              <span style={{ fontSize: '0.725rem', color: '#64748B' }}>
-                Aktifkan kapan saja untuk merekam koreksi sambil menilai.
-              </span>
-            </>
-          )}
-          {recError && (
-            <span style={{ fontSize: '0.725rem', color: '#DC2626', fontWeight: 600 }}>
-              • {recError}
-            </span>
-          )}
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-          {recStatus === 'STANDBY' && (
-            <button
-              type="button"
-              onClick={handleStartRecording}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                padding: '0.38rem 0.85rem',
-                borderRadius: '9999px',
-                border: 'none',
-                backgroundColor: '#7C3AED',
-                color: '#FFFFFF',
-                fontSize: '0.775rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              <Mic size={14} />
-              <span>Mulai Rekam</span>
-            </button>
-          )}
-
-          {(recStatus === 'RECORDING' || recStatus === 'PAUSED') && (
-            <>
-              <button
-                type="button"
-                onClick={handleTogglePause}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.3rem',
-                  padding: '0.35rem 0.75rem',
-                  borderRadius: '8px',
-                  border: '1px solid #CBD5E1',
-                  backgroundColor: '#FFFFFF',
-                  color: '#0F172A',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                {recStatus === 'RECORDING' ? <Pause size={13} /> : <Play size={13} />}
-                <span>{recStatus === 'RECORDING' ? 'Jeda' : 'Lanjut'}</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleStopRecordingManual}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.3rem',
-                  padding: '0.35rem 0.75rem',
-                  borderRadius: '8px',
-                  border: 'none',
-                  backgroundColor: '#DC2626',
-                  color: '#FFFFFF',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                <Square size={12} fill="#FFFFFF" />
-                <span>Selesai Rekam</span>
-              </button>
-            </>
-          )}
-
-          {recStatus === 'STOPPED' && (
-            <button
-              type="button"
-              onClick={handleStartRecording}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.3rem',
-                padding: '0.32rem 0.7rem',
-                borderRadius: '8px',
-                border: '1px solid #A7F3D0',
-                backgroundColor: '#FFFFFF',
-                color: '#047857',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              <RotateCcw size={12} />
-              <span>Rekam Ulang</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* 2. AREA UTAMA: HANYA NAMA ABA-ABA & BARIS NILAI (SESUAI REVISI USER) */}
-      <div
-        style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '100%',
-          maxWidth: '850px',
-          margin: '0 auto',
-          textAlign: 'center',
-          padding: '1rem 0',
-        }}
-      >
-        {currentAbaAba.category && (
-          <span
-            style={{
-              backgroundColor: '#FFF1F2',
-              color: '#BE123C',
-              border: '1px solid #FECDD3',
-              padding: '0.25rem 0.75rem',
-              borderRadius: '9999px',
-              fontSize: '0.75rem',
-              fontWeight: 800,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              marginBottom: '0.75rem',
-            }}
-          >
-            Kategori: {currentAbaAba.category}
-          </span>
-        )}
-
-        {/* Nama Aba-Aba */}
-        <h1
+        <div
           style={{
-            fontFamily: 'var(--font-heading)',
-            fontSize: '2rem',
+            fontSize: '0.7rem',
             fontWeight: 800,
-            color: '#0F172A',
-            margin: '0 0 0.75rem 0',
-            lineHeight: 1.25,
+            color: '#B91C1C',
+            backgroundColor: '#FEF2F2',
+            border: '1px solid #FECACA',
+            padding: '0.22rem 0.55rem',
+            borderRadius: '9999px',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
           }}
         >
-          {currentAbaAba.name}
-        </h1>
+          {currentAbaAba.category || judge?.category || 'PBB'}
+        </div>
+      </header>
 
-        {(currentAbaAba.desc || currentAbaAba.description) && (
-          <p
-            style={{
-              fontSize: '0.9rem',
-              color: '#64748B',
-              margin: '0 0 2rem 0',
-              maxWidth: '640px',
-              lineHeight: 1.5,
-            }}
-          >
-            {currentAbaAba.desc || currentAbaAba.description}
-          </p>
-        )}
-
-        {/* Baris Kotak Opsi Nilai Dinamis sesuai konfigurasi Admin Panitia */}
-        <div style={{ width: '100%', maxWidth: '820px' }}>
-          <div
-            className="juri-fullscreen-score-grid"
-            style={{
-              gridTemplateColumns: `repeat(${Math.min(Math.max(options.length, 4), 8)}, 1fr)`,
-            }}
-          >
-            {options.map((val) => {
-              const isSelected = currentScore === val;
-              return (
-                <button
-                  key={val}
-                  type="button"
-                  onClick={() => handleSelectScore(val)}
+      {/* 1B. Compact Red Voice Note Bar (Standby / Recording / Paused / Stopped) */}
+      <div className="juri-android-voice-wrap">
+        <div
+          className="juri-android-voice-bar"
+          style={{
+            backgroundColor:
+              recStatus === 'RECORDING'
+                ? '#FEF2F2'
+                : recStatus === 'PAUSED'
+                ? '#FFFBEB'
+                : recStatus === 'STOPPED'
+                ? '#ECFDF5'
+                : '#FFF5F5',
+            borderColor:
+              recStatus === 'RECORDING'
+                ? '#FCA5A5'
+                : recStatus === 'PAUSED'
+                ? '#FDE68A'
+                : recStatus === 'STOPPED'
+                ? '#A7F3D0'
+                : '#FECACA',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
+            {recStatus === 'RECORDING' ? (
+              <>
+                <span
                   style={{
-                    height: '82px',
-                    borderRadius: '14px',
-                    border: '2.5px solid #0F172A',
-                    backgroundColor: isSelected ? '#0F172A' : '#FFFFFF',
-                    color: isSelected ? '#FFFFFF' : '#0F172A',
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: '1.75rem',
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'all 0.12s ease',
-                    transform: isSelected ? 'scale(1.05)' : 'scale(1)',
-                    boxShadow: isSelected
-                      ? '0 8px 20px rgba(15, 23, 42, 0.35)'
-                      : '0 2px 6px rgba(0, 0, 0, 0.04)',
-                    userSelect: 'none',
+                    width: '9px',
+                    height: '9px',
+                    borderRadius: '50%',
+                    backgroundColor: '#DC2626',
+                    flexShrink: 0,
                   }}
-                  className="tabular-nums"
+                />
+                <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#B91C1C' }} className="tabular-nums">
+                  MEREKAM {formatTimer(recSeconds)}
+                </span>
+              </>
+            ) : recStatus === 'PAUSED' ? (
+              <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#B45309' }} className="tabular-nums">
+                DIJEDA ({formatTimer(recSeconds)})
+              </span>
+            ) : recStatus === 'STOPPED' ? (
+              <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#047857' }} className="tabular-nums">
+                Rekaman siap ({formatTimer(recSeconds)}) — otomatis diringkas AI
+              </span>
+            ) : (
+              <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#7F1D1D' }}>
+                Voice Note Juri (Standby)
+              </span>
+            )}
+            {recError && (
+              <span style={{ fontSize: '0.72rem', color: '#DC2626', fontWeight: 600 }}>
+                · {recError}
+              </span>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+            {recStatus === 'STANDBY' && (
+              <button
+                type="button"
+                onClick={handleStartRecording}
+                className="juri-voice-red-btn"
+              >
+                <Mic size={14} />
+                <span>Rekam</span>
+              </button>
+            )}
+
+            {(recStatus === 'RECORDING' || recStatus === 'PAUSED') && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleTogglePause}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.28rem',
+                    minHeight: '36px',
+                    padding: '0.35rem 0.7rem',
+                    borderRadius: '8px',
+                    border: '1px solid #CBD5E1',
+                    backgroundColor: '#FFFFFF',
+                    color: '#0F172A',
+                    fontSize: '0.76rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
                 >
-                  {val}
+                  {recStatus === 'RECORDING' ? <Pause size={13} /> : <Play size={13} />}
+                  <span>{recStatus === 'RECORDING' ? 'Jeda' : 'Lanjut'}</span>
                 </button>
-              );
-            })}
+                <button
+                  type="button"
+                  onClick={handleStopRecordingManual}
+                  className="juri-voice-red-btn"
+                  style={{ borderRadius: '8px' }}
+                >
+                  <Square size={12} fill="#FFFFFF" />
+                  <span>Stop</span>
+                </button>
+              </>
+            )}
+
+            {recStatus === 'STOPPED' && (
+              <button
+                type="button"
+                onClick={handleStartRecording}
+                style={{
+                  minHeight: '34px',
+                  padding: '0.32rem 0.7rem',
+                  borderRadius: '8px',
+                  border: '1px solid #FECACA',
+                  backgroundColor: '#FFFFFF',
+                  color: '#DC2626',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Rekam Ulang
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* 3. Minimal Bottom Navigation: Sebelumnya & Selanjutnya */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          width: '100%',
-          maxWidth: '900px',
-          margin: '0 auto',
-          paddingTop: '1rem',
-          borderTop: '1px solid #E2E8F0',
-        }}
-      >
-        <button
-          type="button"
-          onClick={handlePrev}
-          disabled={currentIndex === 0}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.85rem 1.6rem',
-            borderRadius: '12px',
-            border: '2px solid #E2E8F0',
-            backgroundColor: currentIndex === 0 ? '#F8FAFC' : '#FFFFFF',
-            color: currentIndex === 0 ? '#94A3B8' : '#0F172A',
-            fontSize: '0.95rem',
-            fontWeight: 700,
-            cursor: currentIndex === 0 ? 'not-allowed' : 'pointer',
-            opacity: currentIndex === 0 ? 0.5 : 1,
-          }}
-        >
-          <ChevronLeft size={20} />
-          <span>Sebelumnya</span>
-        </button>
+      {/* 2. Main Scoring Stage (Centered, Scroll-Safe on Android) */}
+      <main className="juri-android-stage">
+        <div className="juri-android-stage-inner">
+          <div
+            style={{
+              fontSize: '0.72rem',
+              fontWeight: 800,
+              color: '#64748B',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              marginBottom: '0.35rem',
+            }}
+            className="tabular-nums"
+          >
+            ABA-ABA {String(currentIndex + 1).padStart(2, '0')} DARI {String(abaAbaList.length).padStart(2, '0')}
+          </div>
 
-        {!isLastAbaAba ? (
-          <button
-            type="button"
-            onClick={handleNext}
+          <h1
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.85rem 2rem',
-              borderRadius: '12px',
-              border: 'none',
-              backgroundColor: '#C94B3C',
-              color: '#FFFFFF',
-              fontSize: '0.95rem',
+              fontFamily: 'var(--font-heading)',
+              fontSize: 'clamp(1.38rem, 5.2vw, 2.05rem)',
               fontWeight: 800,
-              cursor: 'pointer',
-              boxShadow: '0 4px 14px rgba(201, 75, 60, 0.3)',
+              color: '#0F172A',
+              margin: '0 0 0.45rem 0',
+              lineHeight: 1.22,
             }}
           >
-            <span>Selanjutnya</span>
-            <ChevronRight size={20} />
-          </button>
-        ) : (
+            {currentAbaAba.name}
+          </h1>
+
+          {(currentAbaAba.desc || currentAbaAba.description) && (
+            <p
+              style={{
+                fontSize: 'clamp(0.8rem, 3vw, 0.92rem)',
+                color: '#64748B',
+                margin: '0 auto 1.35rem auto',
+                maxWidth: '600px',
+                lineHeight: 1.45,
+              }}
+            >
+              {currentAbaAba.desc || currentAbaAba.description}
+            </p>
+          )}
+
+          {/* Score Tiles Grid (Android-friendly big touch targets) */}
+          <div style={{ width: '100%', maxWidth: '820px', marginTop: (currentAbaAba.desc || currentAbaAba.description) ? 0 : '1.15rem' }}>
+            <div
+              className="juri-fullscreen-score-grid"
+              style={{
+                '--cols-desktop': Math.min(Math.max(options.length, 4), 8),
+              }}
+            >
+              {options.map((val) => {
+                const isSelected = currentScore === val;
+                return (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => handleSelectScore(val)}
+                    className={`juri-score-tile tabular-nums ${isSelected ? 'is-selected' : ''}`}
+                  >
+                    {val}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={{ marginTop: '0.85rem', fontSize: '0.73rem', color: '#94A3B8', fontWeight: 500 }}>
+              {isLastAbaAba
+                ? 'Aba-aba terakhir — pilih nilai lalu tekan Submit & Kunci Nilai di bawah.'
+                : 'Ketuk angka untuk langsung lanjut otomatis ke aba-aba berikutnya.'}
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* 3. Sticky Thumb-Friendly Bottom Navigation */}
+      <footer className="juri-android-footer">
+        <div className="juri-android-footer-inner">
           <button
             type="button"
-            onClick={handleFinalSubmit}
-            disabled={isSubmitting}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.6rem',
-              padding: '0.9rem 2.2rem',
-              borderRadius: '12px',
-              border: 'none',
-              backgroundColor: '#0D9488',
-              color: '#FFFFFF',
-              fontSize: '1rem',
-              fontWeight: 800,
-              cursor: isSubmitting ? 'not-allowed' : 'pointer',
-              opacity: isSubmitting ? 0.7 : 1,
-              boxShadow: '0 4px 16px rgba(13, 148, 136, 0.35)',
-            }}
+            onClick={handlePrev}
+            disabled={currentIndex === 0}
+            className="juri-nav-btn juri-nav-prev"
           >
-            <CheckCircle size={20} />
-            <span>Submit & Kunci Nilai →</span>
+            <ChevronLeft size={19} />
+            <span>Sebelumnya</span>
           </button>
-        )}
-      </div>
+
+          {!isLastAbaAba ? (
+            <button
+              type="button"
+              onClick={handleNext}
+              className="juri-nav-btn juri-nav-next"
+            >
+              <span>Selanjutnya</span>
+              <ChevronRight size={19} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleFinalSubmit}
+              disabled={isSubmitting}
+              className="juri-nav-btn juri-nav-submit"
+            >
+              <span>{isSubmitting ? 'Menyimpan...' : 'Submit & Kunci Nilai'}</span>
+            </button>
+          )}
+        </div>
+      </footer>
 
       {/* POP-UP ALERT: ADA ABA-ABA YANG BELUM TERISI */}
       {missingItemsModal && missingItemsModal.length > 0 && (
@@ -731,80 +609,62 @@ export default function JuriStepScoring({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '1.25rem',
+            padding: '1rem',
           }}
         >
           <div
             style={{
               backgroundColor: '#FFFFFF',
               borderRadius: '16px',
-              maxWidth: '500px',
+              maxWidth: '480px',
               width: '100%',
-              padding: '1.75rem',
+              padding: '1.35rem',
               boxShadow: '0 20px 50px rgba(0, 0, 0, 0.25)',
-              borderTop: '5px solid #DC2626',
+              borderTop: '4px solid #DC2626',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.75rem' }}>
-              <div
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '10px',
-                  backgroundColor: '#FEF2F2',
-                  color: '#DC2626',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                <AlertTriangle size={22} />
-              </div>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0F172A' }}>
-                  Belum Semua Penilaian Terisi!
-                </h3>
-                <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.825rem', color: '#64748B' }}>
-                  Masih ada <strong>{missingItemsModal.length} aba-aba</strong> yang terlewat dan wajib diisi sebelum submit.
-                </p>
-              </div>
-            </div>
+            <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0F172A' }}>
+              Belum Semua Penilaian Terisi
+            </h3>
+            <p style={{ margin: '0.25rem 0 0.9rem 0', fontSize: '0.82rem', color: '#64748B' }}>
+              Masih ada <strong>{missingItemsModal.length} aba-aba</strong> yang terlewat dan wajib diisi sebelum submit.
+            </p>
 
             <div
               style={{
                 backgroundColor: '#FEF2F2',
                 border: '1px solid #FECACA',
                 borderRadius: '10px',
-                padding: '0.85rem 1rem',
-                maxHeight: '220px',
+                padding: '0.8rem 0.95rem',
+                maxHeight: '210px',
                 overflowY: 'auto',
-                marginBottom: '1.25rem',
+                marginBottom: '1.1rem',
               }}
             >
-              <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#991B1B', textTransform: 'uppercase', marginBottom: '0.45rem' }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#991B1B', textTransform: 'uppercase', marginBottom: '0.4rem' }}>
                 Daftar Nomor Aba-Aba yang Kosong:
               </div>
-              <ul style={{ margin: 0, paddingLeft: '1.15rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.85rem', color: '#7F1D1D', fontWeight: 600 }}>
+              <ul style={{ margin: 0, paddingLeft: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.3rem', fontSize: '0.83rem', color: '#7F1D1D', fontWeight: 600 }}>
                 {missingItemsModal.map((m) => (
                   <li key={m.id}>
-                    <strong>Aba-Aba No. {m.number}</strong> — {m.name}
+                    <strong>No. {m.number}</strong> — {m.name}
                   </li>
                 ))}
               </ul>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.6rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.55rem', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 onClick={() => setMissingItemsModal(null)}
                 style={{
-                  padding: '0.65rem 1.1rem',
+                  minHeight: '44px',
+                  padding: '0.6rem 1rem',
                   borderRadius: '10px',
                   border: '1px solid #CBD5E1',
                   backgroundColor: '#FFFFFF',
                   color: '#475569',
-                  fontSize: '0.85rem',
+                  fontSize: '0.84rem',
                   fontWeight: 700,
                   cursor: 'pointer',
                 }}
@@ -819,17 +679,18 @@ export default function JuriStepScoring({
                   setCurrentIndex(firstIdx);
                 }}
                 style={{
-                  padding: '0.65rem 1.25rem',
+                  minHeight: '44px',
+                  padding: '0.6rem 1.15rem',
                   borderRadius: '10px',
                   border: 'none',
                   backgroundColor: '#DC2626',
                   color: '#FFFFFF',
-                  fontSize: '0.85rem',
+                  fontSize: '0.84rem',
                   fontWeight: 800,
                   cursor: 'pointer',
                 }}
               >
-                Lompat ke Aba-Aba No. {missingItemsModal[0].number} →
+                Lompat ke No. {missingItemsModal[0].number}
               </button>
             </div>
           </div>
@@ -848,62 +709,43 @@ export default function JuriStepScoring({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '1.25rem',
+            padding: '1rem',
           }}
         >
           <div
             style={{
               backgroundColor: '#FFFFFF',
               borderRadius: '16px',
-              maxWidth: '480px',
+              maxWidth: '460px',
               width: '100%',
-              padding: '1.75rem',
+              padding: '1.35rem',
               boxShadow: '0 20px 50px rgba(0, 0, 0, 0.25)',
-              borderTop: '5px solid #0D9488',
+              borderTop: '4px solid #0D9488',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.85rem' }}>
-              <div
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '10px',
-                  backgroundColor: '#ECFDF5',
-                  color: '#0D9488',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                <Lock size={20} />
-              </div>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0F172A' }}>
-                  Konfirmasi Submit & Kunci Nilai
-                </h3>
-                <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.825rem', color: '#64748B' }}>
-                  {team?.school} ({team?.teamName})
-                </p>
-              </div>
-            </div>
+            <h3 style={{ margin: 0, fontSize: '1.08rem', fontWeight: 800, color: '#0F172A' }}>
+              Konfirmasi Submit & Kunci Nilai
+            </h3>
+            <p style={{ margin: '0.2rem 0 0.9rem 0', fontSize: '0.82rem', color: '#64748B' }}>
+              {team?.school} ({team?.teamName})
+            </p>
 
             <div
               style={{
                 backgroundColor: '#F8FAFC',
                 border: '1px solid #E2E8F0',
                 borderRadius: '10px',
-                padding: '0.9rem 1rem',
-                marginBottom: '0.9rem',
+                padding: '0.85rem 1rem',
+                marginBottom: '0.85rem',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
               }}
             >
-              <span style={{ fontSize: '0.85rem', color: '#475569', fontWeight: 600 }}>
-                Total Skor ({filledCount}/{abaAbaList.length} Aba-Aba Terisi):
+              <span style={{ fontSize: '0.83rem', color: '#475569', fontWeight: 600 }}>
+                Total Skor ({filledCount}/{abaAbaList.length} Aba-Aba):
               </span>
-              <span style={{ fontSize: '1.35rem', fontWeight: 900, color: '#0D9488' }}>
+              <span className="tabular-nums" style={{ fontSize: '1.3rem', fontWeight: 900, color: '#0D9488' }}>
                 {totalScorePreview} Pts
               </span>
             </div>
@@ -913,14 +755,14 @@ export default function JuriStepScoring({
                 backgroundColor: '#FFFBEB',
                 border: '1px solid #FDE68A',
                 borderRadius: '10px',
-                padding: '0.75rem 0.95rem',
-                fontSize: '0.8rem',
+                padding: '0.7rem 0.9rem',
+                fontSize: '0.78rem',
                 color: '#92400E',
                 lineHeight: 1.5,
-                marginBottom: '1.1rem',
+                marginBottom: '1rem',
               }}
             >
-              <strong>Perhatian Integritas Penilaian:</strong> Setelah disubmit, nilai langsung <strong>terkunci permanen</strong> di database dan tidak dapat diubah oleh Juri. Jika ada kesalahan input/human error, silakan konfirmasi secara lisan kepada <strong>Admin Panitia</strong> untuk melakukan koreksi.
+              <strong>Perhatian Integritas Penilaian:</strong> Setelah disubmit, nilai langsung <strong>terkunci permanen</strong> di database dan tidak dapat diubah oleh Juri. Jika ada kesalahan input, silakan konfirmasi lisan kepada <strong>Admin Panitia</strong>.
             </div>
 
             {submitError && (
@@ -933,25 +775,26 @@ export default function JuriStepScoring({
                   fontSize: '0.8rem',
                   color: '#B91C1C',
                   fontWeight: 600,
-                  marginBottom: '1rem',
+                  marginBottom: '0.9rem',
                 }}
               >
                 {submitError}
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.6rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.55rem', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 disabled={isSubmitting}
                 onClick={() => setConfirmSubmitModal(false)}
                 style={{
-                  padding: '0.65rem 1.1rem',
+                  minHeight: '44px',
+                  padding: '0.6rem 1rem',
                   borderRadius: '10px',
                   border: '1px solid #CBD5E1',
                   backgroundColor: '#FFFFFF',
                   color: '#475569',
-                  fontSize: '0.85rem',
+                  fontSize: '0.84rem',
                   fontWeight: 700,
                   cursor: isSubmitting ? 'not-allowed' : 'pointer',
                 }}
@@ -963,41 +806,245 @@ export default function JuriStepScoring({
                 disabled={isSubmitting}
                 onClick={handleConfirmLockSubmit}
                 style={{
-                  padding: '0.65rem 1.35rem',
+                  minHeight: '44px',
+                  padding: '0.6rem 1.25rem',
                   borderRadius: '10px',
                   border: 'none',
                   backgroundColor: '#0D9488',
                   color: '#FFFFFF',
-                  fontSize: '0.85rem',
+                  fontSize: '0.84rem',
                   fontWeight: 800,
                   cursor: isSubmitting ? 'not-allowed' : 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '0.45rem',
+                  gap: '0.4rem',
                   opacity: isSubmitting ? 0.75 : 1,
                 }}
               >
-                {isSubmitting ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <CheckCircle size={16} />}
-                <span>{isSubmitting ? 'Menyimpan ke Server...' : 'Ya, Submit & Kunci Nilai'}</span>
+                {isSubmitting && <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} />}
+                <span>{isSubmitting ? 'Menyimpan...' : 'Ya, Submit & Kunci'}</span>
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Responsive CSS Grid:
-          - Screen >= 640px (Tablet/Desktop): 1 baris menyamping 8 kolom
-          - Screen < 640px (Mobile): 2 baris x 4 kolom */}
       <style>{`
+        .juri-android-shell {
+          position: fixed;
+          inset: 0;
+          width: 100%;
+          height: 100vh;
+          height: 100dvh;
+          background-color: #FFFFFF;
+          z-index: 99999;
+          display: flex;
+          flex-direction: column;
+          font-family: var(--font-sans);
+          overflow: hidden;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .juri-android-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          width: 100%;
+          max-width: 900px;
+          margin: 0 auto;
+          padding: 0.75rem 1.25rem;
+          border-bottom: 1px solid #E2E8F0;
+          flex-shrink: 0;
+          box-sizing: border-box;
+        }
+        .juri-back-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.3rem;
+          background: transparent;
+          border: none;
+          color: #64748B;
+          font-size: 0.85rem;
+          font-weight: 700;
+          cursor: pointer;
+          padding: 0.4rem 0.5rem;
+          min-height: 40px;
+          border-radius: 8px;
+          flex-shrink: 0;
+        }
+        .juri-android-voice-wrap {
+          width: 100%;
+          max-width: 900px;
+          margin: 0 auto;
+          padding: 0.6rem 1.25rem 0 1.25rem;
+          flex-shrink: 0;
+          box-sizing: border-box;
+        }
+        .juri-android-voice-bar {
+          padding: 0.5rem 0.85rem;
+          border-radius: 12px;
+          border: 1px solid #FECACA;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.55rem;
+          flex-wrap: wrap;
+        }
+        .juri-voice-red-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.35rem;
+          min-height: 36px;
+          padding: 0.38rem 0.9rem;
+          border-radius: 9999px;
+          border: none;
+          background-color: #DC2626;
+          color: #FFFFFF;
+          font-size: 0.78rem;
+          font-weight: 800;
+          cursor: pointer;
+          touch-action: manipulation;
+        }
+        .juri-voice-red-btn:active {
+          background-color: #B91C1C;
+          transform: scale(0.97);
+        }
+        .juri-android-stage {
+          flex: 1;
+          overflow-y: auto;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 1rem 1.25rem;
+          box-sizing: border-box;
+        }
+        .juri-android-stage-inner {
+          width: 100%;
+          max-width: 850px;
+          text-align: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          margin: auto 0;
+        }
         .juri-fullscreen-score-grid {
           display: grid;
-          gap: 1rem;
-          grid-template-columns: repeat(8, 1fr);
+          gap: 0.85rem;
+          grid-template-columns: repeat(var(--cols-desktop, 8), 1fr);
+        }
+        .juri-score-tile {
+          min-height: 78px;
+          border-radius: 14px;
+          border: 2px solid #0F172A;
+          background-color: #FFFFFF;
+          color: #0F172A;
+          font-family: var(--font-sans);
+          font-size: 1.65rem;
+          font-weight: 800;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: transform 0.1s ease, background-color 0.1s ease, color 0.1s ease;
+          user-select: none;
+          touch-action: manipulation;
+        }
+        .juri-score-tile:active {
+          transform: scale(0.95);
+        }
+        .juri-score-tile.is-selected {
+          background-color: #0F172A;
+          color: #FFFFFF;
+          transform: scale(1.03);
+          box-shadow: 0 8px 18px rgba(15, 23, 42, 0.28);
+        }
+        .juri-android-footer {
+          flex-shrink: 0;
+          border-top: 1px solid #E2E8F0;
+          background-color: #FFFFFF;
+          padding: 0.8rem 1.25rem calc(0.85rem + env(safe-area-inset-bottom, 0px)) 1.25rem;
+          box-sizing: border-box;
+        }
+        .juri-android-footer-inner {
+          width: 100%;
+          max-width: 900px;
+          margin: 0 auto;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 0.75rem;
+        }
+        .juri-nav-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.4rem;
+          min-height: 50px;
+          padding: 0.75rem 1.45rem;
+          border-radius: 12px;
+          font-size: 0.92rem;
+          font-weight: 800;
+          cursor: pointer;
+          touch-action: manipulation;
+        }
+        .juri-nav-prev {
+          border: 1.5px solid #CBD5E1;
+          background-color: #FFFFFF;
+          color: #0F172A;
+        }
+        .juri-nav-prev:disabled {
+          background-color: #F8FAFC;
+          color: #94A3B8;
+          cursor: not-allowed;
+          opacity: 0.55;
+        }
+        .juri-nav-next {
+          border: none;
+          background-color: #C94B3C;
+          color: #FFFFFF;
+          box-shadow: 0 4px 12px rgba(201, 75, 60, 0.28);
+        }
+        .juri-nav-submit {
+          border: none;
+          background-color: #0D9488;
+          color: #FFFFFF;
+          box-shadow: 0 4px 14px rgba(13, 148, 136, 0.32);
         }
         @media (max-width: 640px) {
+          .juri-android-header {
+            padding: 0.65rem 0.85rem;
+          }
+          .juri-hide-xs {
+            display: none;
+          }
+          .juri-android-voice-wrap {
+            padding: 0.5rem 0.85rem 0 0.85rem;
+          }
+          .juri-android-stage {
+            padding: 0.85rem 0.9rem;
+          }
           .juri-fullscreen-score-grid {
             grid-template-columns: repeat(4, 1fr) !important;
-            gap: 0.75rem;
+            gap: 0.65rem;
+          }
+          .juri-score-tile {
+            min-height: 66px;
+            font-size: 1.45rem;
+            border-radius: 12px;
+          }
+          .juri-android-footer {
+            padding: 0.7rem 0.85rem calc(0.85rem + env(safe-area-inset-bottom, 0px)) 0.85rem;
+          }
+          .juri-nav-btn {
+            flex: 1;
+            min-height: 52px;
+            padding: 0.75rem 0.9rem;
+            font-size: 0.88rem;
+          }
+        }
+        @media (max-width: 380px) {
+          .juri-fullscreen-score-grid {
+            grid-template-columns: repeat(3, 1fr) !important;
           }
         }
       `}</style>

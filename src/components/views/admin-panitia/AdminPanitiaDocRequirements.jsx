@@ -60,16 +60,7 @@ const DEFAULT_REQUIREMENTS = [
 ];
 
 export default function AdminPanitiaDocRequirements({ eventId = 'evt-lkbb-2026' }) {
-  const [requirements, setRequirements] = useState(() => {
-    try {
-      const saved = localStorage.getItem(`${STORAGE_KEY_REQUIREMENTS}_${eventId}`);
-      if (saved) return JSON.parse(saved);
-      const generalSaved = localStorage.getItem(STORAGE_KEY_REQUIREMENTS);
-      return generalSaved ? JSON.parse(generalSaved) : DEFAULT_REQUIREMENTS;
-    } catch {
-      return DEFAULT_REQUIREMENTS;
-    }
-  });
+  const [requirements, setRequirements] = useState([]);
 
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -91,26 +82,29 @@ export default function AdminPanitiaDocRequirements({ eventId = 'evt-lkbb-2026' 
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // Fetch dari Backend API saat pertama kali atau eventId berubah
+  // Fetch murni dari Backend API sesuai eventId aktif
   useEffect(() => {
+    if (!eventId) return;
+    let cancelled = false;
     const fetchRequirements = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/panitia/document-requirements?eventId=${eventId}`, { credentials: 'include' });
+        const res = await fetch(`/api/panitia/document-requirements?eventId=${encodeURIComponent(eventId)}`, { credentials: 'include' });
         const data = await res.json();
-        if (data.success && Array.isArray(data.requirements) && data.requirements.length > 0) {
+        if (!cancelled && data.success && Array.isArray(data.requirements)) {
           setRequirements(data.requirements);
-          localStorage.setItem(`${STORAGE_KEY_REQUIREMENTS}_${eventId}`, JSON.stringify(data.requirements));
-          localStorage.setItem(STORAGE_KEY_REQUIREMENTS, JSON.stringify(data.requirements));
         }
       } catch (err) {
-        console.warn('Menggunakan fallback data lokal requirements:', err);
+        console.warn('Gagal mengambil persyaratan berkas dari server:', err);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     fetchRequirements();
+    return () => {
+      cancelled = true;
+    };
   }, [eventId]);
 
   // Simpan data ke localStorage dan broadcast custom event

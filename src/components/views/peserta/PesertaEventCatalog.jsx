@@ -165,9 +165,6 @@ export default function PesertaEventCatalog({
           type="button"
           onClick={onGoToProfile}
           style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.5rem',
             padding: '0.6rem 1rem',
             borderRadius: '10px',
             border: '1px solid var(--pub-line)',
@@ -178,8 +175,7 @@ export default function PesertaEventCatalog({
             cursor: 'pointer',
           }}
         >
-          <Users size={16} color="var(--pub-teal)" />
-          <span>Profil Kontingen ({profileMembersCount} Anggota)</span>
+          Profil Kontingen ({profileMembersCount} Anggota)
         </button>
       </div>
 
@@ -198,11 +194,8 @@ export default function PesertaEventCatalog({
             gap: '0.75rem',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#92400E', fontSize: '0.83rem' }}>
-            <Sparkles size={18} color="#D97706" style={{ flexShrink: 0 }} />
-            <span>
-              <strong>Tips Praktis:</strong> Isi dulu <strong>Profil Kontingen & Pas Foto Anggota</strong> sekali saja agar saat daftar event tinggal centang pasukan tanpa upload ulang!
-            </span>
+          <div style={{ color: '#92400E', fontSize: '0.83rem' }}>
+            <strong>Tips Praktis:</strong> Isi dulu <strong>Profil Kontingen & Pas Foto Anggota</strong> sekali saja agar saat daftar event tinggal centang pasukan tanpa upload ulang.
           </div>
           <button
             type="button"
@@ -216,13 +209,9 @@ export default function PesertaEventCatalog({
               fontSize: '0.78rem',
               fontWeight: 700,
               cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.35rem',
             }}
           >
-            <span>Lengkapi Profil Dulu</span>
-            <ArrowRight size={14} />
+            Lengkapi Profil Dulu
           </button>
         </div>
       )}
@@ -350,12 +339,8 @@ export default function PesertaEventCatalog({
                           borderRadius: '9999px',
                           fontSize: '0.68rem',
                           fontWeight: 800,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.25rem',
                         }}
                       >
-                        <CheckCircle2 size={12} />
                         {myRegs.length} Tim Terdaftar
                       </span>
                     )}
@@ -451,15 +436,9 @@ export default function PesertaEventCatalog({
                     </p>
                   )}
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.78rem', color: '#475569' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                      <Calendar size={14} color="var(--pub-coral)" />
-                      <span>{formatEventDate(ev.eventDate)}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                      <MapPin size={14} color="var(--pub-teal)" />
-                      <span>{ev.location || 'Lokasi menyusul'}</span>
-                    </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.78rem', color: '#475569' }}>
+                    <div><strong>Tanggal:</strong> {formatEventDate(ev.eventDate)}</div>
+                    <div><strong>Lokasi:</strong> {ev.location || 'Lokasi menyusul'}</div>
                   </div>
 
                   {myRegs.length > 0 && (
@@ -505,15 +484,10 @@ export default function PesertaEventCatalog({
                         padding: '0.65rem 1rem',
                         fontSize: '0.83rem',
                         fontWeight: 700,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '0.45rem',
                         cursor: 'pointer',
                       }}
                     >
-                      <PlusCircle size={15} />
-                      <span>{myRegs.length > 0 ? 'Daftar Tim Tambahan (Tim B / Lainnya)' : 'Daftar Event Ini'}</span>
+                      {myRegs.length > 0 ? '+ Daftar Tim Tambahan (Tim B / Lainnya)' : 'Daftar Event Ini'}
                     </button>
                   ) : (
                     <button

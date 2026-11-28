@@ -851,7 +851,6 @@ export default function JuriView() {
             animation: 'fadeIn 0.2s ease',
           }}
         >
-          <CheckCircle size={18} color="var(--pub-teal)" />
           <span>{toastMessage}</span>
         </div>
       )}
@@ -872,21 +871,6 @@ export default function JuriView() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <div
-            style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '10px',
-              backgroundColor: '#FFF1F2',
-              color: 'var(--pub-coral)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <UserCheck size={19} />
-          </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '0.925rem', fontWeight: 800, color: 'var(--pub-ink)' }}>
@@ -908,7 +892,6 @@ export default function JuriView() {
             </div>
             <div style={{ fontSize: '0.775rem', color: 'var(--pub-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.15rem' }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontWeight: 600, color: 'var(--pub-ink)' }}>
-                <Calendar size={12} style={{ color: 'var(--pub-coral)' }} />
                 {assignedJuriEvents.length > 1 ? (
                   <select
                     value={activeJuriEvent?.id || selectedEventId}
@@ -979,18 +962,17 @@ export default function JuriView() {
           >
             {criteriaLoading
               ? 'Memuat Aba-Aba...'
-              : `${juriCriteria.length} Aba-Aba • ${isRubricLocked ? 'Terkunci ✓' : 'Draft'}`}
+              : `${juriCriteria.length} Aba-Aba • ${isRubricLocked ? 'Terkunci' : 'Draft'}`}
           </span>
           <button
             type="button"
             onClick={handleRefreshParticipants}
             disabled={participantsLoading}
             className="pub-btn-outline"
-            style={{ fontSize: '0.75rem', padding: '0.28rem 0.6rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+            style={{ fontSize: '0.75rem', padding: '0.28rem 0.65rem' }}
             title="Muat ulang daftar peserta dari server"
           >
-            <RotateCcw size={12} />
-            <span>{participantsLoading ? 'Memuat...' : 'Muat Ulang'}</span>
+            {participantsLoading ? 'Memuat...' : 'Muat Ulang'}
           </button>
           <button
             type="button"
@@ -999,16 +981,12 @@ export default function JuriView() {
             style={{
               fontSize: '0.75rem',
               padding: '0.28rem 0.65rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.35rem',
               color: '#B91C1C',
               borderColor: '#FECACA',
             }}
-            title="Akhiri sesi Juri pada tablet ini"
+            title="Akhiri sesi Juri pada perangkat ini"
           >
-            <LogOut size={12} />
-            <span>Keluar Sesi</span>
+            Keluar Sesi
           </button>
         </div>
       </div>
@@ -1018,50 +996,49 @@ export default function JuriView() {
         style={{
           backgroundColor: 'var(--pub-surface)',
           borderRadius: '16px',
-          padding: '1.75rem',
+          padding: '1.25rem',
           border: '1px solid var(--pub-line)',
           boxShadow: 'var(--pub-shadow-card)',
           display: 'flex',
           flexDirection: 'column',
-          gap: '1.25rem',
+          gap: '1.15rem',
         }}
       >
-        {/* DROPDOWN KATEGORI JENJANG (SD / SMP / SMA / PURNA) - SESUAI ARAHAN USER */}
+        {/* DROPDOWN KATEGORI JENJANG */}
         <div
           style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
             flexWrap: 'wrap',
-            gap: '1rem',
-            paddingBottom: '1.25rem',
+            gap: '0.9rem',
+            paddingBottom: '1rem',
             borderBottom: '1px solid var(--pub-line)',
           }}
         >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--pub-coral)', fontWeight: 800, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              <Filter size={14} />
-              <span>PILIH TINGKATAN / JENJANG PERLOMBAAN HARI INI</span>
+            <div style={{ color: 'var(--pub-coral)', fontWeight: 800, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              TINGKATAN / JENJANG PERLOMBAAN
             </div>
-            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.35rem', fontWeight: 800, color: 'var(--pub-ink)', margin: '0.25rem 0 0.15rem 0' }}>
+            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', fontWeight: 800, color: 'var(--pub-ink)', margin: '0.2rem 0 0.15rem 0' }}>
               Daftar Pasukan & Status Penilaian Lapangan
             </h2>
-            <p style={{ fontSize: '0.825rem', color: 'var(--pub-muted)', margin: 0 }}>
+            <p style={{ fontSize: '0.82rem', color: 'var(--pub-muted)', margin: 0 }}>
               Event penugasan: <strong style={{ color: 'var(--pub-ink)' }}>{currentEventSubtitle}</strong>
             </p>
           </div>
 
-          {/* Large Dropdown Selector Kategori / Jenjang Dinamis */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--pub-ink)' }}>
+          {/* Dropdown Selector Kategori */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--pub-ink)' }}>
               Kategori:
             </span>
             <select
               value={selectedLevel}
               onChange={(e) => setSelectedLevel(e.target.value)}
               style={{
-                padding: '0.65rem 1.15rem',
-                fontSize: '0.925rem',
+                padding: '0.55rem 0.95rem',
+                fontSize: '0.88rem',
                 fontWeight: 800,
                 borderRadius: '10px',
                 border: '2px solid var(--pub-coral)',
@@ -1069,7 +1046,6 @@ export default function JuriView() {
                 color: 'var(--pub-ink)',
                 cursor: 'pointer',
                 outline: 'none',
-                boxShadow: '0 2px 8px rgba(201, 75, 60, 0.15)',
               }}
             >
               <option value="ALL">
@@ -1089,44 +1065,36 @@ export default function JuriView() {
           style={{
             backgroundColor: '#F8FAFC',
             borderRadius: '10px',
-            padding: '0.75rem 1rem',
+            padding: '0.7rem 0.95rem',
             border: '1px solid #E2E8F0',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
             gap: '0.5rem',
-            fontSize: '0.8rem',
+            fontSize: '0.78rem',
             color: 'var(--pub-ink)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Lock size={15} color="var(--pub-coral)" />
-            <span>
-              <strong>Aturan Locking Flow Penjurian:</strong> Penilaian dewan juri hanya dapat dimulai saat pasukan telah berada di <strong>POS 04 (Arena Lapangan)</strong> dan petugas DP 04 telah mengklik tombol <strong>"Buka Penilaian Juri"</strong>.
-            </span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <span>
+            <strong>Aturan Locking:</strong> Penilaian hanya terbuka saat pasukan berada di <strong>POS 04</strong> dan petugas DP 04 mengklik <strong>"Buka Penilaian Juri"</strong>.
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
             <span
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                fontSize: '0.725rem',
+                fontSize: '0.72rem',
                 fontWeight: 700,
                 color: '#047857',
                 backgroundColor: '#ECFDF5',
                 border: '1px solid #A7F3D0',
-                padding: '0.2rem 0.55rem',
+                padding: '0.18rem 0.55rem',
                 borderRadius: '9999px',
               }}
-              title="Sinkronisasi otomatis setiap 3 detik dengan Petugas Pos DP 04"
             >
-              <Radio size={12} />
-              <span>Live Sync 3d{lastLiveSync ? ` • ${lastLiveSync}` : ''}</span>
+              Live Sync 3d{lastLiveSync ? ` · ${lastLiveSync}` : ''}
             </span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--pub-muted)', fontWeight: 600 }}>
-              Total: {filteredParticipants.length} Pasukan Terdaftar
+            <span style={{ fontSize: '0.74rem', color: 'var(--pub-muted)', fontWeight: 600 }}>
+              Total: {filteredParticipants.length} Pasukan
             </span>
           </div>
         </div>
@@ -1585,8 +1553,8 @@ export default function JuriView() {
             {(viewingTeam.scoreData?.feedback || viewingTeam.scoreData?.audioStorageUrl) && (
               <div
                 style={{
-                  backgroundColor: '#FAF5FF',
-                  border: '1px solid #E9D5FF',
+                  backgroundColor: '#FEF2F2',
+                  border: '1px solid #FECACA',
                   borderRadius: '10px',
                   padding: '0.85rem 1rem',
                   marginBottom: '1rem',
@@ -1595,7 +1563,7 @@ export default function JuriView() {
                   gap: '0.6rem',
                 }}
               >
-                <div style={{ fontSize: '0.725rem', fontWeight: 800, color: '#6D28D9', textTransform: 'uppercase' }}>
+                <div style={{ fontSize: '0.725rem', fontWeight: 800, color: '#B91C1C', textTransform: 'uppercase' }}>
                   Evaluasi & Rekaman Suara Dewan Juri:
                 </div>
                 {viewingTeam.scoreData?.audioStorageUrl && (
@@ -1606,7 +1574,7 @@ export default function JuriView() {
                   />
                 )}
                 {viewingTeam.scoreData?.feedback && (
-                  <p style={{ margin: 0, fontSize: '0.825rem', color: '#3B0764', lineHeight: 1.5, whiteSpace: 'pre-line' }}>
+                  <p style={{ margin: 0, fontSize: '0.825rem', color: '#450A0A', lineHeight: 1.5, whiteSpace: 'pre-line' }}>
                     {viewingTeam.scoreData.feedback}
                   </p>
                 )}

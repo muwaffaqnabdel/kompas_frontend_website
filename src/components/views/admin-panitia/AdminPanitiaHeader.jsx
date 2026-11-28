@@ -128,20 +128,17 @@ export default function AdminPanitiaHeader({
           {eventName}
         </h1>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', fontSize: '0.825rem', color: 'var(--pub-muted)' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-            <MapPin size={13} color="var(--pub-coral)" />
-            <span>{eventLocation}</span>
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-            <Calendar size={13} color="var(--pub-teal)" />
-            <span>{eventDateStr}</span>
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', fontSize: '0.825rem', color: 'var(--pub-muted)' }}>
+          <span>{eventLocation}</span>
+          <span>·</span>
+          <span>{eventDateStr}</span>
           {currentEvent?.adminPanitia && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--pub-teal)', fontWeight: 600 }}>
-              <ShieldCheck size={13} />
-              <span>PIC: {currentEvent.adminPanitia.fullName}</span>
-            </span>
+            <>
+              <span>·</span>
+              <span style={{ color: 'var(--pub-teal)', fontWeight: 600 }}>
+                PIC: {currentEvent.adminPanitia.fullName}
+              </span>
+            </>
           )}
         </div>
       </div>

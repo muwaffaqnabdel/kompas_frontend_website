@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { CheckCircle2, X, Users, FileText } from 'lucide-react';
 import AdminPanitiaHeader from './admin-panitia/AdminPanitiaHeader';
 import AdminPanitiaEventSettings from './admin-panitia/AdminPanitiaEventSettings';
+import AdminPanitiaTimelineConfig from './admin-panitia/AdminPanitiaTimelineConfig';
 import AdminPanitiaReadiness from './admin-panitia/AdminPanitiaReadiness';
 import AdminPanitiaDPConfig from './admin-panitia/AdminPanitiaDPConfig';
 import AdminPanitiaJudgesConfig from './admin-panitia/AdminPanitiaJudgesConfig';
@@ -21,6 +22,7 @@ export default function AdminPanitiaView({ activeTab = 'dashboard' }) {
   const [selectedEventId, setSelectedEventId] = useState('');
   const [currentEvent, setCurrentEvent] = useState(null);
   const [notification, setNotification] = useState(null);
+  const [dashboardSubTab, setDashboardSubTab] = useState('settings'); // 'settings' | 'timeline'
   const [participantSubTab, setParticipantSubTab] = useState('list'); // 'list' | 'requirements'
 
   const [dpFlowLocked, setDpFlowLocked] = useState(false);
@@ -175,11 +177,73 @@ export default function AdminPanitiaView({ activeTab = 'dashboard' }) {
 
       {/* 2. Content View Based on activeTab */}
       {activeTab === 'dashboard' && (
-        <AdminPanitiaEventSettings
-          currentEvent={currentEvent}
-          onUpdateEvent={handleUpdateEvent}
-          eventId={selectedEventId}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {/* Sub-Tab Navigation: Detail & Banner Lomba vs Timeline Tahapan Lomba */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              backgroundColor: 'var(--pub-surface)',
+              padding: '0.4rem',
+              borderRadius: '12px',
+              border: '1px solid var(--pub-line)',
+              width: 'fit-content',
+              boxShadow: 'var(--pub-shadow-card)',
+              flexWrap: 'wrap',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setDashboardSubTab('settings')}
+              style={{
+                padding: '0.55rem 1.15rem',
+                borderRadius: '8px',
+                border: 'none',
+                backgroundColor: dashboardSubTab === 'settings' ? 'var(--pub-coral)' : 'transparent',
+                color: dashboardSubTab === 'settings' ? '#FFFFFF' : 'var(--pub-muted)',
+                fontSize: '0.825rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              Detail & Banner Lomba
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setDashboardSubTab('timeline')}
+              style={{
+                padding: '0.55rem 1.15rem',
+                borderRadius: '8px',
+                border: 'none',
+                backgroundColor: dashboardSubTab === 'timeline' ? 'var(--pub-coral)' : 'transparent',
+                color: dashboardSubTab === 'timeline' ? '#FFFFFF' : 'var(--pub-muted)',
+                fontSize: '0.825rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              Timeline Tahapan Lomba
+            </button>
+          </div>
+
+          {dashboardSubTab === 'settings' ? (
+            <AdminPanitiaEventSettings
+              currentEvent={currentEvent}
+              onUpdateEvent={handleUpdateEvent}
+              eventId={selectedEventId}
+            />
+          ) : (
+            <AdminPanitiaTimelineConfig
+              currentEvent={currentEvent}
+              onUpdateEvent={handleUpdateEvent}
+              eventId={selectedEventId}
+            />
+          )}
+        </div>
       )}
 
       {activeTab === 'participants' && (

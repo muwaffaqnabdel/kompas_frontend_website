@@ -122,9 +122,7 @@ export default function PanitiaDPView({ activeTab = 'workstation' }) {
   const [notification, setNotification] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState(() => new Date().toLocaleTimeString('id-ID') + ' WIB');
-  const [participants, setParticipants] = useState(
-    selectedEventId === FORDA_EVENT_ID ? DEFAULT_FORDA_PARTICIPANTS : []
-  );
+  const [participants, setParticipants] = useState([]);
 
   // Synchronized Flow State across Pos 1 -> 2 -> 3 -> 4 & Juri
   const [flowState, setFlowState] = useState(() => {
@@ -346,51 +344,32 @@ export default function PanitiaDPView({ activeTab = 'workstation' }) {
     return () => clearInterval(timer);
   }, [selectedEventId, posIndex]);
 
-  // Ambil data peserta event untuk Pos DP Pengecekan Dokumen
+  // Ambil data peserta event TERVALIDASI untuk Pos DP Pengecekan Dokumen (100% DB)
   useEffect(() => {
     const fetchParticipants = async () => {
       try {
-        const res = await fetch(`/api/dp/doc-check/participants?eventId=${selectedEventId}`);
+        const res = await fetch(
+          `/api/dp/doc-check/participants?eventId=${encodeURIComponent(selectedEventId)}`,
+          { credentials: 'include' }
+        );
         const data = await res.json();
-        if (data.success && Array.isArray(data.participants) && data.participants.length > 0) {
+        if (res.ok && data.success && Array.isArray(data.participants)) {
           setParticipants(data.participants);
           return;
         }
       } catch (err) {
-        console.warn('API Doc Check offline, cek fallback:', err);
+        console.warn('API Doc Check offline:', err);
       }
-
-      // Fallback ke data FORDA atau localStorage
-      if (selectedEventId === FORDA_EVENT_ID) {
-        setParticipants(DEFAULT_FORDA_PARTICIPANTS);
-        return;
-      }
-
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY_PARTICIPANTS);
-        if (saved) {
-          const list = JSON.parse(saved);
-          setParticipants(
-            list.map((p) => ({
-              id: p.id,
-              queueNumber: p.teamNumber?.includes('/') ? p.teamNumber.split('/')[0].trim() : '01',
-              teamName: p.teamName,
-              schoolName: p.school,
-              status: p.isComplete ? 'VALIDATED' : 'REVISION_REQUIRED',
-              docsCount: p.docsSummary || '3/3 Lengkap',
-              documents: p.documents || [],
-            }))
-          );
-        }
-      } catch (e) {
-        console.error(e);
-      }
+      setParticipants([]);
     };
 
     fetchParticipants();
-
+    const poll = setInterval(fetchParticipants, 6000);
     window.addEventListener('kompas_participants_updated', fetchParticipants);
-    return () => window.removeEventListener('kompas_participants_updated', fetchParticipants);
+    return () => {
+      clearInterval(poll);
+      window.removeEventListener('kompas_participants_updated', fetchParticipants);
+    };
   }, [selectedEventId]);
 
   // Nama Event
